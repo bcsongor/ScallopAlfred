@@ -423,22 +423,28 @@ test("hovered spells use their link and exclude equipment actions", () => {
     C_Item.GetItemInfoInstant = function() error("Spells have no equipment slot") end
     ScallopAlfred_Ask()
     assert(not pcall(choose, "Is it an upgrade?"))
-    choose("What's this for?")
+    choose("How does this spell work?")
   `);
   assert.equal(game.payload().subjects[0].type, "spell");
   assert.equal(game.payload().subjects[0].name, "Rejuvenation");
   assert.equal(game.payload().subjects[0].link, "spell:774");
+  assert.equal(game.payload().question, "How does this spell work?");
   assert.deepEqual(game.payload().equipped, []);
 });
 
 test("hovered quests, currencies and achievements retain their ID, name and tooltip", () => {
-  for (const [kind, enumName] of [["quest", "Quest"], ["currency", "Currency"], ["achievement", "Achievement"]]) {
+  for (const [kind, enumName, question, caption] of [
+    ["quest", "Quest", "How do I complete this quest?", "|A:QuestNormal:16:16|a |cffffff00Example|r"],
+    ["currency", "Currency", "How do I earn and spend this currency?", "Example"],
+    ["achievement", "Achievement", "How do I earn this achievement?", "Example"],
+  ]) {
     const game = addon();
     game.execute(`
       noItem = true
       tooltipData = { type = Enum.TooltipDataType.${enumName}, id = 123, lines = { { leftText = "Example" }, { leftText = "Details" } } }
-      ScallopAlfred_Ask(); choose("What's this for?")
+      ScallopAlfred_Ask(); caption = widgets[1].text; choose("${question}")
     `);
+    assert.equal(game.value("caption"), caption);
     assert.deepEqual(game.payload().subjects, [{ type: kind, name: "Example", link: `${kind}:123`, tooltip: ["Example", "Details"] }]);
     assert.deepEqual(game.payload().equipped, []);
   }
@@ -449,8 +455,9 @@ test("hovered quest log entries use the quest ID on the tooltip's owner", () => 
   game.execute(`
     noItem = true
     tooltipOwner = { questID = 456 }
-    ScallopAlfred_Ask(); choose("What's this for?")
+    ScallopAlfred_Ask(); caption = widgets[1].text; choose("How do I complete this quest?")
   `);
+  assert.equal(game.value("caption"), "|A:QuestNormal:16:16|a |cffffff00Quest 456|r");
   const [subject] = game.payload().subjects;
   assert.deepEqual({ type: subject.type, name: subject.name, link: subject.link }, { type: "quest", name: "Quest 456", link: "quest:456" });
   assert.ok(subject.tooltip.length > 0);
@@ -462,7 +469,7 @@ test("hovered hyperlinks preserve parameters and ignore stale hidden tooltips", 
   const game = addon();
   game.execute(`
     tooltipInfo = { getterName = "GetHyperlink", getterArgs = { "|Hbattlepet:123:25:3|h[Pet]|h" } }
-    ScallopAlfred_Ask(); choose("What's this for?")
+    ScallopAlfred_Ask(); choose("Tell me about this.")
   `);
   assert.equal(game.payload().subjects[0].link, "battlepet:123:25:3");
   assert.equal(game.payload().subjects[0].name, "Pet");

@@ -212,10 +212,22 @@ end
 -- DIALOG
 --
 
+local defaultQuestions = {
+    item = "What's this for?",
+    quest = "How do I complete this quest?",
+    spell = "How does this spell work?",
+    achievement = "How do I earn this achievement?",
+    currency = "How do I earn and spend this currency?",
+}
+
+local function defaultQuestion(subject)
+    return defaultQuestions[subject.type] or "Tell me about this."
+end
+
 -- Subject presets ask straight away, custom opens the editor for the hovered subject,
--- and topics open it without a subject.
+-- and topics open it without a subject. A preset's text can depend on the subject.
 local presets = {
-    { kind = "subject", text = "What's this for?" },
+    { kind = "subject", text = defaultQuestion },
     { kind = "subject", text = "Is it an upgrade?", itemOnly = true, category = "gear" },
     { kind = "subject", text = "Keep, sell or disenchant?", itemOnly = true },
     { kind = "subject", text = "Where does it drop?", itemOnly = true },
@@ -236,6 +248,10 @@ end
 local function presetAvailable(preset, subject)
     if preset.kind == "topic" then return subject == nil end
     return subject ~= nil and (not preset.itemOnly or subject.type == "item")
+end
+
+local function presetText(preset, subject)
+    return type(preset.text) == "function" and preset.text(subject) or preset.text
 end
 
 local dialog = CreateFrame("Frame", "ScallopAlfredDialog", UIParent, "BasicFrameTemplateWithInset")
@@ -274,14 +290,19 @@ hint:SetJustifyH("LEFT")
 
 local buttons = {}
 
+-- Quests show the quest-giver mark and quest-link yellow; items use their quality colour.
 local function subjectTitle()
-    if not selectedSubject then return "Ask Scallop Alfred about World of Warcraft" end
-    if selectedSubject.type == "item" then
-        local _, _, quality = C_Item.GetItemInfo(selectedSubject.link)
-        local colour = Public(quality, "number") and ITEM_QUALITY_COLORS[quality]
-        if colour then return colour.color:WrapTextInColorCode(selectedSubject.name) end
+    local subject = selectedSubject
+    if not subject then return "Ask Scallop Alfred about World of Warcraft" end
+    if subject.type == "quest" then
+        return CreateAtlasMarkup("QuestNormal", 16, 16) .. " " .. YELLOW_FONT_COLOR:WrapTextInColorCode(subject.name)
     end
-    return selectedSubject.name
+    if subject.type == "item" then
+        local _, _, quality = C_Item.GetItemInfo(subject.link)
+        local colour = Public(quality, "number") and ITEM_QUALITY_COLORS[quality]
+        if colour then return colour.color:WrapTextInColorCode(subject.name) end
+    end
+    return subject.name
 end
 
 local function showEditor(title, instructions)
@@ -332,7 +353,6 @@ end)
 for index, preset in ipairs(presets) do
     local button = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
     button:SetHeight(28)
-    button:SetText(preset.text)
     if preset.kind == "custom" then
         for _, region in ipairs({ button:GetRegions() }) do
             if region:IsObjectType("Texture") then region:SetDesaturated(true) end
@@ -340,7 +360,7 @@ for index, preset in ipairs(presets) do
     end
     button:SetScript("OnClick", function()
         if preset.kind == "subject" then
-            sendQuestion(preset.text, selectedSubject, preset.category)
+            sendQuestion(presetText(preset, selectedSubject), selectedSubject, preset.category)
         elseif preset.kind == "custom" then
             openEditor(subjectTitle())
         else
@@ -362,8 +382,10 @@ function ScallopAlfred_Ask()
     edit:ClearFocus()
     local shown = 0
     for index, button in ipairs(buttons) do
+        local preset = presets[index]
         button:Hide()
-        if presetAvailable(presets[index], selectedSubject) then
+        if presetAvailable(preset, selectedSubject) then
+            button:SetText(presetText(preset, selectedSubject))
             button:ClearAllPoints()
             button:SetPoint("TOPLEFT", 20, -70 - shown * 34)
             button:SetPoint("RIGHT", -20, 0)
