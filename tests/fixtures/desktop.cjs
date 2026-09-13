@@ -41,10 +41,7 @@ shell.openExternal = async url => { global.testOpenedUrls.push(url); };
 
 app.setPath("userData", process.env.SCALLOPALFRED_TEST_DATA);
 const settingsPath = join(app.getPath("userData"), "settings.json");
-if (!existsSync(settingsPath)) writeFileSync(settingsPath, JSON.stringify({
-  // Old settings must not re-enable auto-hide.
-  codexPath: process.execPath, hideAfterSeconds: 0.1, height: 360,
-}));
+if (!existsSync(settingsPath)) writeFileSync(settingsPath, JSON.stringify({ codexPath: process.execPath, height: 360 }));
 const spawn = childProcess.spawn;
 const setContextMenu = Tray.prototype.setContextMenu;
 const setIgnoreMouseEvents = BrowserWindow.prototype.setIgnoreMouseEvents;

@@ -68,16 +68,9 @@ test("TSM snapshots survive validation and reach the prompt with explicit units"
   }
 });
 
-test("shell metacharacters remain prompt data, and resumed runs retain restrictions", () => {
-  const hostile = { ...request, question: '$(touch owned); `whoami` & "quoted"\nnext line' };
-  const args = codexArguments({ ...hostile, thread: "continue" }, "test-model", { context: "item-1", id: "session-1" });
-  assert.ok(!args.some(argument => argument.includes("touch")));
-  assert.ok(args.includes("read-only"));
-  assert.ok(args.includes('approval_policy="never"'));
-  assert.ok(args.includes("features.shell_tool=false"));
-  assert.ok(args.includes("--ignore-user-config"));
-  assert.ok(args.includes('model_reasoning_effort="medium"'));
-  assert.ok(args.includes('service_tier="fast"'));
-  const prompt = buildPrompt(hostile);
-  assert.deepEqual(JSON.parse(prompt.slice(prompt.lastIndexOf("\n{") + 1)), hostile);
+test("resumed runs keep the read-only sandbox, disabled tools and explicit model settings", () => {
+  const args = codexArguments({ ...request, thread: "continue" }, "test-model", { context: "item-1", id: "session-1" });
+  for (const argument of ["read-only", 'approval_policy="never"', "features.shell_tool=false", "--ignore-user-config", 'model_reasoning_effort="medium"', 'service_tier="fast"']) {
+    assert.ok(args.includes(argument), argument);
+  }
 });

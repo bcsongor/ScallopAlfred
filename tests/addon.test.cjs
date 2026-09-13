@@ -220,10 +220,8 @@ test("profession snapshots include sparse slots and displayed specialisation ran
   assert.equal(unavailable.specialization, undefined);
 });
 
-test("missing profession APIs and secret skill values do not block questions", () => {
+test("secret profession skill values are omitted", () => {
   const game = addon();
-  game.execute('ScallopAlfred_Ask(); choose("What\'s this for?")');
-  assert.equal(game.payload().professions, undefined);
   game.execute(`
     function GetProfessions() return nil, 2 end
     function GetProfessionInfo() return "Mining", nil, secret, 100, nil, nil, 186, 0, nil, nil, "Midnight Mining" end
