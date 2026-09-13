@@ -2,6 +2,7 @@ const { ipcRenderer } = require("electron");
 
 /** @typedef {import("./ipc.ts").ToOverlay} ToOverlay */
 /** @typedef {import("./ipc.ts").FromOverlay} FromOverlay */
+/** @typedef {import("./ipc.ts").OverlayRequests} OverlayRequests */
 
 /** @type {<K extends keyof FromOverlay>(channel: K, ...message: import("./ipc.ts").MessageArgs<FromOverlay, K>) => void} */
 const send = (channel, ...message) => ipcRenderer.send(channel, ...message);
@@ -10,6 +11,25 @@ const send = (channel, ...message) => ipcRenderer.send(channel, ...message);
 const on = (channel, listener) => {
   ipcRenderer.on(channel, (_event, message) => listener(message));
 };
+
+/** @type {<K extends keyof OverlayRequests>(channel: K, message: OverlayRequests[K]["message"]) => Promise<OverlayRequests[K]["result"]>} */
+const invoke = (channel, message) => ipcRenderer.invoke(channel, message);
+
+/**
+ * Creates an element with properties, data attributes and children.
+ * @template {keyof HTMLElementTagNameMap} K
+ * @param {K} tag
+ * @param {Partial<Omit<HTMLElementTagNameMap[K], "dataset">> & { dataset?: Record<string, string> }} [properties]
+ * @param {...(Node | string)} children
+ * @returns {HTMLElementTagNameMap[K]}
+ */
+function h(tag, properties = {}, ...children) {
+  const { dataset = {}, ...rest } = properties;
+  const element = Object.assign(document.createElement(tag), rest);
+  Object.assign(element.dataset, dataset);
+  element.append(...children);
+  return element;
+}
 
 /**
  * @template {HTMLElement} T
@@ -60,6 +80,79 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   const nearBottom = () => answer.scrollHeight - answer.scrollTop - answer.clientHeight < 24;
+
+  /**
+   * @param {string} text
+   * @param {boolean} backVisible
+   * @param {string} status
+   * @param {number} fontSize
+   */
+  function setFrame(text, backVisible, status, fontSize) {
+    title.textContent = text;
+    title.title = text;
+    back.hidden = !backVisible;
+    document.body.dataset.status = status;
+    document.body.style.fontSize = `${fontSize}px`;
+  }
+
+  /** @param {import("./history.ts").ConversationSummary} conversation */
+  function historyRow(conversation) {
+    const date = new Date(conversation.updatedAt);
+    const preview = conversation.question === conversation.title
+      ? []
+      : [h("span", { className: "conversation-preview", textContent: conversation.question })];
+    return h("div", { className: "conversation-row" },
+      h("button", { type: "button", className: "conversation", dataset: { conversation: conversation.id } },
+        h("span", { className: "conversation-title", textContent: conversation.title }),
+        ...preview,
+        h("time", { dateTime: date.toISOString(), textContent: date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) }),
+      ),
+      h("button", {
+        type: "button",
+        className: "archive-conversation",
+        title: "Archive thread",
+        ariaLabel: `Archive thread: ${conversation.title}`,
+        dataset: { archiveConversation: conversation.id },
+      }, archiveIcon.content.cloneNode(true)),
+    );
+  }
+
+  /** @param {import("./history.ts").ArchivedConversationSummary} conversation */
+  function archivedRow(conversation) {
+    return h("button", {
+      type: "button",
+      className: "archived-conversation",
+      title: conversation.title,
+      textContent: conversation.title,
+      dataset: { conversation: conversation.id },
+    });
+  }
+
+  /** @param {HTMLAnchorElement} link */
+  function addFavicon(link) {
+    invoke("favicon", link.getAttribute("href") ?? "").then(src => {
+      if (src === undefined || !link.isConnected) return;
+      const icon = h("img", { className: "favicon", alt: "", width: 16, height: 16 });
+      icon.addEventListener("error", () => icon.remove(), { once: true });
+      icon.addEventListener("load", () => {
+        if (nearBottom()) answer.scrollTop = answer.scrollHeight;
+      }, { once: true });
+      icon.src = src;
+      link.prepend(icon);
+    }).catch(() => { /* The link remains usable without its icon. */ });
+  }
+
+  /** @param {ToOverlay["thread"]["turns"][number]} turn */
+  function turnSection(turn) {
+    const response = h("div", { className: "response", role: "group", ariaLabel: "Scallop Alfred's reply" });
+    if (turn.html !== null) response.innerHTML = turn.html;
+    else response.textContent = turn.status === "thinking" ? "Thinking…" : turn.text;
+    response.querySelectorAll("a").forEach(addFavicon);
+    return h("section", { className: "turn", dataset: { status: turn.status } },
+      h("div", { className: "question", role: "group", ariaLabel: "Your question", textContent: turn.question }),
+      response,
+    );
+  }
 
   element("hide", HTMLButtonElement).addEventListener("click", () => send("hide-overlay"));
   back.addEventListener("click", () => send("show-history"));
@@ -133,49 +226,6 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  /** @param {string} text @param {boolean} backVisible @param {string} status @param {number} fontSize */
-  function setFrame(text, backVisible, status, fontSize) {
-    title.textContent = text;
-    title.title = text;
-    back.hidden = !backVisible;
-    document.body.dataset.status = status;
-    document.body.style.fontSize = `${fontSize}px`;
-  }
-
-  /** @param {import("./history.ts").ConversationSummary} conversation */
-  function historyRow(conversation) {
-    const row = document.createElement("div");
-    row.className = "conversation-row";
-    const entry = document.createElement("button");
-    entry.type = "button";
-    entry.className = "conversation";
-    entry.dataset.conversation = conversation.id;
-    const name = document.createElement("span");
-    name.className = "conversation-title";
-    name.textContent = conversation.title;
-    entry.append(name);
-    if (conversation.question !== conversation.title) {
-      const preview = document.createElement("span");
-      preview.className = "conversation-preview";
-      preview.textContent = conversation.question;
-      entry.append(preview);
-    }
-    const time = document.createElement("time");
-    const date = new Date(conversation.updatedAt);
-    time.dateTime = date.toISOString();
-    time.textContent = date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-    entry.append(time);
-    const archive = document.createElement("button");
-    archive.type = "button";
-    archive.className = "archive-conversation";
-    archive.dataset.archiveConversation = conversation.id;
-    archive.title = "Archive thread";
-    archive.setAttribute("aria-label", `Archive thread: ${conversation.title}`);
-    archive.append(archiveIcon.content.cloneNode(true));
-    row.append(entry, archive);
-    return row;
-  }
-
   on("history", ({ conversations, archived, fontSize }) => {
     const scrollTop = answer.querySelector(".active-conversations")?.scrollTop ?? 0;
     const archivedScrollTop = answer.querySelector(".archived-conversations")?.scrollTop ?? 0;
@@ -184,93 +234,33 @@ window.addEventListener("DOMContentLoaded", () => {
     form.hidden = true;
     bar.hidden = false;
     latestTurn = undefined;
-    answer.setAttribute("role", "region");
-    answer.setAttribute("aria-label", "Thread history");
+    answer.role = "region";
+    answer.ariaLabel = "Thread history";
 
-    const activeList = document.createElement("div");
-    activeList.className = "active-conversations";
-    activeList.append(...conversations.map(historyRow));
-    if (!conversations.length && !archived.length) {
-      const empty = document.createElement("p");
-      empty.textContent = "No threads yet. Press Alt+Q in WoW to ask a question.";
-      activeList.append(empty);
-    }
-    answer.replaceChildren(activeList);
-
-    if (archived.length) {
-      const section = document.createElement("section");
-      section.className = "archived-conversations";
-      section.setAttribute("aria-label", "Archived threads");
-      const heading = document.createElement("h2");
-      heading.textContent = "Archived";
-      section.append(heading, ...archived.map(conversation => {
-        const entry = document.createElement("button");
-        entry.type = "button";
-        entry.className = "archived-conversation";
-        entry.dataset.conversation = conversation.id;
-        entry.textContent = conversation.title;
-        entry.title = conversation.title;
-        return entry;
-      }));
-      answer.append(section);
-      section.scrollTop = archivedScrollTop;
-    }
+    const empty = conversations.length || archived.length
+      ? []
+      : [h("p", { textContent: "No threads yet. Press Alt+Q in WoW to ask a question." })];
+    const activeList = h("div", { className: "active-conversations" }, ...conversations.map(historyRow), ...empty);
+    const archivedSections = archived.length
+      ? [h("section", { className: "archived-conversations", ariaLabel: "Archived threads" }, h("h2", { textContent: "Archived" }), ...archived.map(archivedRow))]
+      : [];
+    answer.replaceChildren(activeList, ...archivedSections);
     activeList.scrollTop = scrollTop;
+    for (const section of archivedSections) section.scrollTop = archivedScrollTop;
     updateInteractive();
   });
-
-  /** @param {HTMLAnchorElement} link */
-  function addFavicon(link) {
-    ipcRenderer.invoke("favicon", link.getAttribute("href")).then(src => {
-      if (typeof src !== "string" || !link.isConnected) return;
-      const icon = document.createElement("img");
-      icon.className = "favicon";
-      icon.alt = "";
-      icon.width = icon.height = 16;
-      icon.addEventListener("error", () => icon.remove(), { once: true });
-      icon.addEventListener("load", () => {
-        if (nearBottom()) answer.scrollTop = answer.scrollHeight;
-      }, { once: true });
-      icon.src = src;
-      link.prepend(icon);
-    }).catch(() => { /* The link remains usable without its icon. */ });
-  }
-
-  /** @param {ToOverlay["thread"]["turns"][number]} turn */
-  function turnSection(turn) {
-    const section = document.createElement("section");
-    section.className = "turn";
-    section.dataset.status = turn.status;
-    const questionText = document.createElement("div");
-    questionText.className = "question";
-    questionText.setAttribute("role", "group");
-    questionText.setAttribute("aria-label", "Your question");
-    questionText.textContent = turn.question;
-    const response = document.createElement("div");
-    response.className = "response";
-    response.setAttribute("role", "group");
-    response.setAttribute("aria-label", "Scallop Alfred's reply");
-    if (turn.html !== null) response.innerHTML = turn.html;
-    else response.textContent = turn.status === "thinking" ? "Thinking…" : turn.text;
-    response.querySelectorAll("a").forEach(addFavicon);
-    section.append(questionText, response);
-    return section;
-  }
 
   on("thread", ({ state, turns, canFollowup, fontSize }) => {
     // New turns scroll into view; updates keep the reader's place unless they were already at the bottom.
     const followLatest = latestTurn !== turns.at(-1)?.id || nearBottom();
     const scrollTop = answer.scrollTop;
     setFrame(state.title, true, state.status, fontSize);
-    answer.setAttribute("role", "log");
-    answer.setAttribute("aria-label", "Thread");
-    answer.replaceChildren(...turns.map(turnSection));
-    if (!turns.length || (state.status === "error" && turns.at(-1)?.text !== state.text)) {
-      const notice = document.createElement("div");
-      notice.className = "notice";
-      notice.textContent = state.text;
-      answer.append(notice);
-    }
+    answer.role = "log";
+    answer.ariaLabel = "Thread";
+    const notice = !turns.length || (state.status === "error" && turns.at(-1)?.text !== state.text)
+      ? [h("div", { className: "notice", textContent: state.text })]
+      : [];
+    answer.replaceChildren(...turns.map(turnSection), ...notice);
     latestTurn = turns.at(-1)?.id;
     followup.disabled = !canFollowup;
     followup.hidden = !canFollowup;

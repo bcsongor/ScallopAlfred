@@ -14,7 +14,7 @@ WoW addons can't reach the network or the file system. The clipboard is the one 
 - `sidecar/clipboard.ts` watches the clipboard for requests, and `sidecar/tray.ts` builds the tray menu from the app's state.
 - `sidecar/overlay.ts` owns the window: focus, click-through, raising and resizing.
 - `sidecar/ipc.ts` types every message between the main process and the overlay, and validates the ones coming from the overlay.
-- `sidecar/preload.cjs` renders `overlay.html`.
+- `sidecar/preload.cjs` renders `overlay.html`, which `overlay.css` styles.
 - `sidecar/protocol.ts` validates clipboard requests. `codex.ts` runs Codex with `prompt.md`, `history.ts` stores threads, `favicons.ts` fetches link icons, `config.ts` loads and saves settings and `markdown.ts` renders answers.
 
 Electron runs the TypeScript directly with `--experimental-strip-types`. There is no build step.
