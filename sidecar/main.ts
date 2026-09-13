@@ -12,7 +12,7 @@ if (process.platform === "win32") app.commandLine.appendSwitch("wm-window-animat
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  void app.whenReady()
+  app.whenReady()
     .then(() => startApp({
       userData: app.getPath("userData"),
       clipboard,

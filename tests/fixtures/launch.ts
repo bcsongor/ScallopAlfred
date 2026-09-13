@@ -9,7 +9,7 @@ import type { Config } from "../../sidecar/config.ts";
 import type { WoWRequest } from "../../sidecar/protocol.ts";
 import type { CodexCall } from "./harness.ts";
 
-export type WindowState = { visible: boolean; focusable: boolean; topmost: boolean; minimized: boolean };
+type WindowState = { visible: boolean; focusable: boolean; topmost: boolean; minimized: boolean };
 
 let sequence = 0;
 
@@ -50,7 +50,6 @@ export async function launch(t: TestContext, settings?: Partial<Config>) {
   t.after(() => session.app.close());
 
   return {
-    data,
     get app(): ElectronApplication { return session.app; },
     get page(): Page { return session.page; },
     async restart(): Promise<void> {

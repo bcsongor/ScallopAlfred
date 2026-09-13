@@ -13,8 +13,8 @@ function methods:Insert(value) self:SetText((self.text or "") .. value) end
 function methods:SetScript(event, callback) self.scripts[event] = callback end
 function methods:GetText() return self.text end
 local metatable = { __index = function(_, key) return methods[key] or function() end end }
-function CreateFrame(kind, name, parent, template)
-  local frame = setmetatable({ kind = kind, scripts = {}, parent = parent, template = template }, metatable)
+function CreateFrame(kind, name, parent)
+  local frame = setmetatable({ kind = kind, scripts = {}, parent = parent }, metatable)
   frame.TitleText = setmetatable({}, metatable)
   frames[#frames + 1] = frame
   if name then _G[name] = frame end

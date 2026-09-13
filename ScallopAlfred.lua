@@ -232,7 +232,7 @@ local function presetAvailable(preset, subject)
 end
 
 local dialog = CreateFrame("Frame", "ScallopAlfredDialog", UIParent, "BasicFrameTemplateWithInset")
-dialog:SetSize(320, 280)
+dialog:SetWidth(320)
 dialog:SetPoint("CENTER")
 dialog:SetFrameStrata("DIALOG")
 dialog.TitleText:SetText("Scallop Alfred")

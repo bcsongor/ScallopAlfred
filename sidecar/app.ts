@@ -16,7 +16,7 @@ import { continuableThread, finishTurn, overlayState, startTurn, type ThreadView
 import { trayMenu, type SystemTray } from "./tray.ts";
 
 /** What the app takes from the outside world. Tests pass fakes for all of it. */
-export type Ports = {
+type Ports = {
   userData: string;
   clipboard: Clipboard;
   tray: SystemTray;
@@ -207,7 +207,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   });
   overlay.listen("open-link", target => {
     const url = webUrl(target);
-    if (url) void openExternal(url).catch((error: unknown) => {
+    if (url) openExternal(url).catch((error: unknown) => {
       showNotice({ status: "error", title: "Couldn't open the link", text: errorMessage(error) });
     });
   });
@@ -224,5 +224,5 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   overlay.send("theme", theme);
   if (process.platform === "darwin") app.dock?.hide();
   render(true);
-  void answerCopiedRequests();
+  answerCopiedRequests().catch((error: unknown) => showNotice(readFailure(error)));
 }

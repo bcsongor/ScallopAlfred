@@ -133,7 +133,6 @@ header {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  color: var(--text);
   font-size: 13px;
   flex-shrink: 0;
 }
@@ -160,11 +159,6 @@ button {
 
 button:hover {
   background: var(--button-hover);
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: default;
 }
 
 [hidden] {
@@ -238,7 +232,6 @@ button:disabled {
   margin-top: 12px;
   padding-top: 8px;
   border-top: 1px solid var(--divider);
-  color: var(--archive-text);
 }
 
 #answer .archived-conversations h2 {
@@ -309,11 +302,6 @@ body[data-status="history"] #answer {
 
 .turn + .turn {
   margin-top: 16px;
-}
-
-.question,
-.response {
-  text-align: left;
 }
 
 .response {

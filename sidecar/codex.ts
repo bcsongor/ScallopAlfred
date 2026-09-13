@@ -13,7 +13,7 @@ export type Session = { context: string; id: string };
 export type Answer = { text: string; session: Session };
 export type Ask = (request: WoWRequest, options: { signal: AbortSignal; session?: Session }) => Promise<Answer>;
 export type CodexOptions = { codexPath: string; model: string; workspace: string };
-export type RunOptions = { executable: string; args: string[]; prompt: string; cwd: string; signal: AbortSignal };
+type RunOptions = { executable: string; args: string[]; prompt: string; cwd: string; signal: AbortSignal };
 
 const eventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("thread.started"), thread_id: z.string() }),

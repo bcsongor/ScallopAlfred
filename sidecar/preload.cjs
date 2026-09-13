@@ -262,7 +262,6 @@ window.addEventListener("DOMContentLoaded", () => {
       : [];
     answer.replaceChildren(...turns.map(turnSection), ...notice);
     latestTurn = turns.at(-1)?.id;
-    followup.disabled = !canFollowup;
     followup.hidden = !canFollowup;
     answer.scrollTop = followLatest ? answer.scrollHeight : scrollTop;
     updateInteractive();

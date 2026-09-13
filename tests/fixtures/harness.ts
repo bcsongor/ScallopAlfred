@@ -5,7 +5,7 @@ import type { TrayItem } from "../../sidecar/tray.ts";
 export type CodexCall = { request: WoWRequest; session?: Session };
 
 /** State the desktop fixture shares with tests, which read it through Playwright's `evaluate`. */
-export type Harness = {
+type Harness = {
   clipboard: string;
   codexCalls: CodexCall[];
   iconRequests: string[];

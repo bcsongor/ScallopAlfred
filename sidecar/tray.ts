@@ -16,7 +16,7 @@ export type SystemTray = {
   destroy(): void;
 };
 
-export type TrayState = {
+type TrayState = {
   theme: Config["theme"];
   clickThrough: boolean;
   clickThroughAvailable: boolean;
@@ -25,7 +25,7 @@ export type TrayState = {
   canCancel: boolean;
 };
 
-export type TrayActions = {
+type TrayActions = {
   show(): void;
   setTheme(theme: Config["theme"]): void;
   setClickThrough(enabled: boolean): void;

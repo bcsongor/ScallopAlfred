@@ -6,7 +6,7 @@ export type Clipboard = {
   writeText(text: string): Promise<void>;
 };
 
-export type WatchOptions = {
+type WatchOptions = {
   signal: AbortSignal;
   /** While this returns true the clipboard is not read, so copies made meanwhile collapse to the latest. */
   paused: () => boolean;
