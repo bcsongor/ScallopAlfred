@@ -48,7 +48,7 @@ test("history persists sessions, replaces retries and recovers interrupted repli
   }
 });
 
-test("archives retain messages through reply saves and restart, and list only the latest ten", () => {
+test("archives retain messages through reply saves and restart, and list only the latest six", () => {
   const path = databasePath();
   const request: WoWRequest = {
     id: "request", context: "context", thread: "new", question: "Keep this chat?",
@@ -96,7 +96,7 @@ test("archives retain messages through reply saves and restart, and list only th
     // Archive newest first, so archive time and creation order disagree.
     for (const id of creationOrder) history.archive(id);
     const latest = history.listArchived();
-    assert.deepEqual(latest.map(chat => chat.id), creationOrder.slice(0, 10));
+    assert.deepEqual(latest.map(chat => chat.id), creationOrder.slice(0, 6));
     history.save(finished);
     assert.deepEqual(history.listArchived(), latest);
     history.close();

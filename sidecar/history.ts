@@ -48,7 +48,7 @@ export function openHistory(path: string) {
   const summaries = db.prepare(`SELECT id, title, updated_at AS updatedAt,
     json_extract(data, '$.turns[0].question') AS question FROM conversations WHERE archived_at = 0 ORDER BY rowid DESC`);
   const archivedSummaries = db.prepare(`SELECT id, title FROM conversations
-    WHERE archived_at > 0 ORDER BY rowid DESC LIMIT 10`);
+    WHERE archived_at > 0 ORDER BY rowid DESC LIMIT 6`);
   const context = db.prepare(`SELECT data, archived_at AS archivedAt FROM conversations
     WHERE archived_at = 0 AND json_extract(data, '$.request.context') = ? ORDER BY updated_at DESC, rowid DESC LIMIT 1`);
   const interrupted = db.prepare(`SELECT data, archived_at AS archivedAt FROM conversations WHERE EXISTS (
