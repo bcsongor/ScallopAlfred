@@ -1,51 +1,54 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { createInterface } from "node:readline";
+import { text as streamText } from "node:stream/consumers";
 import { z } from "zod";
 import type { Config } from "./config.ts";
 import type { WoWRequest } from "./protocol.ts";
 
-const eventSchema = z.object({
-  type: z.string(),
-  thread_id: z.string().optional(),
-  item: z.object({ type: z.string(), text: z.string().optional() }).optional(),
-  error: z.object({ message: z.string() }).nullish(),
-  message: z.string().optional(),
-});
+const eventSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("thread.started"), thread_id: z.string() }),
+  z.object({ type: z.literal("item.completed"), item: z.object({ type: z.string(), text: z.string().optional() }) }),
+  z.object({ type: z.literal("turn.completed") }),
+  z.object({ type: z.literal("turn.failed"), error: z.object({ message: z.string() }).nullish() }),
+  z.object({ type: z.literal("error"), message: z.string().optional() }),
+]);
 
+type CodexEvent = z.infer<typeof eventSchema>;
 type Session = { context: string; id: string };
-type Answer = { text: string; session: Session };
+type Run = { threadId: string; text: string; completed: boolean; failure?: string; diagnostic?: string };
 
-/** Resolve npm's Windows shim to the native binary so no shell interprets arguments. */
+const promptTemplate = readFileSync(join(import.meta.dirname, "prompt.md"), "utf8").trimEnd();
+const apiKeyVariables = new Set(["OPENAI_API_KEY", "CODEX_API_KEY"]);
+
 function findCodex(configuredPath: string): string {
   if (configuredPath) return configuredPath;
   if (process.platform !== "win32") return "codex";
+  const found = (process.env.PATH ?? "").split(delimiter).flatMap(windowsExecutables).find(path => existsSync(path));
+  if (!found) throw new Error("Codex was not found. Install Codex CLI or set codexPath to its native executable in settings.");
+  return found;
+}
 
-  const folders = (process.env.PATH ?? "").split(delimiter);
-  for (const folder of folders) {
-    const executable = join(folder, "codex.exe");
-    if (existsSync(executable)) return executable;
-    const manifest = join(folder, "node_modules", "@openai", "codex", "package.json");
-    if (!existsSync(manifest)) continue;
-    try {
-      const platformPackage = createRequire(manifest).resolve(`@openai/codex-win32-${process.arch}/package.json`);
-      const target = process.arch === "arm64" ? "aarch64" : "x86_64";
-      for (const directory of ["bin", "codex"]) {
-        const binary = join(dirname(platformPackage), "vendor", `${target}-pc-windows-msvc`, directory, "codex.exe");
-        if (existsSync(binary)) return binary;
-      }
-    } catch {
-      // Another PATH entry may contain a working installation.
-    }
+/** npm installs Codex behind a shim. Running the native binary instead keeps a shell from interpreting arguments. */
+function windowsExecutables(folder: string): string[] {
+  const executable = join(folder, "codex.exe");
+  const manifest = join(folder, "node_modules", "@openai", "codex", "package.json");
+  if (!existsSync(manifest)) return [executable];
+  try {
+    const platformPackage = createRequire(manifest).resolve(`@openai/codex-win32-${process.arch}/package.json`);
+    const vendor = join(dirname(platformPackage), "vendor", `${process.arch === "arm64" ? "aarch64" : "x86_64"}-pc-windows-msvc`);
+    return [executable, join(vendor, "bin", "codex.exe"), join(vendor, "codex", "codex.exe")];
+  } catch {
+    return [executable];
   }
-  throw new Error("Codex was not found. Install Codex CLI or set codexPath to its native executable in settings.");
 }
 
 export function codexArguments(request: WoWRequest, model: string, session?: Session): string[] {
-  const args = [
+  const resume = request.thread === "continue" && session?.context === request.context ? ["resume", session.id] : [];
+  return [
     "exec", "--json", "--skip-git-repo-check", "--ignore-user-config",
     "--sandbox", "read-only",
     "-c", 'approval_policy="never"',
@@ -53,74 +56,65 @@ export function codexArguments(request: WoWRequest, model: string, session?: Ses
     "-c", 'model_reasoning_effort="medium"',
     "-c", 'service_tier="fast"',
     "-c", "features.shell_tool=false",
+    ...(model ? ["--model", model] : []),
+    ...resume,
+    "-",
   ];
-  if (model) args.push("--model", model);
-  if (request.thread === "continue" && session?.context === request.context) {
-    args.push("resume", session.id);
-  }
-  return [...args, "-"];
 }
 
-const promptTemplate = readFileSync(join(import.meta.dirname, "prompt.md"), "utf8").trimEnd();
-
-/** Instructions first, then the request as JSON on the final line. */
 export function buildPrompt(request: WoWRequest): string {
   return `${promptTemplate.replace("{{date}}", new Date().toISOString().slice(0, 10))}\n\n${JSON.stringify(request)}`;
 }
 
-/** Read the documented JSONL stream; only successful turns advance the conversation. */
-function runCodex(
-  executable: string,
-  args: string[],
-  prompt: string,
-  cwd: string,
-  signal: AbortSignal,
-): Promise<{ text: string; threadId: string }> {
-  return new Promise((resolve, reject) => {
-    if (signal.aborted) { reject(new Error(String(signal.reason))); return; }
-    const env = { ...process.env };
-    delete env.OPENAI_API_KEY;
-    delete env.CODEX_API_KEY;
-    // GUI launches on macOS and Linux may not inherit the shell's PATH.
-    if (process.platform !== "win32") {
-      env.PATH = [env.PATH, join(homedir(), ".local", "bin"), "/opt/homebrew/bin", "/usr/local/bin"].filter(Boolean).join(delimiter);
-    }
-    const child = spawn(executable, args, { cwd, env, windowsHide: true, stdio: "pipe" });
-    let text = "";
-    let threadId = "";
-    let failure = "";
-    let diagnostic = "";
-    let stderr = "";
-    let completed = false;
-    const cancel = () => { failure = String(signal.reason); child.kill("SIGKILL"); };
-    signal.addEventListener("abort", cancel, { once: true });
-    const lines = createInterface({ input: child.stdout });
-    child.stderr.setEncoding("utf8").on("data", (chunk: string) => { stderr = (stderr + chunk).slice(-1500); });
-    child.stdin.on("error", () => { /* The exit/error event reports an early child shutdown. */ });
-    child.on("error", (error) => { failure = `Could not start Codex: ${error.message}`; });
-    lines.on("line", (line) => {
-      let value: unknown;
-      try { value = JSON.parse(line); } catch { return; }
-      const parsed = eventSchema.safeParse(value);
-      if (!parsed.success) return;
-      const event = parsed.data;
-      if (event.type === "thread.started" && event.thread_id) threadId = event.thread_id;
-      if (event.type === "item.completed" && event.item?.type === "agent_message") text = event.item.text ?? "";
-      if (event.type === "turn.completed") completed = true;
-      if (event.type === "turn.failed") failure = event.error?.message ?? "Codex could not answer this question.";
-      if (event.type === "error") diagnostic = event.message ?? "Codex reported an error.";
-    });
-    child.on("close", (code) => {
-      signal.removeEventListener("abort", cancel);
-      lines.close();
-      if (failure || code !== 0 || !completed || !text.trim() || !threadId) {
-        reject(new Error(failure || diagnostic || stderr.trim() || "Codex returned no answer. Check that codex login is complete."));
-      } else {
-        resolve({ text: text.trim(), threadId });
-      }
-    });
-    child.stdin.end(prompt);
+function codexEnvironment(): NodeJS.ProcessEnv {
+  // Without an API key, Codex uses the player's login.
+  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !apiKeyVariables.has(name)));
+  if (process.platform === "win32") return env;
+  // GUI launches on macOS and Linux may not inherit the shell's PATH.
+  return { ...env, PATH: [env.PATH, join(homedir(), ".local", "bin"), "/opt/homebrew/bin", "/usr/local/bin"].filter(Boolean).join(delimiter) };
+}
+
+function parseEvent(line: string): CodexEvent[] {
+  try {
+    const parsed = eventSchema.safeParse(JSON.parse(line));
+    return parsed.success ? [parsed.data] : [];
+  } catch {
+    return [];
+  }
+}
+
+function applyEvent(run: Run, event: CodexEvent): Run {
+  switch (event.type) {
+    case "thread.started": return { ...run, threadId: event.thread_id };
+    case "item.completed": return event.item.type === "agent_message" ? { ...run, text: event.item.text ?? "" } : run;
+    case "turn.completed": return { ...run, completed: true };
+    case "turn.failed": return { ...run, failure: event.error?.message ?? "Codex could not answer this question." };
+    case "error": return { ...run, diagnostic: event.message ?? "Codex reported an error." };
+  }
+}
+
+function exitCode(child: ChildProcess): Promise<number | null> {
+  return new Promise((resolve, reject) => child.once("close", resolve).once("error", reject));
+}
+
+/** A run succeeds only when Codex completes the turn with an answer and a thread ID to resume. */
+async function runCodex(executable: string, args: string[], prompt: string, cwd: string, signal: AbortSignal): Promise<{ text: string; threadId: string }> {
+  const child = spawn(executable, args, { cwd, env: codexEnvironment(), windowsHide: true, signal, killSignal: "SIGKILL" });
+  child.stdin.on("error", () => { /* The process exit reports why input could not be written. */ });
+  child.stdin.end(prompt);
+  const [lines, stderr, code] = await Promise.all([
+    Array.fromAsync(createInterface({ input: child.stdout })),
+    streamText(child.stderr),
+    exitCode(child),
+  ]).catch((error: unknown) => {
+    throw new Error(signal.aborted ? String(signal.reason) : `Could not start Codex: ${error instanceof Error ? error.message : String(error)}`);
   });
+  const run = lines.flatMap(parseEvent).reduce<Run>(applyEvent, { threadId: "", text: "", completed: false });
+  const answer = run.text.trim();
+  if (code !== 0 || run.failure || !run.completed || !answer || !run.threadId) {
+    throw new Error(run.failure || run.diagnostic || stderr.slice(-1500).trim() || "Codex returned no answer. Check that codex login is complete.");
+  }
+  return { text: answer, threadId: run.threadId };
 }
 
 export async function askCodex(
@@ -129,7 +123,7 @@ export async function askCodex(
   cwd: string,
   signal: AbortSignal,
   session?: Session,
-): Promise<Answer> {
-  const result = await runCodex(findCodex(config.codexPath), codexArguments(request, config.model, session), buildPrompt(request), cwd, signal);
-  return { text: result.text, session: { context: request.context, id: result.threadId } };
+): Promise<{ text: string; session: Session }> {
+  const { text, threadId } = await runCodex(findCodex(config.codexPath), codexArguments(request, config.model, session), buildPrompt(request), cwd, signal);
+  return { text, session: { context: request.context, id: threadId } };
 }
