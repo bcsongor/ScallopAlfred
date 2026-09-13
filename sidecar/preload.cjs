@@ -1,12 +1,12 @@
 const { ipcRenderer } = require("electron");
 
-/** @typedef {import("./ipc.ts").MainMessages} MainMessages */
-/** @typedef {import("./ipc.ts").OverlayMessages} OverlayMessages */
+/** @typedef {import("./ipc.ts").ToOverlay} ToOverlay */
+/** @typedef {import("./ipc.ts").FromOverlay} FromOverlay */
 
-/** @type {<K extends keyof OverlayMessages>(channel: K, ...message: import("./ipc.ts").MessageArgs<OverlayMessages, K>) => void} */
+/** @type {<K extends keyof FromOverlay>(channel: K, ...message: import("./ipc.ts").MessageArgs<FromOverlay, K>) => void} */
 const send = (channel, ...message) => ipcRenderer.send(channel, ...message);
 
-/** @type {<K extends keyof MainMessages>(channel: K, listener: (message: MainMessages[K]) => void) => void} */
+/** @type {<K extends keyof ToOverlay>(channel: K, listener: (message: ToOverlay[K]) => void) => void} */
 const on = (channel, listener) => {
   ipcRenderer.on(channel, (_event, message) => listener(message));
 };
@@ -236,7 +236,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }).catch(() => { /* The link remains usable without its icon. */ });
   }
 
-  /** @param {MainMessages["thread"]["turns"][number]} turn */
+  /** @param {ToOverlay["thread"]["turns"][number]} turn */
   function turnSection(turn) {
     const section = document.createElement("section");
     section.className = "turn";

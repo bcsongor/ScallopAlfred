@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
-import { conversationTurnSchema, requestSchema } from "./protocol.ts";
+import { conversationTurnSchema, requestSchema, type ConversationTurn } from "./protocol.ts";
 
 const conversationSchema = z.object({
   id: z.string(),
@@ -14,13 +14,12 @@ const conversationSchema = z.object({
 
 const summarySchema = conversationSchema.pick({ id: true, title: true, updatedAt: true })
   .extend({ question: z.string() });
+const archivedSummarySchema = conversationSchema.pick({ id: true, title: true });
 
 export type Conversation = z.infer<typeof conversationSchema>;
 export type ConversationSummary = z.infer<typeof summarySchema>;
-const archivedSummarySchema = conversationSchema.pick({ id: true, title: true });
 export type ArchivedConversationSummary = z.infer<typeof archivedSummarySchema>;
 
-/** Each snapshot is one atomic write, including the session needed for follow-ups. */
 export function openHistory(path: string) {
   const db = new DatabaseSync(path);
   db.exec(`
@@ -31,51 +30,55 @@ export function openHistory(path: string) {
     ) STRICT;
     CREATE INDEX IF NOT EXISTS conversations_updated ON conversations(updated_at DESC);
   `);
-  // Reply completion and recovery must preserve when a chat was archived.
+  // Saves never touch archived_at, so a reply that finishes after archiving leaves the thread archived.
   const upsert = db.prepare(`INSERT INTO conversations (id, title, updated_at, data) VALUES (?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET title=excluded.title, updated_at=excluded.updated_at, data=excluded.data`);
+    ON CONFLICT(id) DO UPDATE SET title=excluded.title, updated_at=excluded.updated_at, data=excluded.data
+    RETURNING archived_at AS archivedAt`);
   const select = db.prepare("SELECT data, archived_at AS archivedAt FROM conversations WHERE id = ?");
   const archive = db.prepare("UPDATE conversations SET archived_at = ? WHERE id = ? AND archived_at = 0");
-  // Rows are inserted when threads are created; updates and archiving keep that order.
+  // Row IDs follow thread creation, so replies and archiving never reorder the lists.
   const summaries = db.prepare(`SELECT id, title, updated_at AS updatedAt,
     json_extract(data, '$.turns[0].question') AS question FROM conversations WHERE archived_at = 0 ORDER BY rowid DESC`);
   const archivedSummaries = db.prepare(`SELECT id, title FROM conversations
     WHERE archived_at > 0 ORDER BY rowid DESC LIMIT 10`);
   const context = db.prepare(`SELECT data, archived_at AS archivedAt FROM conversations
     WHERE archived_at = 0 AND json_extract(data, '$.request.context') = ? ORDER BY updated_at DESC, rowid DESC LIMIT 1`);
-
-  function read(row: Record<string, unknown> | undefined): Conversation | undefined {
-    return row ? conversationSchema.parse({ ...JSON.parse(z.string().parse(row.data)), archivedAt: row.archivedAt }) : undefined;
-  }
-
-  function save(conversation: Conversation): void {
-    conversation.updatedAt = Date.now();
-    upsert.run(conversation.id, conversation.title, conversation.updatedAt, JSON.stringify(conversation));
-  }
-
-  // A process exit must not leave an old conversation displaying "Thinking…" forever.
-  for (const row of db.prepare(`SELECT data, archived_at AS archivedAt FROM conversations WHERE EXISTS (
+  const interrupted = db.prepare(`SELECT data, archived_at AS archivedAt FROM conversations WHERE EXISTS (
     SELECT 1 FROM json_each(data, '$.turns') WHERE json_extract(value, '$.status') = 'thinking'
-  )`).all()) {
-    const conversation = read(row)!;
-    for (const turn of conversation.turns) {
-      if (turn.status === "thinking") {
-        turn.status = "error";
-        turn.text = "Scallop Alfred closed before this reply finished. Retry from the tray menu.";
-      }
-    }
-    save(conversation);
+  )`);
+
+  function parse(row: Record<string, unknown>): Conversation {
+    return conversationSchema.parse({ ...JSON.parse(z.string().parse(row.data)), archivedAt: row.archivedAt });
+  }
+
+  function save(conversation: Conversation): Conversation {
+    const stored = { ...conversation, updatedAt: Date.now() };
+    const row = upsert.get(stored.id, stored.title, stored.updatedAt, JSON.stringify(stored));
+    return { ...stored, archivedAt: z.number().parse(row?.archivedAt) };
+  }
+
+  // Replies still thinking at startup were cut off when the app last closed.
+  for (const conversation of interrupted.all().map(parse)) {
+    save({
+      ...conversation,
+      turns: conversation.turns.map((turn): ConversationTurn => turn.status === "thinking"
+        ? { ...turn, status: "error", text: "Scallop Alfred closed before this reply finished. Retry from the tray menu." }
+        : turn),
+    });
   }
 
   return {
     save,
-    /** Returns the archive time, or nothing when the thread is missing or already archived. */
-    archive(id: string): number | undefined {
-      const archivedAt = Date.now();
-      return archive.run(archivedAt, id).changes ? archivedAt : undefined;
+    /** Returns false when the thread is missing or already archived. */
+    archive: (id: string): boolean => archive.run(Date.now(), id).changes > 0,
+    get: (id: string): Conversation | undefined => {
+      const row = select.get(id);
+      return row && parse(row);
     },
-    get: (id: string) => read(select.get(id)),
-    findContext: (id: string) => read(context.get(id)),
+    findContext: (id: string): Conversation | undefined => {
+      const row = context.get(id);
+      return row && parse(row);
+    },
     list: (): ConversationSummary[] => summaries.all().map(row => summarySchema.parse(row)),
     listArchived: (): ArchivedConversationSummary[] => archivedSummaries.all().map(row => archivedSummarySchema.parse(row)),
     close: () => db.close(),

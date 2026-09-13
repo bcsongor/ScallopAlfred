@@ -1,7 +1,7 @@
 import { BrowserWindow, screen } from "electron";
 import { join } from "node:path";
 import { heightRange, type Config } from "./config.ts";
-import { overlayMessages, type MainMessages, type OverlayMessages } from "./ipc.ts";
+import { fromOverlay, type FromOverlay, type ToOverlay } from "./ipc.ts";
 
 /**
  * Creates the always-on-top overlay window. It never takes focus from the game on its own and passes
@@ -19,8 +19,8 @@ export function createOverlay(config: Config, icon: string) {
     window.setIgnoreMouseEvents(clickThrough && !overControl && !editing, { forward: true });
   }
 
-  function listen<K extends keyof OverlayMessages>(channel: K, listener: (message: OverlayMessages[K]) => void): void {
-    const schema = overlayMessages[channel];
+  function listen<K extends keyof FromOverlay>(channel: K, listener: (message: FromOverlay[K]) => void): void {
+    const schema = fromOverlay[channel];
     window.webContents.ipc.on(channel, (_event, message: unknown) => {
       const parsed = schema.safeParse(message);
       if (parsed.success) listener(parsed.data);
@@ -37,10 +37,9 @@ export function createOverlay(config: Config, icon: string) {
     window,
     listen,
     load: () => window.loadFile(join(import.meta.dirname, "overlay.html")),
-    send<K extends keyof MainMessages>(channel: K, message: MainMessages[K]): void {
+    send<K extends keyof ToOverlay>(channel: K, message: ToOverlay[K]): void {
       window.webContents.send(channel, message);
     },
-    /** Whether the player hid the overlay since it was last shown. */
     isDismissed: () => dismissed,
     isClickThrough: () => clickThrough,
     setClickThrough(enabled: boolean): void {
@@ -78,7 +77,7 @@ export function createOverlay(config: Config, icon: string) {
       window.setSkipTaskbar(true);
       window.focus();
     },
-    /** Changes only the height, within the settings range and the space below the window. Returns the new height. */
+    /** Returns the height after clamping it to the settings range and the space below the window. */
     setHeight(height: number): number {
       const bounds = window.getBounds();
       const area = screen.getDisplayMatching(bounds).workArea;
