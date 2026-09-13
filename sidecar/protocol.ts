@@ -48,7 +48,7 @@ const professionsSchema = z.object({
 export const requestSchema = z.object({
   id: z.string().min(1).max(128),
   context: z.string().min(1).max(128),
-  thread: z.enum(["new", "continue"]),
+  thread: z.enum(["new", "continue", "followup"]),
   question: z.string().trim().min(1).max(2000),
   category: z.enum(["mechanics", "professions", "gear"]).optional(),
   player: z.object({

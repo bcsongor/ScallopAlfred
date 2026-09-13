@@ -25,6 +25,8 @@ Shift-click links into the question box to ask about up to eight things at once.
 
 Every request includes your class, spec, level, profession skills and the equipment slots that matter for the question. **My gear** and **Is it an upgrade?** add all your equipped items and active talents. **Professions** adds your specialisation points. If they're missing, open that profession's Specializations tab and ask again. With TradeSkillMaster installed, items also carry TSM's cached prices.
 
+To follow up from the game, type `/q` and your question in chat, Shift-clicking any links into the line, then copy the request as usual. The overlay continues the thread it's showing, or starts a new one if you're on the thread list. WoW's 255-character chat limit leaves room for two or three links. If another addon already uses `/q`, type `/alfred` instead.
+
 If Alt+Q is already taken, bind **Scallop Alfred: Ask about a tooltip or link** in WoW's keybindings.
 
 ## Using the overlay

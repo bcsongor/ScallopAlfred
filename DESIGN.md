@@ -25,7 +25,7 @@ The addon reads game data only when the player submits a question outside combat
 
 Midnight marks some API values as secret. `addon.Public` drops them without looking inside, and `addon.Read` also treats a failing API call as missing data. Missing data never blocks a question and is never retried.
 
-Subjects come from the hovered tooltip's original hyperlink when there is one, so item variants and link parameters survive. Otherwise the addon falls back to the tooltip's item, spell, quest, currency or achievement ID. Shift-clicked links arrive through a hook on `ChatFrameUtil.InsertLink` that only acts while the question box has focus.
+Subjects come from the hovered tooltip's original hyperlink when there is one, so item variants and link parameters survive. Otherwise the addon falls back to the tooltip's item, spell, quest, currency or achievement ID. Shift-clicked links arrive through a hook on `ChatFrameUtil.InsertLink` that only acts while the question box has focus. The `/q` slash command, or `/alfred`, builds a follow-up request from the chat line instead, with its links as subjects and no hovered subject.
 
 Scans have fixed caps: 80 tooltip lines, 8 subjects, 256 child skill lines, 128 paths per profession tree, 256 talent nodes and 128 selected talents. Blizzard's [addon policy](https://eu.forums.blizzard.com/en/wow/t/wow-user-interface-add-on-development-policy/1642) forbids hurting performance but publishes no read quota. The caps are our own choice, not an approved allowance.
 
@@ -51,7 +51,7 @@ A request is one line, `SCALLOPALFRED:` followed by JSON:
 }
 ```
 
-`id` is new for every request. `context` names the thread a request started, and the addon makes a fresh one for each question. The addon always sends `thread: "new"`. Overlay follow-ups reuse the stored request with `thread: "continue"`, a new `id` and the new question.
+`id` is new for every request. `context` names the thread a request started, and the addon makes a fresh one for each question. The addon sends `thread: "new"`, or `thread: "followup"` from `/q`. The app turns a follow-up into `continue` for the thread on screen, with that thread's context, or into `new` when nothing can be continued. Overlay follow-ups reuse the stored request with `thread: "continue"`, a new `id` and the new question. A thread keeps the title of its first request.
 
 The optional `equipped`, `professions`, `talents` and per-subject `tsm` fields are snapshots. Money is per-item copper, and `capturedAt` is the Unix time in seconds when the addon read the data, not when TSM last refreshed. `protocol.ts` defines every field and limit. A request from a mismatched addon fails validation, so update the addon and app together.
 

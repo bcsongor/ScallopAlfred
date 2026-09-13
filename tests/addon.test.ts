@@ -516,6 +516,22 @@ test("the eight-subject limit includes the hover without counting duplicates", (
   assert.equal(game.payload().subjects.length, 1);
 });
 
+test("/q copies a follow-up from the chat line with its links, ignoring the hovered tooltip", () => {
+  const game = addon();
+  assert.equal(game.value("SLASH_SCALLOPALFRED1"), "/q");
+  game.execute('SlashCmdList.SCALLOPALFRED("Is |Hitem:999|h[Another item]|h better?")');
+  const request = game.payload();
+  assert.equal(request.thread, "followup");
+  assert.equal(request.question, "Is |Hitem:999|h[Another item]|h better?");
+  assert.deepEqual(request.subjects.map(subject => subject.link), ["item:999"]);
+
+  game.execute('SlashCmdList.SCALLOPALFRED("   ")');
+  assert.match(game.value("notice") ?? "", /follow-up after \/q/);
+  game.execute('combat = true; SlashCmdList.SCALLOPALFRED("Another question")');
+  assert.match(game.value("notice") ?? "", /after combat/);
+  assert.deepEqual(game.payload(), request);
+});
+
 test("restricted hover values and combat link insertion are omitted", () => {
   const game = addon();
   game.execute(`

@@ -15,6 +15,7 @@ const promptRequest = (prompt: string): unknown => JSON.parse(prompt.slice(promp
 test("parseRequest ignores unrelated text and rejects malformed or oversized requests", () => {
   assert.equal(parseRequest("ordinary clipboard text"), undefined);
   assert.deepEqual(parseRequest(copied(request)), request);
+  assert.equal(parseRequest(copied({ ...request, thread: "followup" }))?.thread, "followup");
   for (const text of [
     "SCALLOPALFRED:{broken",
     copied({ ...request, player: {} }),

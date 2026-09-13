@@ -74,6 +74,7 @@ GameTooltip = {
   GetTooltipData = function() return tooltipData end,
 }
 ChatFrameUtil = { InsertLink = function() end }
+SlashCmdList = {}
 
 function hooksecurefunc(target, name, callback)
   if type(target) == "string" then callback = name; name = target; target = _G end

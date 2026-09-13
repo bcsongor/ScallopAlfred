@@ -177,8 +177,8 @@ local function json(value)
     return "{" .. table.concat(parts, ",") .. "}"
 end
 
--- Returns the request, or nil and a message for the player.
-local function buildRequest(question, subject, category)
+-- Returns the request, or nil and a message for the player. `thread` is "new" or "followup".
+local function buildRequest(question, subject, category, thread)
     local subjects = linkedSubjects(question, subject)
     if #subjects > 8 then return nil, "Use up to eight subjects, including the hovered subject." end
     for _, linked in ipairs(subjects) do
@@ -187,7 +187,7 @@ local function buildRequest(question, subject, category)
     local gear = category == "gear"
     local specIndex = C_SpecializationInfo.GetSpecialization()
     return {
-        id = nextID(), context = nextID(), thread = "new", question = question, category = category,
+        id = nextID(), context = nextID(), thread = thread, question = question, category = category,
         player = {
             class = UnitClass("player"),
             spec = specIndex and select(2, C_SpecializationInfo.GetSpecializationInfo(specIndex)) or "Unselected",
@@ -302,17 +302,17 @@ local function showCopyBox(text)
     edit:HighlightText()
 end
 
-local function sendQuestion(question, category)
+local function sendQuestion(question, subject, category, thread)
     if InCombatLockdown() then notify("Ask again after combat."); return end
     question = strtrim(question)
     if question == "" then return end
-    local request, problem = buildRequest(question, selectedSubject, category or selectedCategory)
+    local request, problem = buildRequest(question, subject, category, thread or "new")
     if not request then notify(problem); return end
     showCopyBox("SCALLOPALFRED:" .. json(request))
 end
 
 edit:SetScript("OnEnterPressed", function()
-    if mode == "question" then sendQuestion(edit:GetText()) end
+    if mode == "question" then sendQuestion(edit:GetText(), selectedSubject, selectedCategory) end
 end)
 
 hooksecurefunc(ChatFrameUtil, "InsertLink", function(link)
@@ -333,7 +333,7 @@ for index, preset in ipairs(presets) do
     end
     button:SetScript("OnClick", function()
         if preset.kind == "subject" then
-            sendQuestion(preset.text, preset.category)
+            sendQuestion(preset.text, selectedSubject, preset.category)
         elseif preset.kind == "custom" then
             openEditor(subjectTitle())
         else
@@ -369,6 +369,22 @@ function ScallopAlfred_Ask()
 end
 
 --
+-- SLASH COMMAND
+--
+
+-- "/q question" follows up on the thread open in the overlay. Links Shift-clicked into the chat line become subjects.
+SLASH_SCALLOPALFRED1 = "/q"
+SLASH_SCALLOPALFRED2 = "/alfred"
+SlashCmdList.SCALLOPALFRED = function(message)
+    message = Public(message, "string") or ""
+    if strtrim(message) == "" then
+        notify("Type your follow-up after /q. Shift-click links into the chat line to ask about them.")
+        return
+    end
+    sendQuestion(message, nil, nil, "followup")
+end
+
+--
 -- KEYBINDING
 --
 
@@ -378,5 +394,5 @@ events:SetScript("OnEvent", function()
     if not GetBindingKey("SCALLOPALFRED_ASK") and GetBindingAction("ALT-Q") == "" then
         SetBinding("ALT-Q", "SCALLOPALFRED_ASK")
     end
-    notify("Press Alt+Q to ask a question. Hover a tooltip first or Shift-click a link into the question box. Change the keybind in Options > Keybindings.")
+    notify("Press Alt+Q to ask a question, or type /q in chat to follow up. Change the keybind in Options > Keybindings.")
 end)

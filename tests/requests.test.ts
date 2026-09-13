@@ -85,4 +85,23 @@ test("copied requests start threads, and follow-ups resume the same Codex sessio
   await desktop.copy(request("Recover", { context: "item-2", thread: "continue" }));
   await desktop.waitForAnswer("Answer: Recover");
   assert.deepEqual((await desktop.codexCalls()).at(-1)?.session, { context: "item-2", id: "session-item-2" });
+
+  // A follow-up copied from the game continues the thread on screen and keeps its title.
+  const ring = { type: "item", name: "Ring", link: "item:11", tooltip: [] };
+  const turnsBefore = await page.locator(".turn").count();
+  await desktop.copy(request("Is this ring better?", { thread: "followup", subjects: [ring] }));
+  await desktop.waitForAnswer("Answer: Is this ring better?");
+  assert.equal(await page.locator(".turn").count(), turnsBefore + 1);
+  assert.equal(await page.locator("#title").textContent(), "Another item");
+  const resumedFromGame = (await desktop.codexCalls()).at(-1);
+  assert.equal(resumedFromGame?.request.thread, "continue");
+  assert.deepEqual(resumedFromGame?.session, { context: "item-2", id: "session-item-2" });
+
+  // From the thread list there is nothing to continue, so it starts a new thread.
+  await page.getByRole("button", { name: "Back to threads" }).click();
+  await desktop.waitForStatus("history");
+  await desktop.copy(request("From the thread list", { thread: "followup" }));
+  await desktop.waitForAnswer("Answer: From the thread list");
+  assert.equal(await page.locator(".turn").count(), 1);
+  assert.equal((await desktop.codexCalls()).at(-1)?.session, undefined);
 });
