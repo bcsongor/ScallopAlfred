@@ -81,6 +81,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const nearBottom = () => answer.scrollHeight - answer.scrollTop - answer.clientHeight < 24;
 
+  // The archived section casts its shadow only when threads can scroll beneath it.
+  function markScrollableThreads() {
+    const list = answer.querySelector(".active-conversations");
+    list?.toggleAttribute("data-scrollable", list.scrollHeight > list.clientHeight);
+  }
+  window.addEventListener("resize", markScrollableThreads);
+
   /**
    * @param {string} text
    * @param {boolean} backVisible
@@ -247,6 +254,7 @@ window.addEventListener("DOMContentLoaded", () => {
     answer.replaceChildren(activeList, ...archivedSections);
     activeList.scrollTop = scrollTop;
     for (const section of archivedSections) section.scrollTop = archivedScrollTop;
+    markScrollableThreads();
     updateInteractive();
   });
 
