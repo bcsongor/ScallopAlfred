@@ -23,6 +23,8 @@ test("themes switch without replacing the thread or draft, and persist alongside
     await themeApplied("wowhead");
   });
   assert.deepEqual(operations, []);
+  // Wowhead's page background.
+  assert.equal(await app.page.locator("main").evaluate(element => getComputedStyle(element).backgroundColor), "rgb(16, 16, 16)");
   assert.equal(await draft.inputValue(), "Does this suit my current build?");
   assert.equal(await turn.evaluate(node => node.isConnected), true);
   await until(async () => {
