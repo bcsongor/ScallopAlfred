@@ -306,6 +306,12 @@ body[data-status="history"] #answer {
   padding-top: 10px;
 }
 
+/* Keeps the last turn clear of the follow-up bar's shadow. */
+.turn:last-child,
+#answer > .notice:last-child {
+  padding-bottom: 10px;
+}
+
 .turn + .turn {
   margin-top: 16px;
 }
@@ -426,12 +432,17 @@ code {
  */
 
 footer {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--divider);
+  padding-top: 10px;
   font-size: 13px;
   color: var(--muted);
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* Mirrors the header: a shadow cast up over a thread that scrolls beneath the follow-up bar. */
+#answer[data-scrollable] + footer {
+  box-shadow: 0 -4px 8px -2px #0009;
 }
 
 footer:has(#followup[hidden]):has(#followup-form[hidden]) {

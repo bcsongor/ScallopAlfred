@@ -81,12 +81,14 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const nearBottom = () => answer.scrollHeight - answer.scrollTop - answer.clientHeight < 24;
 
-  // The archived section casts its shadow only when threads can scroll beneath it.
-  function markScrollableThreads() {
-    const list = answer.querySelector(".active-conversations");
-    list?.toggleAttribute("data-scrollable", list.scrollHeight > list.clientHeight);
+  // The follow-up bar and archived section cast their shadows only when content scrolls beneath them.
+  function markScrollable() {
+    for (const list of [answer, answer.querySelector(".active-conversations")]) {
+      list?.toggleAttribute("data-scrollable", list.scrollHeight > list.clientHeight);
+    }
   }
-  window.addEventListener("resize", markScrollableThreads);
+  // Window resizes and the follow-up editor opening or closing change the space available.
+  new ResizeObserver(markScrollable).observe(answer);
 
   /**
    * @param {string} text
@@ -143,6 +145,7 @@ window.addEventListener("DOMContentLoaded", () => {
       icon.addEventListener("error", () => icon.remove(), { once: true });
       icon.addEventListener("load", () => {
         if (nearBottom()) answer.scrollTop = answer.scrollHeight;
+        markScrollable();
       }, { once: true });
       icon.src = src;
       link.prepend(icon);
@@ -254,7 +257,7 @@ window.addEventListener("DOMContentLoaded", () => {
     answer.replaceChildren(activeList, ...archivedSections);
     activeList.scrollTop = scrollTop;
     for (const section of archivedSections) section.scrollTop = archivedScrollTop;
-    markScrollableThreads();
+    markScrollable();
     updateInteractive();
   });
 
@@ -272,6 +275,7 @@ window.addEventListener("DOMContentLoaded", () => {
     latestTurn = turns.at(-1)?.id;
     followup.hidden = !canFollowup;
     answer.scrollTop = followLatest ? answer.scrollHeight : scrollTop;
+    markScrollable();
     updateInteractive();
   });
 });
