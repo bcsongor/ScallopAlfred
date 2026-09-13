@@ -4,20 +4,9 @@ BINDING_NAME_SCALLOPALFRED_ASK = "Ask about a tooltip or link"
 local _, addon = ...
 local Public, Count, Read = addon.Public, addon.Count, addon.Read
 
-local sequence = 0
-local selectedSubject
-local selectedCategory
-local mode
-local presets = {
-    { text = "What's this for?" },
-    { text = "Is it an upgrade?", itemOnly = true, fullGear = true },
-    { text = "Keep, sell or disenchant?", itemOnly = true },
-    { text = "Where does it drop?", itemOnly = true },
-    { text = "Custom question", custom = true },
-    { text = "Game mechanics", category = "mechanics" },
-    { text = "Professions", category = "professions" },
-    { text = "My gear", category = "gear" },
-}
+--
+-- GAME DATA
+--
 
 local equipmentSlots = {
     INVTYPE_HEAD = { 1 }, INVTYPE_NECK = { 2 }, INVTYPE_SHOULDER = { 3 },
@@ -45,41 +34,12 @@ local tsmSources = {
     vendorSellCopper = "VendorSell",
 }
 
-local function notify(message)
-    print("|cffe2c180Scallop Alfred:|r " .. message)
-end
-
-local function nextID()
-    sequence = sequence + 1
-    return string.format("%d-%d-%d", GetServerTime(), math.floor(GetTime() * 1000), sequence)
-end
-
 local function plainText(text)
     text = Public(text, "string")
     if not text then return end
     return (text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
         :gsub("|T.-|t", ""):gsub("|A.-|a", "")
         :gsub("|H.-|h(.-)|h", "%1"))
-end
-
--- All input comes from the payload builder. Empty tables represent JSON arrays.
-local function json(value)
-    if type(value) == "number" and (value ~= value or math.abs(value) == math.huge) then return "null" end
-    if type(value) == "string" then
-        return '"' .. value:gsub('[%z\1-\31\\"]', function(character)
-            if character == '"' then return '\\"' end
-            if character == "\\" then return "\\\\" end
-            return string.format("\\u%04x", string.byte(character))
-        end) .. '"'
-    end
-    if type(value) ~= "table" then return tostring(value) end
-    local parts = {}
-    if #value > 0 or next(value) == nil then
-        for _, entry in ipairs(value) do parts[#parts + 1] = json(entry) end
-        return "[" .. table.concat(parts, ",") .. "]"
-    end
-    for key, entry in pairs(value) do parts[#parts + 1] = json(key) .. ":" .. json(entry) end
-    return "{" .. table.concat(parts, ",") .. "}"
 end
 
 local function readSubject(link, name, tooltip)
@@ -108,7 +68,7 @@ end
 
 -- Prefer the original hyperlink so item variants and other link parameters survive.
 local function hoveredSubject()
-    if not GameTooltip:IsShown() then return nil end
+    if not GameTooltip:IsShown() then return end
     local info = GameTooltip:GetPrimaryTooltipInfo()
     local data = GameTooltip:GetTooltipData()
     if info and info.getterName == "GetHyperlink" then
@@ -137,7 +97,10 @@ local function linkedSubjects(question, hovered)
     for link, name in question:gmatch("|H(.-)|h(.-)|h") do
         if not seen[link] then
             local subject = readSubject(link, (name:gsub("^%[(.*)%]$", "%1")))
-            if subject then subjects[#subjects + 1] = subject; seen[link] = true end
+            if subject then
+                subjects[#subjects + 1] = subject
+                seen[link] = true
+            end
         end
     end
     return subjects
@@ -160,8 +123,7 @@ local function tsmPrices(link)
 end
 
 local function equippedItems(subjects, fullSet)
-    local result = {}
-    local seen = {}
+    local result, seen = {}, {}
     local function addSlot(slotID)
         if seen[slotID] then return end
         seen[slotID] = true
@@ -178,12 +140,95 @@ local function equippedItems(subjects, fullSet)
     for _, subject in ipairs(subjects) do
         if subject.type == "item" then
             local _, _, _, slot = C_Item.GetItemInfoInstant(subject.link)
-            for _, slotID in ipairs(equipmentSlots[slot] or {}) do
-                addSlot(slotID)
-            end
+            for _, slotID in ipairs(equipmentSlots[slot] or {}) do addSlot(slotID) end
         end
     end
     return result
+end
+
+--
+-- REQUEST
+--
+
+local sequence = 0
+
+local function nextID()
+    sequence = sequence + 1
+    return string.format("%d-%d-%d", GetServerTime(), math.floor(GetTime() * 1000), sequence)
+end
+
+-- All input comes from buildRequest. Empty tables represent JSON arrays.
+local function json(value)
+    if type(value) == "number" and (value ~= value or math.abs(value) == math.huge) then return "null" end
+    if type(value) == "string" then
+        return '"' .. value:gsub('[%z\1-\31\\"]', function(character)
+            if character == '"' then return '\\"' end
+            if character == "\\" then return "\\\\" end
+            return string.format("\\u%04x", string.byte(character))
+        end) .. '"'
+    end
+    if type(value) ~= "table" then return tostring(value) end
+    local parts = {}
+    if #value > 0 or next(value) == nil then
+        for _, entry in ipairs(value) do parts[#parts + 1] = json(entry) end
+        return "[" .. table.concat(parts, ",") .. "]"
+    end
+    for key, entry in pairs(value) do parts[#parts + 1] = json(key) .. ":" .. json(entry) end
+    return "{" .. table.concat(parts, ",") .. "}"
+end
+
+-- Returns the request, or nil and a message for the player.
+local function buildRequest(question, subject, category)
+    local subjects = linkedSubjects(question, subject)
+    if #subjects > 8 then return nil, "Use up to eight subjects, including the hovered subject." end
+    for _, linked in ipairs(subjects) do
+        if linked.type == "item" then linked.tsm = tsmPrices(linked.link) end
+    end
+    local gear = category == "gear"
+    local specIndex = C_SpecializationInfo.GetSpecialization()
+    return {
+        id = nextID(), context = nextID(), thread = "new", question = question, category = category,
+        player = {
+            class = UnitClass("player"),
+            spec = specIndex and select(2, C_SpecializationInfo.GetSpecializationInfo(specIndex)) or "Unselected",
+            level = UnitLevel("player"),
+        },
+        gameVersion = GetBuildInfo(),
+        subjects = subjects,
+        equipped = equippedItems(subjects, gear),
+        professions = Read(addon.GetProfessions, category == "professions"),
+        talents = gear and Read(addon.GetTalents) or nil,
+    }
+end
+
+--
+-- DIALOG
+--
+
+-- Subject presets ask straight away, custom opens the editor for the hovered subject,
+-- and topics open it without a subject.
+local presets = {
+    { kind = "subject", text = "What's this for?" },
+    { kind = "subject", text = "Is it an upgrade?", itemOnly = true, category = "gear" },
+    { kind = "subject", text = "Keep, sell or disenchant?", itemOnly = true },
+    { kind = "subject", text = "Where does it drop?", itemOnly = true },
+    { kind = "custom", text = "Custom question" },
+    { kind = "topic", text = "Game mechanics", category = "mechanics" },
+    { kind = "topic", text = "Professions", category = "professions" },
+    { kind = "topic", text = "My gear", category = "gear" },
+}
+
+local mode -- "menu", "question" or "copy"
+local selectedSubject
+local selectedCategory
+
+local function notify(message)
+    print("|cffe2c180Scallop Alfred:|r " .. message)
+end
+
+local function presetAvailable(preset, subject)
+    if preset.kind == "topic" then return subject == nil end
+    return subject ~= nil and (not preset.itemOnly or subject.type == "item")
 end
 
 local dialog = CreateFrame("Frame", "ScallopAlfredDialog", UIParent, "BasicFrameTemplateWithInset")
@@ -221,6 +266,7 @@ hint:SetPoint("BOTTOMRIGHT", -18, 18)
 hint:SetJustifyH("LEFT")
 
 local buttons = {}
+
 local function subjectTitle()
     if not selectedSubject then return "Ask Scallop Alfred about World of Warcraft" end
     if selectedSubject.type == "item" then
@@ -241,44 +287,28 @@ local function showEditor(title, instructions)
     edit:SetFocus()
 end
 
-local function sendQuestion(question, fullGear)
-    if InCombatLockdown() then notify("Ask again after combat."); return end
-    question = strtrim(question)
-    if question == "" then return end
-    local subjects = linkedSubjects(question, selectedSubject)
-    if #subjects > 8 then notify("Use up to eight subjects, including the hovered subject."); return end
-    fullGear = fullGear or selectedCategory == "gear"
-    for _, subject in ipairs(subjects) do
-        if subject.type == "item" then subject.tsm = tsmPrices(subject.link) end
-    end
-    local specIndex = C_SpecializationInfo.GetSpecialization()
-    local specName = specIndex and select(2, C_SpecializationInfo.GetSpecializationInfo(specIndex)) or "Unselected"
-    local professionsAvailable, professions = pcall(addon.GetProfessions, selectedCategory == "professions")
-    local talentsAvailable, talents
-    if fullGear then talentsAvailable, talents = pcall(addon.GetTalents) end
-    local payload = {
-        id = nextID(), context = nextID(),
-        thread = "new", question = question,
-        category = fullGear and "gear" or selectedCategory,
-        player = { class = UnitClass("player"), spec = specName, level = UnitLevel("player") },
-        gameVersion = GetBuildInfo(), subjects = subjects,
-        equipped = equippedItems(subjects, fullGear),
-        professions = professionsAvailable and professions or nil,
-        talents = talentsAvailable and talents or nil,
-    }
+local function openEditor(title)
+    mode = "question"
+    showEditor(title, "Type a question or Shift-click a link, then press Enter.")
+    edit:SetMaxLetters(2000)
+    edit:SetText("")
+end
+
+local function showCopyBox(text)
     mode = "copy"
-    local shortcut = IsMacClient() and "Cmd+C" or "Ctrl+C"
-    showEditor("Copy this request to the desktop app", "Press " .. shortcut .. " to copy and close.")
+    showEditor("Copy this request to the desktop app", "Press " .. (IsMacClient() and "Cmd+C" or "Ctrl+C") .. " to copy and close.")
     edit:SetMaxLetters(0)
-    edit:SetText("SCALLOPALFRED:" .. json(payload))
+    edit:SetText(text)
     edit:HighlightText()
 end
 
-local function customQuestion(title)
-    mode = "question"
-    showEditor(title or subjectTitle(), "Type a question or Shift-click a link, then press Enter.")
-    edit:SetMaxLetters(2000)
-    edit:SetText("")
+local function sendQuestion(question, category)
+    if InCombatLockdown() then notify("Ask again after combat."); return end
+    question = strtrim(question)
+    if question == "" then return end
+    local request, problem = buildRequest(question, selectedSubject, category or selectedCategory)
+    if not request then notify(problem); return end
+    showCopyBox("SCALLOPALFRED:" .. json(request))
 end
 
 edit:SetScript("OnEnterPressed", function()
@@ -292,23 +322,26 @@ hooksecurefunc(ChatFrameUtil, "InsertLink", function(link)
     end
 end)
 
-for _, preset in ipairs(presets) do
+for index, preset in ipairs(presets) do
     local button = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
     button:SetHeight(28)
-    if preset.custom then
+    button:SetText(preset.text)
+    if preset.kind == "custom" then
         for _, region in ipairs({ button:GetRegions() }) do
             if region:IsObjectType("Texture") then region:SetDesaturated(true) end
         end
     end
-    button:SetText(preset.text)
     button:SetScript("OnClick", function()
-        if preset.category then
+        if preset.kind == "subject" then
+            sendQuestion(preset.text, preset.category)
+        elseif preset.kind == "custom" then
+            openEditor(subjectTitle())
+        else
             selectedCategory = preset.category
-            customQuestion(preset.text)
-        elseif preset.custom then customQuestion()
-        else sendQuestion(preset.text, preset.fullGear) end
+            openEditor(preset.text)
+        end
     end)
-    buttons[#buttons + 1] = button
+    buttons[index] = button
 end
 
 function ScallopAlfred_Ask()
@@ -320,23 +353,24 @@ function ScallopAlfred_Ask()
     hint:SetText(selectedSubject and "Choose a question, then copy the request." or "Choose a topic, then type your question.")
     edit:Hide()
     edit:ClearFocus()
-    local count = 0
+    local shown = 0
     for index, button in ipairs(buttons) do
         button:Hide()
-        local preset = presets[index]
-        local visible = selectedSubject and not preset.category and (not preset.itemOnly or selectedSubject.type == "item")
-            or not selectedSubject and preset.category
-        if visible then
+        if presetAvailable(presets[index], selectedSubject) then
             button:ClearAllPoints()
-            button:SetPoint("TOPLEFT", 20, -70 - count * 34)
+            button:SetPoint("TOPLEFT", 20, -70 - shown * 34)
             button:SetPoint("RIGHT", -20, 0)
             button:Show()
-            count = count + 1
+            shown = shown + 1
         end
     end
-    dialog:SetHeight(115 + count * 34)
+    dialog:SetHeight(115 + shown * 34)
     dialog:Show()
 end
+
+--
+-- KEYBINDING
+--
 
 local events = CreateFrame("Frame")
 events:RegisterEvent("PLAYER_LOGIN")
