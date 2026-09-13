@@ -290,12 +290,12 @@ hint:SetJustifyH("LEFT")
 
 local buttons = {}
 
--- Quests show the quest-giver mark and quest-link yellow; items use their quality colour.
+-- Quests show the quest-giver mark and WoW's default yellow; items use their quality colour.
 local function subjectTitle()
     local subject = selectedSubject
     if not subject then return "Ask Scallop Alfred about World of Warcraft" end
     if subject.type == "quest" then
-        return CreateAtlasMarkup("QuestNormal", 16, 16) .. " " .. YELLOW_FONT_COLOR:WrapTextInColorCode(subject.name)
+        return CreateAtlasMarkup("QuestNormal", 16, 16) .. " " .. NORMAL_FONT_COLOR:WrapTextInColorCode(subject.name)
     end
     if subject.type == "item" then
         local _, _, quality = C_Item.GetItemInfo(subject.link)

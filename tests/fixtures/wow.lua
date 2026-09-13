@@ -55,7 +55,7 @@ C_Item = {
   GetItemInfoInstant = function() return 123, "", "", "INVTYPE_FINGER" end,
 }
 ITEM_QUALITY_COLORS = { [4] = { color = { WrapTextInColorCode = function(_, text) return "|cffa335ee" .. text .. "|r" end } } }
-YELLOW_FONT_COLOR = { WrapTextInColorCode = function(_, text) return "|cffffff00" .. text .. "|r" end }
+NORMAL_FONT_COLOR = { WrapTextInColorCode = function(_, text) return "|cffffd100" .. text .. "|r" end }
 function CreateAtlasMarkup(atlas, width, height) return "|A:" .. atlas .. ":" .. height .. ":" .. width .. "|a" end
 C_TooltipInfo = {
   GetHyperlink = function()

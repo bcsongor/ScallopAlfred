@@ -434,7 +434,7 @@ test("hovered spells use their link and exclude equipment actions", () => {
 
 test("hovered quests, currencies and achievements retain their ID, name and tooltip", () => {
   for (const [kind, enumName, question, caption] of [
-    ["quest", "Quest", "How do I complete this quest?", "|A:QuestNormal:16:16|a |cffffff00Example|r"],
+    ["quest", "Quest", "How do I complete this quest?", "|A:QuestNormal:16:16|a |cffffd100Example|r"],
     ["currency", "Currency", "How do I earn and spend this currency?", "Example"],
     ["achievement", "Achievement", "How do I earn this achievement?", "Example"],
   ]) {
@@ -457,7 +457,7 @@ test("hovered quest log entries use the quest ID on the tooltip's owner", () => 
     tooltipOwner = { questID = 456 }
     ScallopAlfred_Ask(); caption = widgets[1].text; choose("How do I complete this quest?")
   `);
-  assert.equal(game.value("caption"), "|A:QuestNormal:16:16|a |cffffff00Quest 456|r");
+  assert.equal(game.value("caption"), "|A:QuestNormal:16:16|a |cffffd100Quest 456|r");
   const [subject] = game.payload().subjects;
   assert.deepEqual({ type: subject.type, name: subject.name, link: subject.link }, { type: "quest", name: "Quest 456", link: "quest:456" });
   assert.ok(subject.tooltip.length > 0);
