@@ -1,11 +1,14 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { z } from "zod";
 
+/** The overlay height limits, in pixels, for both settings and dragging. */
+export const heightRange = { min: 320, max: 900 } as const;
+
 const configSchema = z.object({
   codexPath: z.string().default(""),
   model: z.string().default("gpt-6-astra"),
   width: z.number().int().min(280).max(800).default(380),
-  height: z.number().int().min(160).max(900).default(640),
+  height: z.number().int().min(heightRange.min).max(heightRange.max).default(640),
   x: z.number().int().nullable().default(null),
   y: z.number().int().nullable().default(null),
   fontSize: z.number().int().min(12).max(28).default(14),

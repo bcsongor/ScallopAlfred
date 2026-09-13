@@ -49,7 +49,7 @@ test("bottom handle resizes only height, clamps dragging and persists settings",
   assert.equal(await desktop.evaluate(() => global.testIgnoreMouseEvents), process.platform !== "linux");
   await desktop.evaluate(({ BrowserWindow }) => {
     const ipc = BrowserWindow.getAllWindows()[0].webContents.ipc;
-    for (const height of [null, "500", NaN, Infinity]) ipc.emit("resize-height", {}, height, true);
+    for (const height of [null, "500", NaN, Infinity]) ipc.emit("resize-height", {}, { height, finished: true });
   });
   assert.equal((await bounds()).height, maximum);
   assert.equal((await settings()).fontSize, 16);

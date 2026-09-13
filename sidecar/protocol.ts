@@ -75,12 +75,6 @@ export const requestSchema = z.object({
 
 export type WoWRequest = z.infer<typeof requestSchema>;
 
-export type OverlayState = {
-  status: "ready" | "thinking" | "answer" | "error";
-  title: string;
-  text: string;
-};
-
 export const conversationTurnSchema = z.object({
   id: z.string(),
   question: z.string(),
@@ -89,6 +83,12 @@ export const conversationTurnSchema = z.object({
 });
 
 export type ConversationTurn = z.infer<typeof conversationTurnSchema>;
+
+export type OverlayState = {
+  status: "ready" | ConversationTurn["status"];
+  title: string;
+  text: string;
+};
 
 /** Unrelated clipboard contents never become a request. */
 export function parseRequest(text: string): WoWRequest | undefined {

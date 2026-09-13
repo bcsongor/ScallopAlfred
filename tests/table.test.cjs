@@ -23,8 +23,10 @@ test("tables keep words intact and scroll wide content within the overlay", { ti
 | **Swift Steps** | More gusts for navigating the Vaults. |
 | **Egg Specialist** | Faster egg destruction; take **Egg Evasion** if bursts are killing you. |`;
   const render = async text => desktop.evaluate(({ BrowserWindow }, { text, html }) => {
-    BrowserWindow.getAllWindows()[0].webContents.send("overlay", { status: "answer", title: "Altar choices", text }, 14,
-      [{ id: "table", question: "How shall I use the altar?", status: "answer", text, html }], false);
+    BrowserWindow.getAllWindows()[0].webContents.send("thread", {
+      state: { status: "answer", title: "Altar choices", text }, fontSize: 14, canFollowup: false,
+      turns: [{ id: "table", question: "How shall I use the altar?", status: "answer", text, html }],
+    });
   }, { text, html: renderMarkdown(text) });
   await render(table);
   await page.locator("table").waitFor();

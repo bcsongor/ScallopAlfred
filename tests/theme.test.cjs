@@ -33,7 +33,7 @@ test("themes switch without replacing a thread or draft and persist alongside he
   await desktop.evaluate(({ BrowserWindow }) => {
     global.testWindowOperations = [];
     // These saves share one queue so neither setting overwrites the other.
-    BrowserWindow.getAllWindows()[0].webContents.ipc.emit("resize-height", {}, 640, true);
+    BrowserWindow.getAllWindows()[0].webContents.ipc.emit("resize-height", {}, { height: 640, finished: true });
     global.testMenu.items.find(item => item.label === "Theme").submenu.items.find(item => item.label === "WoWhead").click();
   });
   await page.waitForFunction(() => document.documentElement.dataset.theme === "wowhead");
