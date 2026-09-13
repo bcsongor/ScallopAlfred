@@ -4,16 +4,17 @@ const { parseRequest } = require("../sidecar/protocol.ts");
 const { buildPrompt, codexArguments } = require("../sidecar/codex.ts");
 
 const request = {
-  v: 2, id: "copy-1", context: "item-1", thread: "new", question: "What's this for?",
+  id: "copy-1", context: "item-1", thread: "new", question: "What's this for?",
   player: { class: "Druid", spec: "Restoration", level: 90 }, gameVersion: "12.1.0",
   subjects: [{ type: "item", name: 'Ring "of" stars', link: "item:123", tooltip: ["Line one\nLine two"] }],
   equipped: [],
 };
+const promptRequest = prompt => JSON.parse(prompt.slice(prompt.lastIndexOf("\n{") + 1));
 
-test("only valid, bounded addon payloads cross the clipboard boundary", () => {
+test("parseRequest ignores unrelated text and rejects malformed or oversized requests", () => {
   assert.equal(parseRequest("ordinary clipboard text"), undefined);
   assert.deepEqual(parseRequest("SCALLOPALFRED:" + JSON.stringify(request)), request);
-  for (const input of ["{broken", JSON.stringify({ ...request, v: 1 }), JSON.stringify({ ...request, player: {} }), JSON.stringify({ ...request, subjects: Array(9).fill(request.subjects[0]) }), "x".repeat(64_000)]) {
+  for (const input of ["{broken", JSON.stringify({ ...request, player: {} }), JSON.stringify({ ...request, subjects: Array(9).fill(request.subjects[0]) }), "x".repeat(64_000)]) {
     assert.throws(() => parseRequest("SCALLOPALFRED:" + input));
   }
 });
@@ -23,6 +24,13 @@ test("resume is restricted to the same conversation context", () => {
   assert.ok(!codexArguments(request, "", session).includes("resume"));
   assert.deepEqual(codexArguments({ ...request, thread: "continue" }, "", session).slice(-3), ["resume", "session-1", "-"]);
   assert.ok(!codexArguments({ ...request, thread: "continue", context: "item-2" }, "", session).includes("resume"));
+});
+
+test("resumed runs keep the read-only sandbox, disabled tools and explicit model settings", () => {
+  const args = codexArguments({ ...request, thread: "continue" }, "test-model", { context: "item-1", id: "session-1" });
+  for (const argument of ["read-only", 'approval_policy="never"', "features.shell_tool=false", "--ignore-user-config", 'model_reasoning_effort="medium"', 'service_tier="fast"']) {
+    assert.ok(args.includes(argument), argument);
+  }
 });
 
 test("profession snapshots stay optional and bounded", () => {
@@ -44,8 +52,7 @@ test("gear topics retain bounded slot and talent data", () => {
   };
   const parse = value => parseRequest("SCALLOPALFRED:" + JSON.stringify(value));
   assert.deepEqual(parse(gear), gear);
-  const prompt = buildPrompt(parse(gear));
-  assert.deepEqual(JSON.parse(prompt.slice(prompt.lastIndexOf("\n{") + 1)), gear);
+  assert.deepEqual(promptRequest(buildPrompt(parse(gear))), gear);
   assert.throws(() => parse({ ...gear, category: "invalid" }));
   assert.throws(() => parse({ ...gear, equipped: [{ ...gear.equipped[0], slot: 20 }] }));
   assert.throws(() => parse({ ...gear, talents: { ...gear.talents, selected: Array(129).fill(gear.talents.selected[0]) } }));
@@ -60,17 +67,10 @@ test("TSM snapshots survive validation and reach the prompt with explicit units"
   const parsed = parseRequest("SCALLOPALFRED:" + JSON.stringify(withPrices(tsm)));
   assert.deepEqual(parsed.subjects[0].tsm, tsm);
   const prompt = buildPrompt(parsed);
-  assert.deepEqual(JSON.parse(prompt.slice(prompt.lastIndexOf("\n{") + 1)), parsed);
+  assert.deepEqual(promptRequest(prompt), parsed);
   assert.match(prompt, /10,000 copper = 1 gold/);
   assert.match(prompt, /not a live quote/);
   for (const invalid of [{ ...tsm, saleRate: 2 }, { ...tsm, minBuyoutCopper: -1 }, { ...tsm, capturedAt: "today" }]) {
     assert.throws(() => parseRequest("SCALLOPALFRED:" + JSON.stringify(withPrices(invalid))));
-  }
-});
-
-test("resumed runs keep the read-only sandbox, disabled tools and explicit model settings", () => {
-  const args = codexArguments({ ...request, thread: "continue" }, "test-model", { context: "item-1", id: "session-1" });
-  for (const argument of ["read-only", 'approval_policy="never"', "features.shell_tool=false", "--ignore-user-config", 'model_reasoning_effort="medium"', 'service_tier="fast"']) {
-    assert.ok(args.includes(argument), argument);
   }
 });

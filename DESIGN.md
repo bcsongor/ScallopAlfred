@@ -36,7 +36,6 @@ A request is one line, `SCALLOPALFRED:` followed by JSON:
 
 ```json
 {
-  "v": 2,
   "id": "unique-request-id",
   "context": "thread-id",
   "thread": "new",
@@ -51,7 +50,7 @@ A request is one line, `SCALLOPALFRED:` followed by JSON:
 
 `id` is new for every request. `context` names the thread a request started, and the addon makes a fresh one for each question. The addon always sends `thread: "new"`. Overlay follow-ups reuse the stored request with `thread: "continue"`, a new `id` and the new question.
 
-The optional `equipped`, `professions`, `talents` and per-subject `tsm` fields are snapshots. Money is per-item copper, and `capturedAt` is the Unix time in seconds when the addon read the data, not when TSM last refreshed. `protocol.ts` defines every field and limit. Any version other than 2 is rejected, so the addon and app must update together.
+The optional `equipped`, `professions`, `talents` and per-subject `tsm` fields are snapshots. Money is per-item copper, and `capturedAt` is the Unix time in seconds when the addon read the data, not when TSM last refreshed. `protocol.ts` defines every field and limit. A request from a mismatched addon fails validation, so update the addon and app together.
 
 ## Desktop app
 
@@ -89,7 +88,7 @@ Archiving sets `archived_at`. Archived threads are read-only, can't be found by 
 
 ### Settings
 
-Theme and height changes write `settings.json` through one queue, so saving both at once can't lose either. Other settings apply on restart.
+Settings live in Electron's user data folder, not the addon folder, which may sit under Program Files. Theme and height changes write `settings.json` through one queue, so saving both at once can't lose either. Other settings apply on restart.
 
 ## Limits
 

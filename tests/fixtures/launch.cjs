@@ -11,7 +11,7 @@ let sequence = 0;
 function request(question, fields = {}) {
   sequence++;
   return {
-    v: 2, id: `request-${sequence}`, context: `context-${sequence}`, thread: "new", question, subjects: [],
+    id: `request-${sequence}`, context: `context-${sequence}`, thread: "new", question, subjects: [],
     player: { class: "Druid", spec: "Restoration", level: 90 }, gameVersion: "12.1.0", ...fields,
   };
 }

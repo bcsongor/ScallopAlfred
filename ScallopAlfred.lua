@@ -257,7 +257,7 @@ local function sendQuestion(question, fullGear)
     local talentsAvailable, talents
     if fullGear then talentsAvailable, talents = pcall(addon.GetTalents) end
     local payload = {
-        v = 2, id = nextID(), context = nextID(),
+        id = nextID(), context = nextID(),
         thread = "new", question = question,
         category = fullGear and "gear" or selectedCategory,
         player = { class = UnitClass("player"), spec = specName, level = UnitLevel("player") },

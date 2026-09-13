@@ -46,7 +46,6 @@ const professionsSchema = z.object({
 });
 
 export const requestSchema = z.object({
-  v: z.literal(2),
   id: z.string().min(1).max(128),
   context: z.string().min(1).max(128),
   thread: z.enum(["new", "continue"]),
@@ -90,7 +89,6 @@ export type OverlayState = {
   text: string;
 };
 
-/** Unrelated clipboard contents never become a request. */
 export function parseRequest(text: string): WoWRequest | undefined {
   if (!text.startsWith(requestPrefix)) return undefined;
   if (text.length > 64_000) throw new Error("The copied request is too large. Try fewer links or a shorter question.");
