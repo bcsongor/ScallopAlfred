@@ -223,16 +223,18 @@ button:hover {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding-top: 10px;
+  padding: 10px 0;
 }
 
+/* Mirrors the header: a shadow cast up over the threads scrolling beneath it. */
 .archived-conversations {
   flex-shrink: 0;
   max-height: 50%;
   overflow-y: auto;
-  margin-top: 12px;
-  padding-top: 8px;
-  border-top: 1px solid var(--divider);
+  padding-top: 10px;
+  box-shadow: 0 -4px 8px -2px #0009;
+  position: relative;
+  z-index: 1;
 }
 
 #answer .archived-conversations h2 {
