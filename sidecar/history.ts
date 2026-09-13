@@ -31,13 +31,6 @@ export function openHistory(path: string) {
     ) STRICT;
     CREATE INDEX IF NOT EXISTS conversations_updated ON conversations(updated_at DESC);
   `);
-  const columns = db.prepare("PRAGMA table_info(conversations)").all();
-  if (!columns.some(column => column.name === "archived_at")) {
-    if (columns.some(column => column.name === "hidden")) {
-      db.exec(`ALTER TABLE conversations RENAME COLUMN hidden TO archived_at;
-        UPDATE conversations SET archived_at = updated_at WHERE archived_at = 1`);
-    } else db.exec("ALTER TABLE conversations ADD COLUMN archived_at INTEGER NOT NULL DEFAULT 0");
-  }
   // Reply completion and recovery must preserve when a chat was archived.
   const upsert = db.prepare(`INSERT INTO conversations (id, title, updated_at, data) VALUES (?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET title=excluded.title, updated_at=excluded.updated_at, data=excluded.data`);
@@ -76,7 +69,11 @@ export function openHistory(path: string) {
 
   return {
     save,
-    archive: (id: string): void => { archive.run(Date.now(), id); },
+    /** Returns the archive time, or nothing when the thread is missing or already archived. */
+    archive(id: string): number | undefined {
+      const archivedAt = Date.now();
+      return archive.run(archivedAt, id).changes ? archivedAt : undefined;
+    },
     get: (id: string) => read(select.get(id)),
     findContext: (id: string) => read(context.get(id)),
     list: (): ConversationSummary[] => summaries.all().map(row => summarySchema.parse(row)),
