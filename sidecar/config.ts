@@ -1,7 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { z } from "zod";
 
-/** The overlay height limits, in pixels, for both settings and dragging. */
 export const heightRange = { min: 320, max: 900 } as const;
 
 const configSchema = z.object({
@@ -23,7 +22,6 @@ export async function saveAppearance(path: string, changes: Partial<Pick<Config,
   await writeFile(path, JSON.stringify({ ...config, ...changes }, null, 2) + "\n");
 }
 
-/** Keep user settings outside the addon, which may live in Program Files. */
 export async function loadConfig(path: string): Promise<Config> {
   try {
     return configSchema.parse(JSON.parse(await readFile(path, "utf8")));

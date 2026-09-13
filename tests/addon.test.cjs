@@ -9,7 +9,7 @@ const { parseRequest } = require("../sidecar/protocol.ts");
 const manifest = readFileSync(join(__dirname, "..", "ScallopAlfred.toc"), "utf8")
   .split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith("#"));
 
-test("WoW loads keybindings separately from the UI manifest", () => {
+test("Bindings.xml stays out of the TOC", () => {
   assert.ok(!manifest.some(file => file.toLowerCase() === "bindings.xml"));
 });
 
