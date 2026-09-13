@@ -72,7 +72,9 @@ GameTooltip = {
   GetSpell = function() return "Rejuvenation", spellID end,
   GetPrimaryTooltipInfo = function() return tooltipInfo end,
   GetTooltipData = function() return tooltipData end,
+  GetOwner = function() return tooltipOwner end,
 }
+C_QuestLog = { GetTitleForQuestID = function(id) return "Quest " .. id end }
 ChatFrameUtil = { InsertLink = function() end }
 SlashCmdList = {}
 

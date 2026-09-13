@@ -80,11 +80,18 @@ local function hoveredSubject()
     if Public(spellID, "number") then
         return readSubject(C_Spell.GetSpellLink(spellID), spellName, data)
     end
-    if not data or issecretvalue(data.type) or issecretvalue(data.id) then return end
-    local kind = tooltipLinkTypes[data.type]
-    if kind and data.id then
-        local title = data.lines and data.lines[1] and plainText(data.lines[1].leftText)
-        return readSubject(kind .. ":" .. data.id, title, data)
+    if data and not issecretvalue(data.type) and not issecretvalue(data.id) then
+        local kind = tooltipLinkTypes[data.type]
+        if kind and data.id then
+            local title = data.lines and data.lines[1] and plainText(data.lines[1].leftText)
+            return readSubject(kind .. ":" .. data.id, title, data)
+        end
+    end
+    -- Quest log entries and map pins build their tooltips line by line, so only the owner knows the quest.
+    local owner = Public(GameTooltip:GetOwner(), "table")
+    local questID = owner and Public(owner.questID, "number")
+    if questID then
+        return readSubject("quest:" .. questID, C_QuestLog.GetTitleForQuestID(questID))
     end
 end
 

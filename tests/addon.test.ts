@@ -444,6 +444,20 @@ test("hovered quests, currencies and achievements retain their ID, name and tool
   }
 });
 
+test("hovered quest log entries use the quest ID on the tooltip's owner", () => {
+  const game = addon();
+  game.execute(`
+    noItem = true
+    tooltipOwner = { questID = 456 }
+    ScallopAlfred_Ask(); choose("What's this for?")
+  `);
+  const [subject] = game.payload().subjects;
+  assert.deepEqual({ type: subject.type, name: subject.name, link: subject.link }, { type: "quest", name: "Quest 456", link: "quest:456" });
+  assert.ok(subject.tooltip.length > 0);
+  // A restricted quest ID leaves no subject, so the topic menu opens instead.
+  game.execute('tooltipOwner = { questID = secret }; ScallopAlfred_Ask(); choose("Game mechanics")');
+});
+
 test("hovered hyperlinks preserve parameters and ignore stale hidden tooltips", () => {
   const game = addon();
   game.execute(`
