@@ -1,7 +1,8 @@
 ## Interface: 120100, 120007, 120001
 ## Title: Scallop Alfred
 ## IconTexture: Interface\Icons\INV_Misc_Shell_03
-## Notes: Ask about WoW links, mechanics, professions and your gear in the Scallop Alfred desktop overlay.
+## Notes: Alfred knows more about Azeroth than he lets on. Ask quietly.
+## Category: Scallop
 ## Author: bcsongor
 ## Version: 0.1.0
 
