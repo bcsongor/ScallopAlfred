@@ -6,7 +6,7 @@ import { webUrl } from "./markdown.ts";
 
 const maxDownloadBytes = 256 * 1024;
 
-async function download(hostname: string): Promise<Buffer | undefined> {
+async function download(fetch: typeof globalThis.fetch, hostname: string): Promise<Buffer | undefined> {
   const url = new URL("https://www.google.com/s2/favicons");
   url.search = new URLSearchParams({ domain: hostname, sz: "32" }).toString();
   const response = await fetch(url, { signal: AbortSignal.timeout(5000), credentials: "omit" });
@@ -23,14 +23,14 @@ async function download(hostname: string): Promise<Buffer | undefined> {
 }
 
 /** Fetches icons by hostname through a fixed provider, never from model-supplied image URLs. */
-export function createFavicons(directory: string) {
+export function createFavicons(directory: string, fetch: typeof globalThis.fetch) {
   const icons = new Map<string, Promise<string | undefined>>();
 
   async function load(hostname: string): Promise<string | undefined> {
     const path = join(directory, `${createHash("sha256").update(hostname).digest("hex")}.png`);
     const png = await readFile(path)
       .catch(async () => {
-        const downloaded = await download(hostname);
+        const downloaded = await download(fetch, hostname);
         if (downloaded) {
           await mkdir(directory, { recursive: true });
           await writeFile(path, downloaded);

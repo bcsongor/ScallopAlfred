@@ -1,6 +1,13 @@
 import { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
-import { conversationTurnSchema, requestSchema, type ConversationTurn } from "./protocol.ts";
+import { requestSchema } from "./protocol.ts";
+
+const conversationTurnSchema = z.object({
+  id: z.string(),
+  question: z.string(),
+  status: z.enum(["thinking", "answer", "error"]),
+  text: z.string(),
+});
 
 const conversationSchema = z.object({
   id: z.string(),
@@ -16,6 +23,7 @@ const summarySchema = conversationSchema.pick({ id: true, title: true, updatedAt
   .extend({ question: z.string() });
 const archivedSummarySchema = conversationSchema.pick({ id: true, title: true });
 
+export type ConversationTurn = z.infer<typeof conversationTurnSchema>;
 export type Conversation = z.infer<typeof conversationSchema>;
 export type ConversationSummary = z.infer<typeof summarySchema>;
 export type ArchivedConversationSummary = z.infer<typeof archivedSummarySchema>;

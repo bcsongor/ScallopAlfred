@@ -1,6 +1,6 @@
-const assert = require("node:assert/strict");
-const { test } = require("node:test");
-const { renderMarkdown, webUrl } = require("../sidecar/markdown.ts");
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { renderMarkdown, webUrl } from "../sidecar/markdown.ts";
 
 test("external links only accept complete HTTP and HTTPS URLs", () => {
   assert.equal(webUrl("https://www.wowhead.com/item=123"), "https://www.wowhead.com/item=123");

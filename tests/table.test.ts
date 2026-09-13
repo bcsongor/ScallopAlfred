@@ -1,13 +1,13 @@
-const assert = require("node:assert/strict");
-const { test } = require("node:test");
-const { renderMarkdown } = require("../sidecar/markdown.ts");
-const { launch, until } = require("./fixtures/launch.cjs");
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { renderMarkdown } from "../sidecar/markdown.ts";
+import { launch, until } from "./fixtures/launch.ts";
 
 test("tables keep words intact and scroll wide content within the overlay", { timeout: 30000 }, async t => {
-  const app = await launch(t);
-  const { page } = app;
-  await app.waitForStatus("ready");
-  const render = text => app.desktop.evaluate(({ BrowserWindow }, { text, html }) => {
+  const desktop = await launch(t);
+  const { page } = desktop;
+  await desktop.waitForStatus("ready");
+  const render = (text: string) => desktop.app.evaluate(({ BrowserWindow }, { text, html }) => {
     BrowserWindow.getAllWindows()[0].webContents.send("thread", {
       state: { status: "answer", title: "Altar choices", text }, fontSize: 14, canFollowup: false,
       turns: [{ id: "table", question: "How shall I use the altar?", status: "answer", text, html }],
@@ -24,14 +24,14 @@ test("tables keep words intact and scroll wide content within the overlay", { ti
 | **Egg Specialist** | Faster egg destruction; take **Egg Evasion** if bursts are killing you. |`);
   await page.locator("table").waitFor();
   for (const theme of ["WoWhead", "Original"]) {
-    await app.desktop.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(380, 800));
-    await app.clickTray("Theme", theme);
+    await desktop.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(380, 800));
+    await desktop.clickTray("Theme", theme);
     await page.waitForFunction(expected => document.documentElement.dataset.theme === expected, theme.toLowerCase());
     const brokenWords = await page.locator("table").evaluate(element => {
       const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-      const broken = [];
+      const broken: string[] = [];
       while (walker.nextNode()) {
-        for (const match of walker.currentNode.textContent.matchAll(/\S+/g)) {
+        for (const match of (walker.currentNode.textContent ?? "").matchAll(/\S+/g)) {
           const range = document.createRange();
           range.setStart(walker.currentNode, match.index);
           range.setEnd(walker.currentNode, match.index + match[0].length);
@@ -50,7 +50,7 @@ test("tables keep words intact and scroll wide content within the overlay", { ti
   assert.equal(await page.locator("table").evaluate(element => element.scrollWidth > element.clientWidth), true);
   assert.equal(await page.locator("#answer").evaluate(element => element.scrollWidth > element.clientWidth), false);
   await page.locator("table").hover();
-  await until(async () => await app.ignoresMouse() === false);
+  await until(async () => await desktop.ignoresMouse() === false);
   await page.mouse.wheel(300, 0);
-  await page.waitForFunction(() => document.querySelector("table").scrollLeft > 0);
+  await page.waitForFunction(() => (document.querySelector("table")?.scrollLeft ?? 0) > 0);
 });

@@ -1,111 +1,49 @@
-const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { join } = require("node:path");
-const { test } = require("node:test");
-const { lua, lauxlib, lualib, to_luastring } = require("fengari");
-const { parseRequest } = require("../sidecar/protocol.ts");
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { test } from "node:test";
+import fengari from "fengari";
+import { buildPrompt } from "../sidecar/codex.ts";
+import { parseRequest, type WoWRequest } from "../sidecar/protocol.ts";
+
+const { lua, lauxlib, lualib, to_luastring } = fengari;
+const read = (file: string): string => readFileSync(join(import.meta.dirname, "..", file), "utf8");
 
 // The harness loads the manifest in order, so a misordered file fails every addon test.
-const manifest = readFileSync(join(__dirname, "..", "ScallopAlfred.toc"), "utf8")
-  .split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith("#"));
+const manifest = read("ScallopAlfred.toc").split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith("#"));
 
 test("Bindings.xml stays out of the TOC", () => {
   assert.ok(!manifest.some(file => file.toLowerCase() === "bindings.xml"));
 });
 
-// Emulate the WoW APIs at the boundary. Exercise the real Lua payload builder.
+// Runs the real addon files against the WoW API stand-ins in fixtures/wow.lua.
 function addon() {
   const state = lauxlib.luaL_newstate();
   lualib.luaL_openlibs(state);
-  function execute(source) {
+  const execute = (source: string): void => {
     const code = lauxlib.luaL_dostring(state, to_luastring(source));
-    assert.equal(code, lua.LUA_OK, code === lua.LUA_OK ? undefined : lua.lua_tojsstring(state, -1));
-  }
-  execute(`
-    UIParent = {}; UISpecialFrames = {}; widgets = {}; frames = {}
-    local methods = {}
-    function methods:SetText(value) self.text = value; if self.kind == "EditBox" then copied = value end end
-    function methods:SetFocus() focused = self end
-    function methods:HasFocus() return focused == self end
-    function methods:ClearFocus() if focused == self then focused = nil end end
-    function methods:Show() self.hidden = false end
-    function methods:Hide() self.hidden = true; if self.scripts and self.scripts.OnHide then self.scripts.OnHide() end end
-    function methods:IsVisible() return not self.hidden and (not self.parent or not self.parent.hidden) end
-    function methods:Insert(value) self:SetText((self.text or "") .. value) end
-    function methods:SetScript(event, callback) self.scripts[event] = callback end
-    local metatable = { __index = function(_, key) return methods[key] or function() end end }
-    function CreateFrame(kind, name, parent, template)
-      local frame = setmetatable({ kind = kind, scripts = {}, parent = parent, template = template }, metatable)
-      frame.TitleText = setmetatable({}, metatable)
-      frames[#frames + 1] = frame
-      if name then _G[name] = frame end
-      return frame
-    end
-    function methods:CreateFontString()
-      local widget = setmetatable({}, metatable)
-      widgets[#widgets + 1] = widget
-      return widget
-    end
-    function methods:GetText() return self.text end
-    function print(value) notice = value end
-    function strtrim(value) return value:match("^%s*(.-)%s*$") end
-    function GetServerTime() return 1800000000 end
-    function GetTime() return 12.3456 end
-    function InCombatLockdown() return combat or false end
-    function IsMacClient() return mac or false end
-    function IsControlKeyDown() return controlDown or false end
-    function IsMetaKeyDown() return metaDown or false end
-    function IsKeyDown(key) return key == "C" and cDown or false end
-    function UnitClass() return "Druid" end
-    function UnitLevel() return 90 end
-    function GetBuildInfo() return "12.1.0", "12345" end
-    function GetBindingKey() return nil end
-    function GetBindingAction() return existingBinding or "" end
-    function SetBinding(key, action) bound = key .. ":" .. action end
-    C_SpecializationInfo = { GetSpecialization = function() return 4 end, GetSpecializationInfo = function() return 105, "Restoration" end }
-    secret = {}; function issecretvalue(value) return value == secret end
-    C_Item = { GetItemInfo = function(link) return "Equipped " .. link, link, itemQuality end, GetItemInfoInstant = function() return 123, "", "", "INVTYPE_FINGER" end }
-    ITEM_QUALITY_COLORS = { [4] = { color = { WrapTextInColorCode = function(_, text) return "|cffa335ee" .. text .. "|r" end } } }
-    C_TooltipInfo = { GetHyperlink = function() return { lines = {
-      { leftText = 'A "quoted" line\\nwith a newline', rightText = "Other side" },
-      { leftText = secret }, { leftText = "|cff00ff00Green text|r" }
-    } } end }
-    function GetInventoryItemLink(_, slot) return "item:" .. slot end
-    Enum = { TooltipDataType = { Quest = 23, Currency = 5, Achievement = 12 } }
-    C_Spell = { GetSpellLink = function(id) return "|cff71d5ff|Hspell:" .. id .. "|h[Rejuvenation]|h|r" end }
-    GameTooltip = {
-      IsShown = function() return not tooltipHidden end,
-      GetItem = function() if not noItem then return 'Ring "of" stars', "item:123" end end,
-      GetSpell = function() return "Rejuvenation", spellID end,
-      GetPrimaryTooltipInfo = function() return tooltipInfo end,
-      GetTooltipData = function() return tooltipData end,
-    }
-    ChatFrameUtil = { InsertLink = function() end }
-    function hooksecurefunc(target, name, callback)
-      if type(target) == "string" then callback = name; name = target; target = _G end
-      local original = target[name]
-      target[name] = function(...) if original then original(...) end; callback(...) end
-    end
-    function choose(text)
-      for _, frame in ipairs(frames) do
-        if frame.kind == "Button" and frame.text == text and frame:IsVisible() then frame.scripts.OnClick(); return end
-      end
-      error("No button: " .. text)
-    end
-  `);
-  execute("addon = {}");
-  for (const file of manifest) {
-    execute(`local function loadAddon(...) ${readFileSync(join(__dirname, "..", file), "utf8")}\nend; loadAddon("ScallopAlfred", addon)`);
-  }
-  const binding = readFileSync(join(__dirname, "..", "Bindings.xml"), "utf8").match(/<Binding\s[^>]*>([\s\S]*?)<\/Binding>/)[1];
-  execute(`function runAskBinding(keyState) local keystate = keyState; ${binding} end`);
-  function value(name) {
+    assert.equal(code, lua.LUA_OK, code === lua.LUA_OK ? undefined : lua.lua_tojsstring(state, -1) ?? undefined);
+  };
+  const value = (name: string): string | null => {
     lua.lua_getglobal(state, name);
     const result = lua.lua_tojsstring(state, -1);
     lua.lua_pop(state, 1);
     return result;
-  }
-  return { execute, value, payload: () => parseRequest(value("copied")) };
+  };
+  execute(read("tests/fixtures/wow.lua"));
+  execute("addon = {}");
+  for (const file of manifest) execute(`local function loadAddon(...) ${read(file)}\nend; loadAddon("ScallopAlfred", addon)`);
+  const binding = read("Bindings.xml").match(/<Binding\s[^>]*>([\s\S]*?)<\/Binding>/)?.[1];
+  execute(`function runAskBinding(keyState) local keystate = keyState; ${binding} end`);
+  return {
+    execute,
+    value,
+    payload(): WoWRequest {
+      const request = parseRequest(value("copied") ?? "");
+      assert.ok(request, "The addon copied no request");
+      return request;
+    },
+  };
 }
 
 test("addon exports valid JSON, both ring slots, and no restricted tooltip values", () => {
@@ -119,7 +57,7 @@ test("addon exports valid JSON, both ring slots, and no restricted tooltip value
   assert.equal(request.subjects[0].tooltip.length, 3);
   assert.ok(request.subjects[0].tooltip[0].includes("\n"));
   assert.equal(request.subjects[0].tooltip[2], "Green text");
-  assert.deepEqual(request.equipped.map(item => item.link), ["item:11", "item:12"]);
+  assert.deepEqual(request.equipped?.map(item => item.link), ["item:11", "item:12"]);
 });
 
 test("profession snapshots include sparse slots and displayed specialisation ranks", () => {
@@ -159,22 +97,22 @@ test("profession snapshots include sparse slots and displayed specialisation ran
   `);
   const request = game.payload();
   const snapshot = request.professions;
-  assert.equal(snapshot.capturedAt, 1800000000);
-  assert.equal(snapshot.entries.length, 2);
-  const alchemy = snapshot.entries.find(entry => entry.skillLineID === 171);
-  assert.equal(alchemy.skillLevel, 75);
-  assert.equal(alchemy.maxSkillLevel, 100);
-  assert.equal(alchemy.skillModifier, 6);
-  assert.equal(alchemy.skillLineName, "Midnight Alchemy");
-  assert.equal(alchemy.specialization.skillLineID, 2906);
-  assert.equal(alchemy.specialization.unspentKnowledge, 7);
-  assert.equal(alchemy.specialization.hasStagedChanges, true);
-  assert.deepEqual(alchemy.specialization.paths, [
+  assert.equal(snapshot?.capturedAt, 1800000000);
+  assert.equal(snapshot?.entries.length, 2);
+  const alchemy = snapshot?.entries.find(entry => entry.skillLineID === 171);
+  assert.equal(alchemy?.skillLevel, 75);
+  assert.equal(alchemy?.maxSkillLevel, 100);
+  assert.equal(alchemy?.skillModifier, 6);
+  assert.equal(alchemy?.skillLineName, "Midnight Alchemy");
+  assert.equal(alchemy?.specialization?.skillLineID, 2906);
+  assert.equal(alchemy?.specialization?.unspentKnowledge, 7);
+  assert.equal(alchemy?.specialization?.hasStagedChanges, true);
+  assert.deepEqual(alchemy?.specialization?.paths, [
     { id: 10, name: "Path 110", rank: 20, maxRank: 40 },
     { id: 11, parentID: 10, name: "Path 111", rank: 0, maxRank: 40 },
     { id: 12, parentID: 10, name: "Path 112", rank: 0, maxRank: 40 },
   ]);
-  const prompt = require("../sidecar/codex.ts").buildPrompt(request);
+  const prompt = buildPrompt(request);
   assert.deepEqual(JSON.parse(prompt.slice(prompt.lastIndexOf("\n{") + 1)).professions, snapshot);
 
   game.execute(`
@@ -188,6 +126,7 @@ test("profession snapshots include sparse slots and displayed specialisation ran
       specializationReads = specializationReads + 1; return getConfig(id)
     end
   `);
+  const skillsOnly = snapshot?.entries.map(({ specialization: _, ...skills }) => skills);
   for (const action of ["Game mechanics", "My gear", "What's this for?", "Is it an upgrade?", "Keep, sell or disenchant?", "Where does it drop?", "Custom question"]) {
     const topic = action === "Game mechanics" || action === "My gear";
     game.execute(`
@@ -195,7 +134,7 @@ test("profession snapshots include sparse slots and displayed specialisation ran
       ${topic || action === "Custom question" ? 'focused:SetText("A question"); focused.scripts.OnEnterPressed()' : ""}
       assert(professionReads == 0 and specializationReads == 0 and childLineReads == 0)
     `);
-    assert.deepEqual(game.payload().professions.entries, snapshot.entries.map(({ specialization, ...skills }) => skills));
+    assert.deepEqual(game.payload().professions?.entries, skillsOnly);
   }
 
   game.execute(`
@@ -205,19 +144,19 @@ test("profession snapshots include sparse slots and displayed specialisation ran
     tooltipHidden = true; ScallopAlfred_Ask(); choose("Professions")
     focused:SetText("My points?"); focused.scripts.OnEnterPressed()
   `);
-  const partial = game.payload().professions.entries.find(entry => entry.skillLineID === 171);
-  assert.equal(partial.specialization.unspentKnowledge, undefined);
-  assert.equal(partial.specialization.hasStagedChanges, undefined);
-  assert.deepEqual(partial.specialization.paths, []);
+  const partial = game.payload().professions?.entries.find(entry => entry.skillLineID === 171);
+  assert.equal(partial?.specialization?.unspentKnowledge, undefined);
+  assert.equal(partial?.specialization?.hasStagedChanges, undefined);
+  assert.deepEqual(partial?.specialization?.paths, []);
 
   game.execute(`
     C_ProfSpecs.GetConfigIDForSkillLine = function() error("Not loaded") end
     ScallopAlfred_Ask(); choose("Professions")
     focused:SetText("My points?"); focused.scripts.OnEnterPressed()
   `);
-  const unavailable = game.payload().professions.entries.find(entry => entry.skillLineID === 171);
-  assert.equal(unavailable.skillLevel, 75);
-  assert.equal(unavailable.specialization, undefined);
+  const unavailable = game.payload().professions?.entries.find(entry => entry.skillLineID === 171);
+  assert.equal(unavailable?.skillLevel, 75);
+  assert.equal(unavailable?.specialization, undefined);
 });
 
 test("secret profession skill values are omitted", () => {
@@ -227,8 +166,8 @@ test("secret profession skill values are omitted", () => {
     function GetProfessionInfo() return "Mining", nil, secret, 100, nil, nil, 186, 0, nil, nil, "Midnight Mining" end
     ScallopAlfred_Ask(); choose("What's this for?")
   `);
-  assert.equal(game.payload().professions.entries[0].skillLevel, undefined);
-  assert.equal(game.payload().professions.entries[0].maxSkillLevel, 100);
+  assert.equal(game.payload().professions?.entries[0].skillLevel, undefined);
+  assert.equal(game.payload().professions?.entries[0].maxSkillLevel, 100);
 });
 
 test("copy shortcuts close only the JSON box after either key is released", () => {
@@ -289,9 +228,9 @@ test("item questions include TSM prices from the original item variant", () => {
     capturedAt: 1800000000, minBuyoutCopper: 120000, regionMarketAvgCopper: 150000,
     regionSaleAvgCopper: 135000, saleRate: 0.025, vendorSellCopper: 250,
   });
-  assert.ok(game.payload().equipped.every(item => item.tsm === undefined));
+  assert.ok(game.payload().equipped?.every(item => item.tsm === undefined));
   game.execute('prices.DBMinBuyout = 110000; ScallopAlfred_Ask(); choose("What\'s this for?")');
-  assert.equal(game.payload().subjects[0].tsm.minBuyoutCopper, 110000);
+  assert.equal(game.payload().subjects[0].tsm?.minBuyoutCopper, 110000);
 });
 
 test("unavailable or invalid TSM sources never prevent copying", () => {
@@ -347,9 +286,9 @@ test("a general question needs no hovered item, and combat leaves the payload un
   game.execute('noItem = true; ScallopAlfred_Ask(); choose("Game mechanics"); focused:SetText("Where should I go?"); focused.scripts.OnEnterPressed()');
   assert.deepEqual(game.payload().subjects, []);
   const before = game.value("copied");
-  game.execute('combat = true; ScallopAlfred_Ask()');
+  game.execute("combat = true; ScallopAlfred_Ask()");
   assert.equal(game.value("copied"), before);
-  assert.match(game.value("notice"), /after combat/);
+  assert.match(game.value("notice") ?? "", /after combat/);
 });
 
 test("topic menus defer snapshots until submission and gear captures only equipped slots", () => {
@@ -394,8 +333,8 @@ test("topic menus defer snapshots until submission and gear captures only equipp
   const request = game.payload();
   assert.equal(request.category, "gear");
   assert.deepEqual(request.subjects, []);
-  assert.equal(request.equipped.length, 17);
-  assert.deepEqual(request.equipped.map(item => item.slot), Array.from({ length: 19 }, (_, i) => i + 1).filter(slot => slot !== 2 && slot !== 3));
+  assert.equal(request.equipped?.length, 17);
+  assert.deepEqual(request.equipped?.map(item => item.slot), Array.from({ length: 19 }, (_, i) => i + 1).filter(slot => slot !== 2 && slot !== 3));
   assert.deepEqual(request.talents, {
     capturedAt: 1800000000, exportString: "BuildExport", hasStagedChanges: false,
     selected: [{ spellID: 100, name: "Talent 100", rank: 1 }, { spellID: 120, name: "Talent 120", rank: 1 }],
@@ -419,7 +358,7 @@ test("topic menus defer snapshots until submission and gear captures only equipp
   `);
   assert.equal(game.payload().category, undefined);
   assert.equal(game.payload().talents, undefined);
-  assert.deepEqual(game.payload().equipped.map(item => item.slot), [11, 12]);
+  assert.deepEqual(game.payload().equipped?.map(item => item.slot), [11, 12]);
 });
 
 test("talent scans are bounded and unavailable or restricted talents stay optional", () => {
@@ -438,15 +377,15 @@ test("talent scans are bounded and unavailable or restricted talents stay option
     focused:SetText("My build?"); focused.scripts.OnEnterPressed()
     assert(nodeReads == 256)
   `);
-  assert.deepEqual(game.payload().talents.selected, []);
-  assert.equal(game.payload().talents.exportString, undefined);
+  assert.deepEqual(game.payload().talents?.selected, []);
+  assert.equal(game.payload().talents?.exportString, undefined);
   game.execute(`
     C_ClassTalents.GetActiveConfigID = function() error("Not loaded") end
     ScallopAlfred_Ask(); choose("My gear")
     focused:SetText("My gear?"); focused.scripts.OnEnterPressed()
   `);
   assert.equal(game.payload().talents, undefined);
-  assert.equal(game.payload().equipped.length, 19);
+  assert.equal(game.payload().equipped?.length, 19);
 });
 
 test("the default keybind never replaces an existing binding", () => {
@@ -459,8 +398,7 @@ test("the default keybind never replaces an existing binding", () => {
 
 test("the ask binding opens the topic menu on key release, then an empty editor", () => {
   const game = addon();
-  const binding = readFileSync(join(__dirname, "..", "Bindings.xml"), "utf8");
-  assert.match(binding, /runOnUp="true"/);
+  assert.match(read("Bindings.xml"), /runOnUp="true"/);
   game.execute(`
     noItem = true
     runAskBinding("down")
@@ -554,7 +492,7 @@ test("explicit links retain the hovered subject and deduplicate identical links"
   const first = game.payload();
   assert.deepEqual(first.subjects.map(subject => subject.link), ["item:123", "spell:774", "item:123:variant"]);
   assert.equal(first.subjects[0].name, 'Ring "of" stars');
-  assert.deepEqual(first.equipped.map(item => item.slot), [11, 12]);
+  assert.deepEqual(first.equipped?.map(item => item.slot), [11, 12]);
 });
 
 test("the eight-subject limit includes the hover without counting duplicates", () => {
@@ -573,7 +511,7 @@ test("the eight-subject limit includes the hover without counting duplicates", (
     focused.scripts.OnEnterPressed()
     assert(focused:GetText() == before)
   `);
-  assert.match(game.value("notice"), /eight subjects/);
+  assert.match(game.value("notice") ?? "", /eight subjects/);
   game.execute('focused:SetText("Compare |Hitem:123|h[Same ring]|h"); focused.scripts.OnEnterPressed()');
   assert.equal(game.payload().subjects.length, 1);
 });

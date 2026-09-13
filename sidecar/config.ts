@@ -17,9 +17,19 @@ const configSchema = z.object({
 
 export type Config = z.infer<typeof configSchema>;
 
-export async function saveAppearance(path: string, changes: Partial<Pick<Config, "height" | "theme">>): Promise<void> {
-  const config = await loadConfig(path);
-  await writeFile(path, JSON.stringify({ ...config, ...changes }, null, 2) + "\n");
+export type AppearanceChanges = Partial<Pick<Config, "height" | "theme">>;
+
+/** Returns a writer that saves changes one at a time, so saving the theme and height together keeps both. */
+export function createSettingsWriter(path: string): (changes: AppearanceChanges) => Promise<void> {
+  let queue = Promise.resolve();
+  return changes => {
+    const saved = queue.then(async () => {
+      const config = await loadConfig(path);
+      await writeFile(path, JSON.stringify({ ...config, ...changes }, null, 2) + "\n");
+    });
+    queue = saved.catch(() => undefined);
+    return saved;
+  };
 }
 
 export async function loadConfig(path: string): Promise<Config> {

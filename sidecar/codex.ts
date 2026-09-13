@@ -6,8 +6,14 @@ import { delimiter, dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { text as streamText } from "node:stream/consumers";
 import { z } from "zod";
-import type { Config } from "./config.ts";
+import { errorMessage } from "./errors.ts";
 import type { WoWRequest } from "./protocol.ts";
+
+export type Session = { context: string; id: string };
+export type Answer = { text: string; session: Session };
+export type Ask = (request: WoWRequest, options: { signal: AbortSignal; session?: Session }) => Promise<Answer>;
+export type CodexOptions = { codexPath: string; model: string; workspace: string };
+export type RunOptions = { executable: string; args: string[]; prompt: string; cwd: string; signal: AbortSignal };
 
 const eventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("thread.started"), thread_id: z.string() }),
@@ -18,11 +24,23 @@ const eventSchema = z.discriminatedUnion("type", [
 ]);
 
 type CodexEvent = z.infer<typeof eventSchema>;
-type Session = { context: string; id: string };
 type Run = { threadId: string; text: string; completed: boolean; failure?: string; diagnostic?: string };
 
 const promptTemplate = readFileSync(join(import.meta.dirname, "prompt.md"), "utf8").trimEnd();
 const apiKeyVariables = new Set(["OPENAI_API_KEY", "CODEX_API_KEY"]);
+
+export function createCodex({ codexPath, model, workspace }: CodexOptions): Ask {
+  return async (request, { signal, session }) => {
+    const { text, threadId } = await runCodex({
+      executable: findCodex(codexPath),
+      args: codexArguments(request, model, session),
+      prompt: buildPrompt(request),
+      cwd: workspace,
+      signal,
+    });
+    return { text, session: { context: request.context, id: threadId } };
+  };
+}
 
 function findCodex(configuredPath: string): string {
   if (configuredPath) return configuredPath;
@@ -98,7 +116,7 @@ function exitCode(child: ChildProcess): Promise<number | null> {
 }
 
 /** A run succeeds only when Codex completes the turn with an answer and a thread ID to resume. */
-async function runCodex(executable: string, args: string[], prompt: string, cwd: string, signal: AbortSignal): Promise<{ text: string; threadId: string }> {
+export async function runCodex({ executable, args, prompt, cwd, signal }: RunOptions): Promise<{ text: string; threadId: string }> {
   const child = spawn(executable, args, { cwd, env: codexEnvironment(), windowsHide: true, signal, killSignal: "SIGKILL" });
   child.stdin.on("error", () => { /* The process exit reports why input could not be written. */ });
   child.stdin.end(prompt);
@@ -107,7 +125,7 @@ async function runCodex(executable: string, args: string[], prompt: string, cwd:
     streamText(child.stderr),
     exitCode(child),
   ]).catch((error: unknown) => {
-    throw new Error(signal.aborted ? String(signal.reason) : `Could not start Codex: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(signal.aborted ? String(signal.reason) : `Could not start Codex: ${errorMessage(error)}`);
   });
   const run = lines.flatMap(parseEvent).reduce<Run>(applyEvent, { threadId: "", text: "", completed: false });
   const answer = run.text.trim();
@@ -115,15 +133,4 @@ async function runCodex(executable: string, args: string[], prompt: string, cwd:
     throw new Error(run.failure || run.diagnostic || stderr.slice(-1500).trim() || "Codex returned no answer. Check that codex login is complete.");
   }
   return { text: answer, threadId: run.threadId };
-}
-
-export async function askCodex(
-  request: WoWRequest,
-  config: Config,
-  cwd: string,
-  signal: AbortSignal,
-  session?: Session,
-): Promise<{ text: string; session: Session }> {
-  const { text, threadId } = await runCodex(findCodex(config.codexPath), codexArguments(request, config.model, session), buildPrompt(request), cwd, signal);
-  return { text, session: { context: request.context, id: threadId } };
 }

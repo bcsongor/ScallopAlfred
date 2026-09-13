@@ -74,21 +74,6 @@ export const requestSchema = z.object({
 
 export type WoWRequest = z.infer<typeof requestSchema>;
 
-export const conversationTurnSchema = z.object({
-  id: z.string(),
-  question: z.string(),
-  status: z.enum(["thinking", "answer", "error"]),
-  text: z.string(),
-});
-
-export type ConversationTurn = z.infer<typeof conversationTurnSchema>;
-
-export type OverlayState = {
-  status: "ready" | ConversationTurn["status"];
-  title: string;
-  text: string;
-};
-
 export function parseRequest(text: string): WoWRequest | undefined {
   if (!text.startsWith(requestPrefix)) return undefined;
   if (text.length > 64_000) throw new Error("The copied request is too large. Try fewer links or a shorter question.");

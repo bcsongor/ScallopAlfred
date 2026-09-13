@@ -1,14 +1,16 @@
 import { BrowserWindow, screen } from "electron";
 import { join } from "node:path";
 import { heightRange, type Config } from "./config.ts";
-import { fromOverlay, type FromOverlay, type ToOverlay } from "./ipc.ts";
+import { fromOverlay, overlayRequests, type FromOverlay, type OverlayRequests, type ToOverlay } from "./ipc.ts";
+
+export const iconPath = join(import.meta.dirname, "..", "assets", "scallop.jpg");
 
 /**
  * Creates the always-on-top overlay window. It never takes focus from the game on its own and passes
  * mouse input through, except over controls or while the player edits a follow-up.
  */
-export function createOverlay(config: Config, icon: string) {
-  const window = createWindow(config, icon);
+export function createOverlay(config: Config) {
+  const window = createWindow(config);
   let clickThrough = process.platform !== "linux";
   let overControl = false;
   let editing = false;
@@ -19,11 +21,26 @@ export function createOverlay(config: Config, icon: string) {
     window.setIgnoreMouseEvents(clickThrough && !overControl && !editing, { forward: true });
   }
 
+  function keepOnTop(): void {
+    if (!window.isAlwaysOnTop()) setTopmost(window);
+  }
+
   function listen<K extends keyof FromOverlay>(channel: K, listener: (message: FromOverlay[K]) => void): void {
     const schema = fromOverlay[channel];
     window.webContents.ipc.on(channel, (_event, message: unknown) => {
       const parsed = schema.safeParse(message);
       if (parsed.success) listener(parsed.data);
+    });
+  }
+
+  function handle<K extends keyof OverlayRequests>(
+    channel: K,
+    handler: (message: OverlayRequests[K]["message"]) => Promise<OverlayRequests[K]["result"]>,
+  ): void {
+    const schema = overlayRequests[channel];
+    window.webContents.ipc.handle(channel, (_event, message: unknown) => {
+      const parsed = schema.safeParse(message);
+      return parsed.success ? handler(parsed.data) : undefined;
     });
   }
 
@@ -34,14 +51,14 @@ export function createOverlay(config: Config, icon: string) {
   updateMouseEvents();
 
   // Windows can drop the native topmost flag from outside the app without any event, leaving the overlay behind WoW.
-  const keepOnTop = setInterval(() => {
-    if (window.isVisible() && !window.isAlwaysOnTop()) window.setAlwaysOnTop(true);
+  const topmostCheck = setInterval(() => {
+    if (window.isVisible()) keepOnTop();
   }, 1000);
-  window.on("closed", () => clearInterval(keepOnTop));
+  window.on("closed", () => clearInterval(topmostCheck));
 
   return {
-    window,
     listen,
+    handle,
     load: () => window.loadFile(join(import.meta.dirname, "overlay.html")),
     send<K extends keyof ToOverlay>(channel: K, message: ToOverlay[K]): void {
       window.webContents.send(channel, message);
@@ -57,14 +74,14 @@ export function createOverlay(config: Config, icon: string) {
       dismissed = false;
       if (!window.isVisible()) window.showInactive();
       // Check after showing: a visible window may still have lost its topmost flag.
-      if (!window.isAlwaysOnTop()) window.setAlwaysOnTop(true);
+      keepOnTop();
     },
     /** Restores and raises the overlay, even when Electron reports it as visible behind the game. */
     raise(): void {
       dismissed = false;
       if (window.isMinimized()) window.restore();
       if (!window.isVisible()) window.showInactive();
-      if (!window.isAlwaysOnTop()) window.setAlwaysOnTop(true);
+      keepOnTop();
       window.moveTop();
     },
     hide(): void {
@@ -95,7 +112,12 @@ export function createOverlay(config: Config, icon: string) {
   };
 }
 
-function createWindow(config: Config, icon: string): BrowserWindow {
+// Electron's default "floating" level does not always make the window topmost on Windows. "screen-saver" does.
+function setTopmost(window: BrowserWindow): void {
+  window.setAlwaysOnTop(true, "screen-saver");
+}
+
+function createWindow(config: Config): BrowserWindow {
   const area = screen.getPrimaryDisplay().workArea;
   const requested = {
     x: config.x ?? area.x + area.width - config.width - 24,
@@ -107,13 +129,14 @@ function createWindow(config: Config, icon: string): BrowserWindow {
   const width = Math.min(config.width, display.width);
   const height = Math.min(config.height, display.height);
   const window = new BrowserWindow({
-    width, height, icon,
+    width, height, icon: iconPath,
     x: Math.max(display.x, Math.min(requested.x, display.x + display.width - width)),
     y: Math.max(display.y, Math.min(requested.y, display.y + display.height - height)),
     show: false, frame: false, transparent: true, resizable: false,
-    focusable: false, alwaysOnTop: true, skipTaskbar: true,
+    focusable: false, skipTaskbar: true,
     webPreferences: { preload: join(import.meta.dirname, "preload.cjs"), contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
+  setTopmost(window);
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", event => event.preventDefault());
   if (process.platform === "darwin") window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });

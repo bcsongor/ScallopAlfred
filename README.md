@@ -63,6 +63,6 @@ After updating, run `/reload` in WoW and restart the app. Both sides must speak 
 
 ## Development
 
-`bun run check` type-checks the app. `bun run test` runs the addon's Lua against mocked WoW APIs and drives the real Electron app with an in-memory clipboard and a fake Codex, so tests never touch your clipboard or a model. The tests use Node's runner because Playwright's Electron launcher hangs under Bun's runner on Windows.
+`bun run check` type-checks the app and the tests. `bun run test` runs the addon's Lua against mocked WoW APIs, unit-tests the pure modules and the Codex process runner, and drives the real Electron app with a fake clipboard, tray and Codex, so tests never touch your clipboard or a model. The tests use Node's runner because Playwright's Electron launcher hangs under Bun's runner on Windows.
 
 Only Windows has been tested, and in-game capture still needs checking in WoW itself. [DESIGN.md](DESIGN.md) explains how it works.

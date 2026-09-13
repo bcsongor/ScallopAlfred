@@ -1,7 +1,13 @@
 import { z } from "zod";
 import type { Config } from "./config.ts";
-import type { ArchivedConversationSummary, ConversationSummary } from "./history.ts";
-import { requestSchema, type ConversationTurn, type OverlayState } from "./protocol.ts";
+import type { ArchivedConversationSummary, ConversationSummary, ConversationTurn } from "./history.ts";
+import { requestSchema } from "./protocol.ts";
+
+export type OverlayState = {
+  status: "ready" | ConversationTurn["status"];
+  title: string;
+  text: string;
+};
 
 export type ToOverlay = {
   thread: {
@@ -15,7 +21,7 @@ export type ToOverlay = {
   "followup-editor": boolean;
 };
 
-const schemas = {
+const messages = {
   "hide-overlay": z.undefined(),
   "show-history": z.undefined(),
   "edit-followup": z.boolean(),
@@ -27,10 +33,19 @@ const schemas = {
   "open-link": z.string(),
 };
 
-export type FromOverlay = { [K in keyof typeof schemas]: z.output<(typeof schemas)[K]> };
+export type FromOverlay = { [K in keyof typeof messages]: z.output<(typeof messages)[K]> };
 
 /** The renderer is untrusted, so the main process validates every message from it. */
-export const fromOverlay: { [K in keyof FromOverlay]: z.ZodType<FromOverlay[K]> } = schemas;
+export const fromOverlay: { [K in keyof FromOverlay]: z.ZodType<FromOverlay[K]> } = messages;
+
+/** Channels where the overlay waits for a result from the main process. */
+export type OverlayRequests = {
+  favicon: { message: string; result: string | undefined };
+};
+
+export const overlayRequests: { [K in keyof OverlayRequests]: z.ZodType<OverlayRequests[K]["message"]> } = {
+  favicon: z.string(),
+};
 
 /** Send arguments for a channel: none when it carries no payload. */
 export type MessageArgs<T, K extends keyof T> = T[K] extends undefined ? [] : [message: T[K]];
