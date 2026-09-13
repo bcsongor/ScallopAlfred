@@ -1,0 +1,5 @@
+<Bindings>
+  <Binding name="SCALLOPALFRED_ASK" header="SCALLOPALFRED" category="ADDONS" runOnUp="true">
+    if keystate == "up" then ScallopAlfred_Ask() end
+  </Binding>
+</Bindings>

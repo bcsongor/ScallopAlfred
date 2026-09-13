@@ -1,0 +1,360 @@
+BINDING_HEADER_SCALLOPALFRED = "Scallop Alfred"
+BINDING_NAME_SCALLOPALFRED_ASK = "Ask about a tooltip or link"
+
+local _, addon = ...
+
+local sequence = 0
+local selectedSubject
+local selectedCategory
+local mode
+local presets = {
+    { text = "What's this for?" },
+    { text = "Is it an upgrade?", itemOnly = true, fullGear = true },
+    { text = "Keep, sell or disenchant?", itemOnly = true },
+    { text = "Where does it drop?", itemOnly = true },
+    { text = "Custom question", custom = true },
+    { text = "Game mechanics", category = "mechanics" },
+    { text = "Professions", category = "professions" },
+    { text = "My gear", category = "gear" },
+}
+
+local equipmentSlots = {
+    INVTYPE_HEAD = { 1 }, INVTYPE_NECK = { 2 }, INVTYPE_SHOULDER = { 3 },
+    INVTYPE_BODY = { 4 }, INVTYPE_CHEST = { 5 }, INVTYPE_ROBE = { 5 },
+    INVTYPE_WAIST = { 6 }, INVTYPE_LEGS = { 7 }, INVTYPE_FEET = { 8 },
+    INVTYPE_WRIST = { 9 }, INVTYPE_HAND = { 10 }, INVTYPE_FINGER = { 11, 12 },
+    INVTYPE_TRINKET = { 13, 14 }, INVTYPE_CLOAK = { 15 },
+    INVTYPE_WEAPON = { 16, 17 }, INVTYPE_2HWEAPON = { 16, 17 },
+    INVTYPE_WEAPONMAINHAND = { 16 }, INVTYPE_WEAPONOFFHAND = { 16, 17 },
+    INVTYPE_SHIELD = { 16, 17 }, INVTYPE_HOLDABLE = { 16, 17 },
+    INVTYPE_RANGED = { 16 }, INVTYPE_RANGEDRIGHT = { 16 }, INVTYPE_TABARD = { 19 },
+}
+
+local function notify(message)
+    print("|cffe2c180Scallop Alfred:|r " .. message)
+end
+
+local function nextID()
+    sequence = sequence + 1
+    return string.format("%d-%d-%d", GetServerTime(), math.floor(GetTime() * 1000), sequence)
+end
+
+-- Restricted tooltip values are omitted, never inspected or exported.
+local function plainText(text)
+    if issecretvalue and issecretvalue(text) then return nil end
+    if type(text) ~= "string" then return nil end
+    return text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+        :gsub("|T.-|t", ""):gsub("|A.-|a", "")
+        :gsub("|H.-|h(.-)|h", "%1")
+end
+
+-- All input comes from the payload builder. Empty tables represent JSON arrays.
+local function json(value)
+    if type(value) == "string" then
+        return '"' .. value:gsub('[%z\1-\31\\"]', function(character)
+            if character == '"' then return '\\"' end
+            if character == "\\" then return "\\\\" end
+            return string.format("\\u%04x", string.byte(character))
+        end) .. '"'
+    end
+    if type(value) ~= "table" then return tostring(value) end
+    local parts = {}
+    if #value > 0 or next(value) == nil then
+        for _, entry in ipairs(value) do parts[#parts + 1] = json(entry) end
+        return "[" .. table.concat(parts, ",") .. "]"
+    end
+    for key, entry in pairs(value) do parts[#parts + 1] = json(key) .. ":" .. json(entry) end
+    return "{" .. table.concat(parts, ",") .. "}"
+end
+
+local function readSubject(link, name, tooltip)
+    if issecretvalue and issecretvalue(link) then return nil end
+    if type(link) ~= "string" then return nil end
+    name = plainText(name) or plainText(link:match("|h%[(.-)%]|h"))
+    link = link:match("|H(.-)|h") or link
+    local kind = link:match("^(%a[%w_]*):")
+    if not kind then return nil end
+    if not tooltip then
+        local ok, data = pcall(C_TooltipInfo.GetHyperlink, link)
+        if ok then tooltip = data end
+    end
+    if not name and kind == "item" then name = plainText(C_Item.GetItemInfo(link)) end
+    if not name and tooltip and tooltip.lines and tooltip.lines[1] then name = plainText(tooltip.lines[1].leftText) end
+    local subject = { type = kind, name = name or link, link = link, tooltip = {} }
+    if tooltip and tooltip.lines then
+        for _, line in ipairs(tooltip.lines) do
+            for _, field in ipairs({ "leftText", "rightText" }) do
+                local text = plainText(line[field])
+                if text and text ~= "" and #subject.tooltip < 80 then
+                    subject.tooltip[#subject.tooltip + 1] = text
+                end
+            end
+        end
+    end
+    return subject
+end
+
+-- Prefer the original hyperlink so item variants and other link parameters survive.
+local function hoveredSubject()
+    if not GameTooltip:IsShown() then return nil end
+    local info = GameTooltip:GetPrimaryTooltipInfo()
+    local data = GameTooltip:GetTooltipData()
+    if info and info.getterName == "GetHyperlink" then
+        return readSubject(info.getterArgs[1], nil, data)
+    end
+    local name, link = GameTooltip:GetItem()
+    if not (issecretvalue and issecretvalue(link)) and link then return readSubject(link, name, data) end
+    local spellName, spellID = GameTooltip:GetSpell()
+    if not (issecretvalue and issecretvalue(spellID)) and spellID then
+        return readSubject(C_Spell.GetSpellLink(spellID), spellName, data)
+    end
+    if not data or (issecretvalue and (issecretvalue(data.type) or issecretvalue(data.id))) then return nil end
+    local linkTypes = {
+        [Enum.TooltipDataType.Quest] = "quest",
+        [Enum.TooltipDataType.Currency] = "currency",
+        [Enum.TooltipDataType.Achievement] = "achievement",
+    }
+    local kind = linkTypes[data.type]
+    if kind and data.id then
+        local title = data.lines and data.lines[1] and plainText(data.lines[1].leftText)
+        return readSubject(kind .. ":" .. data.id, title, data)
+    end
+end
+
+local function linkedSubjects(question, hovered)
+    local subjects, seen = {}, {}
+    if hovered then
+        subjects[1] = hovered
+        seen[hovered.link] = true
+    end
+    for link, name in question:gmatch("|H(.-)|h(.-)|h") do
+        if not seen[link] then
+            local subject = readSubject(link, (name:gsub("^%[(.*)%]$", "%1")))
+            if subject then subjects[#subjects + 1] = subject; seen[link] = true end
+        end
+    end
+    return subjects
+end
+
+local tsmSources = {
+    minBuyoutCopper = "DBMinBuyout",
+    regionMarketAvgCopper = "DBRegionMarketAvg",
+    regionSaleAvgCopper = "DBRegionSaleAvg",
+    saleRate = "DBRegionSaleRate",
+    vendorSellCopper = "VendorSell",
+}
+
+-- Read TSM's cached values only. A missing source must not prevent copying a question.
+local function tsmPrices(link)
+    if not TSM_API or type(TSM_API.ToItemString) ~= "function" or type(TSM_API.GetCustomPriceValue) ~= "function" then return end
+    local ok, item = pcall(TSM_API.ToItemString, link)
+    if not ok or (issecretvalue and issecretvalue(item)) or type(item) ~= "string" then return end
+    local prices = {}
+    for field, source in pairs(tsmSources) do
+        local success, value = pcall(TSM_API.GetCustomPriceValue, source, item)
+        if success and not (issecretvalue and issecretvalue(value)) and type(value) == "number"
+            and value >= 0 and value <= 9007199254740991 and (field ~= "saleRate" or value <= 1) then
+            prices[field] = value
+        end
+    end
+    if next(prices) then
+        prices.capturedAt = GetServerTime()
+        return prices
+    end
+end
+
+local function equippedItems(subjects, fullSet)
+    local result = {}
+    local seen = {}
+    local function addSlot(slotID)
+        if seen[slotID] then return end
+        seen[slotID] = true
+        local equipped = readSubject(GetInventoryItemLink("player", slotID))
+        if equipped then
+            equipped.slot = slotID
+            result[#result + 1] = equipped
+        end
+    end
+    if fullSet then
+        for slotID = 1, 19 do addSlot(slotID) end
+        return result
+    end
+    for _, subject in ipairs(subjects) do
+        if subject.type == "item" then
+            local _, _, _, slot = C_Item.GetItemInfoInstant(subject.link)
+            for _, slotID in ipairs(equipmentSlots[slot] or {}) do
+                addSlot(slotID)
+            end
+        end
+    end
+    return result
+end
+
+local dialog = CreateFrame("Frame", "ScallopAlfredDialog", UIParent, "BasicFrameTemplateWithInset")
+dialog:SetSize(320, 280)
+dialog:SetPoint("CENTER")
+dialog:SetFrameStrata("DIALOG")
+dialog.TitleText:SetText("Scallop Alfred")
+dialog:Hide()
+table.insert(UISpecialFrames, "ScallopAlfredDialog")
+
+local label = dialog:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+label:SetPoint("TOPLEFT", 18, -38)
+label:SetPoint("TOPRIGHT", -18, -38)
+label:SetJustifyH("LEFT")
+
+local edit = CreateFrame("EditBox", nil, dialog, "InputBoxTemplate")
+edit:SetPoint("TOPLEFT", 24, -78)
+edit:SetPoint("RIGHT", -20, 0)
+edit:SetHeight(30)
+edit:SetAutoFocus(false)
+edit:SetScript("OnEscapePressed", function() dialog:Hide() end)
+-- Let WoW copy on key-down before closing, whichever shortcut key is released first.
+edit:SetScript("OnKeyUp", function(_, key)
+    if mode ~= "copy" then return end
+    local copyReleased = key == "C" and (IsControlKeyDown() or (IsMacClient() and IsMetaKeyDown()))
+    local modifierReleased = key == "LCTRL" or key == "RCTRL"
+        or (IsMacClient() and (key == "LMETA" or key == "RMETA"))
+    if copyReleased or (modifierReleased and IsKeyDown("C")) then dialog:Hide() end
+end)
+dialog:SetScript("OnHide", function() edit:ClearFocus() end)
+
+local hint = dialog:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+hint:SetPoint("BOTTOMLEFT", 18, 18)
+hint:SetPoint("BOTTOMRIGHT", -18, 18)
+hint:SetJustifyH("LEFT")
+
+local buttons = {}
+local function subjectTitle()
+    if not selectedSubject then return "Ask Scallop Alfred about World of Warcraft" end
+    if selectedSubject.type == "item" then
+        local _, _, quality = C_Item.GetItemInfo(selectedSubject.link)
+        if not (issecretvalue and issecretvalue(quality)) then
+            local colour = ITEM_QUALITY_COLORS[quality]
+            if colour then return colour.color:WrapTextInColorCode(selectedSubject.name) end
+        end
+    end
+    return selectedSubject.name
+end
+
+local function showEditor(title, instructions)
+    for _, button in ipairs(buttons) do button:Hide() end
+    dialog:SetHeight(165)
+    label:SetText(title)
+    hint:SetText(instructions)
+    edit:Show()
+    dialog:Show()
+    edit:SetFocus()
+end
+
+local function sendQuestion(question, fullGear)
+    if InCombatLockdown() then notify("Ask again after combat."); return end
+    question = strtrim(question)
+    if question == "" then return end
+    local subjects = linkedSubjects(question, selectedSubject)
+    if #subjects > 8 then notify("Use up to eight subjects, including the hovered subject."); return end
+    fullGear = fullGear or selectedCategory == "gear"
+    for _, subject in ipairs(subjects) do
+        if subject.type == "item" then subject.tsm = tsmPrices(subject.link) end
+    end
+    local getSpec = C_SpecializationInfo.GetSpecialization or GetSpecialization
+    local getSpecInfo = C_SpecializationInfo.GetSpecializationInfo or GetSpecializationInfo
+    local specIndex = getSpec()
+    local specName = specIndex and select(2, getSpecInfo(specIndex)) or "Unselected"
+    local professionsAvailable, professions = pcall(addon.GetProfessions, selectedCategory == "professions")
+    local talentsAvailable, talents
+    if fullGear then talentsAvailable, talents = pcall(addon.GetTalents) end
+    local payload = {
+        v = 2, id = nextID(), context = nextID(),
+        thread = "new", question = question,
+        category = fullGear and "gear" or selectedCategory,
+        player = { class = UnitClass("player"), spec = specName, level = UnitLevel("player") },
+        gameVersion = GetBuildInfo(), subjects = subjects,
+        equipped = equippedItems(subjects, fullGear),
+        professions = professionsAvailable and professions or nil,
+        talents = talentsAvailable and talents or nil,
+    }
+    mode = "copy"
+    local shortcut = IsMacClient() and "Cmd+C" or "Ctrl+C"
+    showEditor("Copy this request to the desktop app", "Press " .. shortcut .. " to copy and close.")
+    edit:SetMaxLetters(0)
+    edit:SetText("SCALLOPALFRED:" .. json(payload))
+    edit:HighlightText()
+end
+
+local function customQuestion(title)
+    mode = "question"
+    showEditor(title or subjectTitle(), "Type a question or Shift-click a link, then press Enter.")
+    edit:SetMaxLetters(2000)
+    edit:SetText("")
+end
+
+edit:SetScript("OnEnterPressed", function()
+    if mode == "question" then sendQuestion(edit:GetText()) end
+end)
+
+local function insertLink(link)
+    if mode == "question" and edit:IsVisible() and edit:HasFocus() and not InCombatLockdown() then
+        if not (issecretvalue and issecretvalue(link)) and type(link) == "string" then edit:Insert(link) end
+    end
+end
+if ChatFrameUtil and ChatFrameUtil.InsertLink then
+    hooksecurefunc(ChatFrameUtil, "InsertLink", insertLink)
+else
+    hooksecurefunc("ChatEdit_InsertLink", insertLink)
+end
+
+for _, preset in ipairs(presets) do
+    local button = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
+    button:SetHeight(28)
+    if preset.custom then
+        for _, region in ipairs({ button:GetRegions() }) do
+            if region:IsObjectType("Texture") then region:SetDesaturated(true) end
+        end
+    end
+    button:SetText(preset.text)
+    button:SetScript("OnClick", function()
+        if preset.category then
+            selectedCategory = preset.category
+            customQuestion(preset.text)
+        elseif preset.custom then customQuestion()
+        else sendQuestion(preset.text, preset.fullGear) end
+    end)
+    buttons[#buttons + 1] = button
+end
+
+function ScallopAlfred_Ask()
+    if InCombatLockdown() then notify("Ask again after combat."); return end
+    selectedSubject = hoveredSubject()
+    selectedCategory = nil
+    mode = "menu"
+    label:SetText(subjectTitle())
+    hint:SetText(selectedSubject and "Choose a question, then copy the request." or "Choose a topic, then type your question.")
+    edit:Hide()
+    edit:ClearFocus()
+    local count = 0
+    for index, button in ipairs(buttons) do
+        button:Hide()
+        local preset = presets[index]
+        local visible = selectedSubject and not preset.category and (not preset.itemOnly or selectedSubject.type == "item")
+            or not selectedSubject and preset.category
+        if visible then
+            button:ClearAllPoints()
+            button:SetPoint("TOPLEFT", 20, -70 - count * 34)
+            button:SetPoint("RIGHT", -20, 0)
+            button:Show()
+            count = count + 1
+        end
+    end
+    dialog:SetHeight(115 + count * 34)
+    dialog:Show()
+end
+
+local events = CreateFrame("Frame")
+events:RegisterEvent("PLAYER_LOGIN")
+events:SetScript("OnEvent", function()
+    if not GetBindingKey("SCALLOPALFRED_ASK") and GetBindingAction("ALT-Q") == "" then
+        SetBinding("ALT-Q", "SCALLOPALFRED_ASK")
+    end
+    notify("Press Alt+Q to ask a question. Hover a tooltip first or Shift-click a link into the question box. Change the keybind in Options > Keybindings.")
+end)

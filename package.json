@@ -1,0 +1,32 @@
+{
+  "name": "scallop-alfred",
+  "productName": "Scallop Alfred",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ask Codex about World of Warcraft items from a desktop overlay.",
+  "type": "module",
+  "main": "sidecar/main.ts",
+  "packageManager": "bun@1.3.14",
+  "scripts": {
+    "start": "electron --experimental-strip-types .",
+    "check": "tsc --noEmit",
+    "test": "node --test tests/*.test.cjs"
+  },
+  "engines": {
+    "bun": ">=1.3.14",
+    "node": ">=24"
+  },
+  "trustedDependencies": ["electron"],
+  "dependencies": {
+    "markdown-it": "^15.0.2",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.2.0",
+    "@types/node": "^24.0.0",
+    "electron": "44.3.0",
+    "fengari": "^0.1.5",
+    "playwright": "^1.63.0",
+    "typescript": "7.0.2"
+  }
+}
