@@ -33,6 +33,12 @@ export function createOverlay(config: Config, icon: string) {
   });
   updateMouseEvents();
 
+  // Windows can drop the native topmost flag from outside the app without any event, leaving the overlay behind WoW.
+  const keepOnTop = setInterval(() => {
+    if (window.isVisible() && !window.isAlwaysOnTop()) window.setAlwaysOnTop(true);
+  }, 1000);
+  window.on("closed", () => clearInterval(keepOnTop));
+
   return {
     window,
     listen,
