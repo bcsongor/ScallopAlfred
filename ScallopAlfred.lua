@@ -2,6 +2,7 @@ BINDING_HEADER_SCALLOPALFRED = "Scallop Alfred"
 BINDING_NAME_SCALLOPALFRED_ASK = "Ask about a tooltip or link"
 
 local _, addon = ...
+local Public, Count, Read = addon.Public, addon.Count, addon.Read
 
 local sequence = 0
 local selectedSubject
@@ -30,6 +31,20 @@ local equipmentSlots = {
     INVTYPE_RANGED = { 16 }, INVTYPE_RANGEDRIGHT = { 16 }, INVTYPE_TABARD = { 19 },
 }
 
+local tooltipLinkTypes = {
+    [Enum.TooltipDataType.Quest] = "quest",
+    [Enum.TooltipDataType.Currency] = "currency",
+    [Enum.TooltipDataType.Achievement] = "achievement",
+}
+
+local tsmSources = {
+    minBuyoutCopper = "DBMinBuyout",
+    regionMarketAvgCopper = "DBRegionMarketAvg",
+    regionSaleAvgCopper = "DBRegionSaleAvg",
+    saleRate = "DBRegionSaleRate",
+    vendorSellCopper = "VendorSell",
+}
+
 local function notify(message)
     print("|cffe2c180Scallop Alfred:|r " .. message)
 end
@@ -39,17 +54,17 @@ local function nextID()
     return string.format("%d-%d-%d", GetServerTime(), math.floor(GetTime() * 1000), sequence)
 end
 
--- Restricted tooltip values are omitted, never inspected or exported.
 local function plainText(text)
-    if issecretvalue and issecretvalue(text) then return nil end
-    if type(text) ~= "string" then return nil end
-    return text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    text = Public(text, "string")
+    if not text then return end
+    return (text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
         :gsub("|T.-|t", ""):gsub("|A.-|a", "")
-        :gsub("|H.-|h(.-)|h", "%1")
+        :gsub("|H.-|h(.-)|h", "%1"))
 end
 
 -- All input comes from the payload builder. Empty tables represent JSON arrays.
 local function json(value)
+    if type(value) == "number" and (value ~= value or math.abs(value) == math.huge) then return "null" end
     if type(value) == "string" then
         return '"' .. value:gsub('[%z\1-\31\\"]', function(character)
             if character == '"' then return '\\"' end
@@ -68,16 +83,13 @@ local function json(value)
 end
 
 local function readSubject(link, name, tooltip)
-    if issecretvalue and issecretvalue(link) then return nil end
-    if type(link) ~= "string" then return nil end
+    link = Public(link, "string")
+    if not link then return end
     name = plainText(name) or plainText(link:match("|h%[(.-)%]|h"))
     link = link:match("|H(.-)|h") or link
     local kind = link:match("^(%a[%w_]*):")
-    if not kind then return nil end
-    if not tooltip then
-        local ok, data = pcall(C_TooltipInfo.GetHyperlink, link)
-        if ok then tooltip = data end
-    end
+    if not kind then return end
+    tooltip = tooltip or Read(C_TooltipInfo.GetHyperlink, link)
     if not name and kind == "item" then name = plainText(C_Item.GetItemInfo(link)) end
     if not name and tooltip and tooltip.lines and tooltip.lines[1] then name = plainText(tooltip.lines[1].leftText) end
     local subject = { type = kind, name = name or link, link = link, tooltip = {} }
@@ -103,18 +115,13 @@ local function hoveredSubject()
         return readSubject(info.getterArgs[1], nil, data)
     end
     local name, link = GameTooltip:GetItem()
-    if not (issecretvalue and issecretvalue(link)) and link then return readSubject(link, name, data) end
+    if Public(link, "string") then return readSubject(link, name, data) end
     local spellName, spellID = GameTooltip:GetSpell()
-    if not (issecretvalue and issecretvalue(spellID)) and spellID then
+    if Public(spellID, "number") then
         return readSubject(C_Spell.GetSpellLink(spellID), spellName, data)
     end
-    if not data or (issecretvalue and (issecretvalue(data.type) or issecretvalue(data.id))) then return nil end
-    local linkTypes = {
-        [Enum.TooltipDataType.Quest] = "quest",
-        [Enum.TooltipDataType.Currency] = "currency",
-        [Enum.TooltipDataType.Achievement] = "achievement",
-    }
-    local kind = linkTypes[data.type]
+    if not data or issecretvalue(data.type) or issecretvalue(data.id) then return end
+    local kind = tooltipLinkTypes[data.type]
     if kind and data.id then
         local title = data.lines and data.lines[1] and plainText(data.lines[1].leftText)
         return readSubject(kind .. ":" .. data.id, title, data)
@@ -136,26 +143,15 @@ local function linkedSubjects(question, hovered)
     return subjects
 end
 
-local tsmSources = {
-    minBuyoutCopper = "DBMinBuyout",
-    regionMarketAvgCopper = "DBRegionMarketAvg",
-    regionSaleAvgCopper = "DBRegionSaleAvg",
-    saleRate = "DBRegionSaleRate",
-    vendorSellCopper = "VendorSell",
-}
-
 -- Read TSM's cached values only. A missing source must not prevent copying a question.
 local function tsmPrices(link)
-    if not TSM_API or type(TSM_API.ToItemString) ~= "function" or type(TSM_API.GetCustomPriceValue) ~= "function" then return end
-    local ok, item = pcall(TSM_API.ToItemString, link)
-    if not ok or (issecretvalue and issecretvalue(item)) or type(item) ~= "string" then return end
+    if not TSM_API then return end
+    local item = Public(Read(TSM_API.ToItemString, link), "string")
+    if not item then return end
     local prices = {}
     for field, source in pairs(tsmSources) do
-        local success, value = pcall(TSM_API.GetCustomPriceValue, source, item)
-        if success and not (issecretvalue and issecretvalue(value)) and type(value) == "number"
-            and value >= 0 and value <= 9007199254740991 and (field ~= "saleRate" or value <= 1) then
-            prices[field] = value
-        end
+        local value = Count(Read(TSM_API.GetCustomPriceValue, source, item))
+        if value and (field ~= "saleRate" or value <= 1) then prices[field] = value end
     end
     if next(prices) then
         prices.capturedAt = GetServerTime()
@@ -229,10 +225,8 @@ local function subjectTitle()
     if not selectedSubject then return "Ask Scallop Alfred about World of Warcraft" end
     if selectedSubject.type == "item" then
         local _, _, quality = C_Item.GetItemInfo(selectedSubject.link)
-        if not (issecretvalue and issecretvalue(quality)) then
-            local colour = ITEM_QUALITY_COLORS[quality]
-            if colour then return colour.color:WrapTextInColorCode(selectedSubject.name) end
-        end
+        local colour = Public(quality, "number") and ITEM_QUALITY_COLORS[quality]
+        if colour then return colour.color:WrapTextInColorCode(selectedSubject.name) end
     end
     return selectedSubject.name
 end
@@ -257,10 +251,8 @@ local function sendQuestion(question, fullGear)
     for _, subject in ipairs(subjects) do
         if subject.type == "item" then subject.tsm = tsmPrices(subject.link) end
     end
-    local getSpec = C_SpecializationInfo.GetSpecialization or GetSpecialization
-    local getSpecInfo = C_SpecializationInfo.GetSpecializationInfo or GetSpecializationInfo
-    local specIndex = getSpec()
-    local specName = specIndex and select(2, getSpecInfo(specIndex)) or "Unselected"
+    local specIndex = C_SpecializationInfo.GetSpecialization()
+    local specName = specIndex and select(2, C_SpecializationInfo.GetSpecializationInfo(specIndex)) or "Unselected"
     local professionsAvailable, professions = pcall(addon.GetProfessions, selectedCategory == "professions")
     local talentsAvailable, talents
     if fullGear then talentsAvailable, talents = pcall(addon.GetTalents) end
@@ -293,16 +285,12 @@ edit:SetScript("OnEnterPressed", function()
     if mode == "question" then sendQuestion(edit:GetText()) end
 end)
 
-local function insertLink(link)
-    if mode == "question" and edit:IsVisible() and edit:HasFocus() and not InCombatLockdown() then
-        if not (issecretvalue and issecretvalue(link)) and type(link) == "string" then edit:Insert(link) end
+hooksecurefunc(ChatFrameUtil, "InsertLink", function(link)
+    link = Public(link, "string")
+    if link and mode == "question" and edit:IsVisible() and edit:HasFocus() and not InCombatLockdown() then
+        edit:Insert(link)
     end
-end
-if ChatFrameUtil and ChatFrameUtil.InsertLink then
-    hooksecurefunc(ChatFrameUtil, "InsertLink", insertLink)
-else
-    hooksecurefunc("ChatEdit_InsertLink", insertLink)
-end
+end)
 
 for _, preset in ipairs(presets) do
     local button = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")

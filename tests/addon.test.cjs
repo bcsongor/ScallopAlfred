@@ -5,13 +5,12 @@ const { test } = require("node:test");
 const { lua, lauxlib, lualib, to_luastring } = require("fengari");
 const { parseRequest } = require("../sidecar/protocol.ts");
 
+// The harness loads the manifest in order, so a misordered file fails every addon test.
+const manifest = readFileSync(join(__dirname, "..", "ScallopAlfred.toc"), "utf8")
+  .split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith("#"));
+
 test("WoW loads keybindings separately from the UI manifest", () => {
-  const manifest = readFileSync(join(__dirname, "..", "ScallopAlfred.toc"), "utf8");
-  const files = manifest.split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith("#"));
-  assert.ok(files.includes("ScallopAlfred.lua"));
-  assert.ok(files.indexOf("Professions.lua") >= 0 && files.indexOf("Professions.lua") < files.indexOf("ScallopAlfred.lua"));
-  assert.ok(files.indexOf("Talents.lua") >= 0 && files.indexOf("Talents.lua") < files.indexOf("ScallopAlfred.lua"));
-  assert.ok(!files.some(file => file.toLowerCase() === "bindings.xml"));
+  assert.ok(!manifest.some(file => file.toLowerCase() === "bindings.xml"));
 });
 
 // Emulate the WoW APIs at the boundary. Exercise the real Lua payload builder.
@@ -95,7 +94,7 @@ function addon() {
     end
   `);
   execute("addon = {}");
-  for (const file of ["Professions.lua", "Talents.lua", "ScallopAlfred.lua"]) {
+  for (const file of manifest) {
     execute(`local function loadAddon(...) ${readFileSync(join(__dirname, "..", file), "utf8")}\nend; loadAddon("ScallopAlfred", addon)`);
   }
   const binding = readFileSync(join(__dirname, "..", "Bindings.xml"), "utf8").match(/<Binding\s[^>]*>([\s\S]*?)<\/Binding>/)[1];

@@ -5,6 +5,7 @@
 ## Author: bcsongor
 ## Version: 0.1.0
 
+Core.lua
 Professions.lua
 Talents.lua
 ScallopAlfred.lua
