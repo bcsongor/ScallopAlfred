@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { openHistory, type Conversation } from "../sidecar/history.ts";
+import { openHistory, type Conversation, type ConversationTurn } from "../sidecar/history.ts";
 import type { WoWRequest } from "../sidecar/protocol.ts";
 
 const databasePath = (): string => join(mkdtempSync(join(tmpdir(), "scallop-history-")), "threads.sqlite");
@@ -18,15 +18,14 @@ const sample: Conversation = {
   turns: [{ id: "request", question: "Keep it?", status: "answer", text: "Keep it." }],
 };
 
-test("failed saves roll back the thread, turns and title subjects together", () => {
+test("failed saves roll back the thread and its turns together", () => {
   const history = openHistory(databasePath());
   try {
     history.save(sample);
     const before = history.get(sample.id);
     assert.throws(() => history.save({
-      ...sample, title: "Changed", titleSubjects: [{ name: "Invalid", type: "item", quality: 2.5 }],
-      turns: [{ ...sample.turns[0], text: "Changed" }],
-    }), /INTEGER/);
+      ...sample, title: "Changed", turns: [{ ...sample.turns[0], status: "invalid" as ConversationTurn["status"] }],
+    }), /CHECK constraint/);
     assert.deepEqual(history.get(sample.id), before);
     history.save({ ...sample, turns: [...sample.turns, { id: "followup", question: "More?", status: "answer", text: "Yes." }] });
     assert.deepEqual(history.get(sample.id)?.turns.map(turn => turn.id), ["request", "followup"]);

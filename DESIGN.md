@@ -86,7 +86,7 @@ Favicons are fetched in the main process from Google's favicon service by hostna
 
 ### History
 
-`threads.sqlite` stores threads, turns and title subjects in separate tables. The latest request stays as JSON to preserve its game data for retries and follow-ups. A thread stores its Codex session ID only when the session matches the request's context. The app saves the thread and its child rows in one transaction before a run starts and again when it ends.
+`threads.sqlite` has a `threads` table and a `turns` table. The latest request and the title subjects stay as JSON on the thread: the request keeps its game data for retries and follow-ups, and the subjects are only ever read with their thread. A thread stores its Codex session ID only when the session matches the request's context. The app saves the thread and its turns in one transaction before a run starts and again when it ends.
 
 On startup, replies still marked as thinking become errors the player can retry. Lists sort by an explicit creation sequence that survives `VACUUM`, so replies and database maintenance don't reorder threads. Title subjects retain each item's quality so titles can use their in-game colours.
 

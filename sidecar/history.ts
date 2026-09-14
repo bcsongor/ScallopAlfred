@@ -35,18 +35,19 @@ export type ArchivedConversationSummary = z.infer<typeof archivedSummarySchema>;
 
 type Row = Record<string, SQLOutputValue>;
 
-// Times are Unix milliseconds.
+// Times are Unix milliseconds. JSON columns hold values that are only read together with their thread.
 const schema = `
   CREATE TABLE IF NOT EXISTS threads (
     -- Creation order. Unlike an implicit rowid, it survives VACUUM, so replies and archiving never reorder lists.
     seq INTEGER PRIMARY KEY,
     id TEXT NOT NULL UNIQUE,
     title TEXT NOT NULL,
+    title_subjects TEXT NOT NULL CHECK (json_type(title_subjects) = 'array'),
     session_id TEXT,
     updated_at INTEGER NOT NULL,
     archived_at INTEGER,
     -- The latest request with its game data, which retries and follow-ups send again.
-    request TEXT NOT NULL CHECK (json_valid(request)),
+    request TEXT NOT NULL CHECK (json_type(request) = 'object'),
     context TEXT NOT NULL AS (request ->> '$.context')
   ) STRICT;
   CREATE INDEX IF NOT EXISTS threads_context ON threads(context);
@@ -60,16 +61,6 @@ const schema = `
     text TEXT NOT NULL,
     PRIMARY KEY (thread_id, position)
   ) STRICT;
-  CREATE INDEX IF NOT EXISTS turns_thinking ON turns(thread_id) WHERE status = 'thinking';
-
-  CREATE TABLE IF NOT EXISTS title_subjects (
-    thread_id TEXT NOT NULL REFERENCES threads(id),
-    position INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    type TEXT,
-    quality INTEGER,
-    PRIMARY KEY (thread_id, position)
-  ) STRICT, WITHOUT ROWID;
 `;
 
 /** Runs `work` in a transaction, rolling back if it throws. */
@@ -86,6 +77,9 @@ function transaction<T>(db: DatabaseSync, work: () => T): T {
   }
 }
 
+/** Parses a JSON column. */
+const json = (column: unknown): unknown => JSON.parse(z.string().parse(column));
+
 export function openHistory(path: string) {
   const db = new DatabaseSync(path);
   try {
@@ -97,22 +91,20 @@ export function openHistory(path: string) {
   }
 
   // Saves never touch archived_at, so a reply that finishes after archiving leaves the thread archived.
-  const upsertThread = db.prepare(`INSERT INTO threads (id, title, session_id, updated_at, request) VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT (id) DO UPDATE SET title = excluded.title, session_id = excluded.session_id,
-      updated_at = excluded.updated_at, request = excluded.request
+  const upsertThread = db.prepare(`INSERT INTO threads (id, title, title_subjects, session_id, updated_at, request) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT (id) DO UPDATE SET title = excluded.title, title_subjects = excluded.title_subjects,
+      session_id = excluded.session_id, updated_at = excluded.updated_at, request = excluded.request
     RETURNING archived_at AS archivedAt`);
   const deleteTurns = db.prepare("DELETE FROM turns WHERE thread_id = ?");
   const insertTurn = db.prepare("INSERT INTO turns (thread_id, position, request_id, question, status, text) VALUES (?, ?, ?, ?, ?, ?)");
-  const deleteTitleSubjects = db.prepare("DELETE FROM title_subjects WHERE thread_id = ?");
-  const insertTitleSubject = db.prepare("INSERT INTO title_subjects (thread_id, position, name, type, quality) VALUES (?, ?, ?, ?, ?)");
   const archive = db.prepare("UPDATE threads SET archived_at = ? WHERE id = ? AND archived_at IS NULL");
-  const threadColumns = "id, title, updated_at AS updatedAt, archived_at AS archivedAt, session_id AS sessionId, context, request";
+  const threadColumns = `id, title, title_subjects AS titleSubjects, updated_at AS updatedAt, archived_at AS archivedAt,
+    session_id AS sessionId, context, request`;
   const selectThread = db.prepare(`SELECT ${threadColumns} FROM threads WHERE id = ?`);
   const selectContext = db.prepare(`SELECT ${threadColumns} FROM threads
     WHERE context = ? AND archived_at IS NULL ORDER BY updated_at DESC, seq DESC LIMIT 1`);
   const selectTurns = db.prepare("SELECT request_id AS id, question, status, text FROM turns WHERE thread_id = ? ORDER BY position");
-  const selectTitleSubjects = db.prepare("SELECT name, type, quality FROM title_subjects WHERE thread_id = ? ORDER BY position");
-  const summaries = db.prepare(`SELECT id, title, updated_at AS updatedAt,
+  const summaries = db.prepare(`SELECT id, title, title_subjects AS titleSubjects, updated_at AS updatedAt,
     (SELECT question FROM turns WHERE thread_id = threads.id AND position = 0) AS question
     FROM threads WHERE archived_at IS NULL ORDER BY seq DESC`);
   const archivedSummaries = db.prepare("SELECT id, title FROM threads WHERE archived_at IS NOT NULL ORDER BY seq DESC LIMIT 6");
@@ -121,20 +113,16 @@ export function openHistory(path: string) {
   db.prepare("UPDATE turns SET status = 'error', text = ? WHERE status = 'thinking'")
     .run("Scallop Alfred closed before this reply finished. Retry from the tray menu.");
 
-  const titleSubjectsOf = (threadId: string) => selectTitleSubjects.all(threadId)
-    .map(({ name, type, quality }) => ({ name, ...(type === null ? {} : { type }), ...(quality === null ? {} : { quality }) }));
-
   function read(row: Row | undefined): Conversation | undefined {
     if (!row) return undefined;
-    const { archivedAt, sessionId, context, request, ...thread } = row;
-    const id = z.string().parse(thread.id);
+    const { archivedAt, sessionId, context, request, titleSubjects, ...thread } = row;
     return conversationSchema.parse({
       ...thread,
       ...(archivedAt === null ? {} : { archivedAt }),
       ...(sessionId === null ? {} : { session: { context, id: sessionId } }),
-      request: JSON.parse(z.string().parse(request)),
-      titleSubjects: titleSubjectsOf(id),
-      turns: selectTurns.all(id),
+      request: json(request),
+      titleSubjects: json(titleSubjects),
+      turns: selectTurns.all(z.string().parse(thread.id)),
     });
   }
 
@@ -144,11 +132,9 @@ export function openHistory(path: string) {
     // A session only resumes requests with its context, and every request in a thread shares one.
     const sessionId = session?.context === request.context ? session.id : null;
     const archivedAt = transaction(db, () => {
-      const row = upsertThread.get(id, title, sessionId, updatedAt, JSON.stringify(request));
+      const row = upsertThread.get(id, title, JSON.stringify(titleSubjects), sessionId, updatedAt, JSON.stringify(request));
       deleteTurns.run(id);
       turns.forEach((turn, position) => insertTurn.run(id, position, turn.id, turn.question, turn.status, turn.text));
-      deleteTitleSubjects.run(id);
-      titleSubjects.forEach(({ name, type, quality }, position) => insertTitleSubject.run(id, position, name, type ?? null, quality ?? null));
       return z.number().nullable().parse(row?.archivedAt);
     });
     return { ...conversation, session: sessionId === null ? undefined : session, updatedAt, archivedAt: archivedAt ?? undefined };
@@ -160,8 +146,7 @@ export function openHistory(path: string) {
     archive: (id: string): boolean => archive.run(Date.now(), id).changes > 0,
     get: (id: string): Conversation | undefined => read(selectThread.get(id)),
     findContext: (context: string): Conversation | undefined => read(selectContext.get(context)),
-    list: (): ConversationSummary[] => summaries.all()
-      .map(row => summarySchema.parse({ ...row, titleSubjects: titleSubjectsOf(z.string().parse(row.id)) })),
+    list: (): ConversationSummary[] => summaries.all().map(row => summarySchema.parse({ ...row, titleSubjects: json(row.titleSubjects) })),
     listArchived: (): ArchivedConversationSummary[] => archivedSummaries.all().map(row => archivedSummarySchema.parse(row)),
     close: () => db.close(),
   };
