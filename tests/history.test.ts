@@ -19,8 +19,12 @@ const sample: Conversation = {
   turns: [{ id: "request", question: "Keep it?", status: "answer", text: "Keep it." }],
 };
 
+type LegacyConversation = Omit<Conversation, "titleSubjects"> & {
+  titleSubjects?: Conversation["titleSubjects"];
+};
+
 /** Writes the schema used before threads and turns had separate tables. */
-function legacyDatabase(path: string, conversations: (Omit<Conversation, "titleSubjects"> & { titleSubjects?: Conversation["titleSubjects"] })[]): void {
+function legacyDatabase(path: string, conversations: LegacyConversation[]): void {
   const db = new DatabaseSync(path);
   try {
     db.exec(`

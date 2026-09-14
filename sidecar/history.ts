@@ -143,7 +143,11 @@ export function openHistory(path: string) {
     .run("Scallop Alfred closed before this reply finished. Retry from the tray menu.");
 
   const titleSubjectsOf = (threadId: string) => selectTitleSubjects.all(threadId)
-    .map(({ name, type, quality }) => ({ name, ...(type === null ? {} : { type }), ...(quality === null ? {} : { quality }) }));
+    .map(({ name, type, quality }) => ({
+      name,
+      ...(type === null ? {} : { type }),
+      ...(quality === null ? {} : { quality }),
+    }));
 
   function read(row: Row | undefined): Conversation | undefined {
     if (!row) return undefined;
@@ -167,12 +171,21 @@ export function openHistory(path: string) {
     const archivedAt = transaction(db, () => {
       const row = upsertThread.get(id, title, sessionId, updatedAt, JSON.stringify(request));
       deleteTurns.run(id);
-      turns.forEach((turn, position) => insertTurn.run(id, position, turn.id, turn.question, turn.status, turn.text));
+      turns.forEach((turn, position) => {
+        insertTurn.run(id, position, turn.id, turn.question, turn.status, turn.text);
+      });
       deleteTitleSubjects.run(id);
-      titleSubjects.forEach(({ name, type, quality }, position) => insertTitleSubject.run(id, position, name, type ?? null, quality ?? null));
+      titleSubjects.forEach(({ name, type, quality }, position) => {
+        insertTitleSubject.run(id, position, name, type ?? null, quality ?? null);
+      });
       return z.number().nullable().parse(row?.archivedAt);
     });
-    return { ...conversation, session: sessionId === null ? undefined : session, updatedAt, archivedAt: archivedAt ?? undefined };
+    return {
+      ...conversation,
+      session: sessionId === null ? undefined : session,
+      updatedAt,
+      archivedAt: archivedAt ?? undefined,
+    };
   }
 
   return {
@@ -181,8 +194,10 @@ export function openHistory(path: string) {
     archive: (id: string): boolean => archive.run(Date.now(), id).changes > 0,
     get: (id: string): Conversation | undefined => read(selectThread.get(id)),
     findContext: (context: string): Conversation | undefined => read(selectContext.get(context)),
-    list: (): ConversationSummary[] => summaries.all()
-      .map(row => summarySchema.parse({ ...row, titleSubjects: titleSubjectsOf(z.string().parse(row.id)) })),
+    list: (): ConversationSummary[] => summaries.all().map(row => {
+      const id = z.string().parse(row.id);
+      return summarySchema.parse({ ...row, titleSubjects: titleSubjectsOf(id) });
+    }),
     listArchived: (): ArchivedConversationSummary[] => archivedSummaries.all().map(row => archivedSummarySchema.parse(row)),
     close: () => db.close(),
   };
