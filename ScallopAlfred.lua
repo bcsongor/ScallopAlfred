@@ -101,8 +101,11 @@ local function hoveredSubject()
 end
 
 -- The player's target, when it's an NPC. NPC GUIDs look like Creature-0-server-instance-zone-npcID-spawn.
+-- Some content, such as delves, hides the target's identity; the notice tells the player to ask by name.
 local function targetSubject()
-    local guid = Public(UnitGUID("target"), "string")
+    local guid = UnitGUID("target")
+    if issecretvalue(guid) then return nil, "WoW hides this target here. Use Custom question and type its name." end
+    guid = Public(guid, "string")
     local guidType, npcID = (guid or ""):match("^(%a+)%-%d+%-%d+%-%d+%-%d+%-(%d+)%-")
     if guidType ~= "Creature" and guidType ~= "Vehicle" then return end
     return readSubject("npc:" .. npcID, UnitName("target"), Read(C_TooltipInfo.GetUnit, "target"))
@@ -238,8 +241,9 @@ local function defaultQuestion(subject)
     return defaultQuestions[subject.type] or "Tell me about this."
 end
 
--- Subject presets ask about the hovered subject straight away. With nothing hovered, the target preset asks about
--- a targeted NPC and topics open the editor. Custom opens the editor either way. Text can depend on the subject.
+-- Subject presets ask about the hovered subject straight away. With nothing hovered, a targeted NPC offers the
+-- target preset and otherwise the topics open the editor. Custom opens the editor either way. Text can depend on
+-- the subject.
 local presets = {
     { kind = "subject", text = defaultQuestion },
     { kind = "subject", text = "Is it an upgrade?", itemOnly = true, category = "gear" },
@@ -264,7 +268,7 @@ end
 local function presetAvailable(preset, subject, target)
     if preset.kind == "custom" then return true end
     if preset.kind == "target" then return subject == nil and target ~= nil end
-    if preset.kind == "topic" then return subject == nil end
+    if preset.kind == "topic" then return subject == nil and target == nil end
     return subject ~= nil and (not preset.itemOnly or subject.type == "item")
 end
 
@@ -393,11 +397,13 @@ end
 function ScallopAlfred_Ask()
     if InCombatLockdown() then notify("Ask again after combat."); return end
     selectedSubject = hoveredSubject()
-    selectedTarget = not selectedSubject and targetSubject() or nil
+    selectedTarget = nil
+    local targetNotice
+    if not selectedSubject then selectedTarget, targetNotice = targetSubject() end
     selectedCategory = nil
     mode = "menu"
     label:SetText(subjectTitle())
-    hint:SetText(selectedSubject and "Choose a question, then copy the request." or "Choose a topic or ask your own question.")
+    hint:SetText(targetNotice or ((selectedSubject or selectedTarget) and "Choose a question, then copy the request." or "Choose a topic or ask your own question."))
     edit:Hide()
     edit:ClearFocus()
     local shown = 0
