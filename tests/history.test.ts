@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { openHistory, type Conversation } from "../sidecar/history.ts";
 import type { WoWRequest } from "../sidecar/protocol.ts";
@@ -18,81 +17,6 @@ const sample: Conversation = {
   session: { context: "context", id: "session" },
   turns: [{ id: "request", question: "Keep it?", status: "answer", text: "Keep it." }],
 };
-
-type LegacyConversation = Omit<Conversation, "titleSubjects"> & {
-  titleSubjects?: Conversation["titleSubjects"];
-};
-
-/** Writes the schema used before threads and turns had separate tables. */
-function legacyDatabase(path: string, conversations: LegacyConversation[]): void {
-  const db = new DatabaseSync(path);
-  try {
-    db.exec(`
-      PRAGMA journal_mode = WAL;
-      CREATE TABLE conversations (
-        id TEXT PRIMARY KEY, title TEXT NOT NULL, updated_at INTEGER NOT NULL,
-        data TEXT NOT NULL CHECK (json_valid(data)), archived_at INTEGER NOT NULL DEFAULT 0
-      ) STRICT;
-      CREATE INDEX conversations_updated ON conversations(updated_at DESC);
-    `);
-    const insert = db.prepare("INSERT INTO conversations VALUES (?, ?, ?, ?, ?)");
-    for (const conversation of conversations) {
-      insert.run(conversation.id, conversation.title, conversation.updatedAt, JSON.stringify(conversation), conversation.archivedAt ?? 0);
-    }
-  } finally { db.close(); }
-}
-
-test("legacy history migrates in place, preserving titles, sessions, archives and creation order", () => {
-  const path = databasePath();
-  const { titleSubjects: _, ...plain } = { ...sample, id: "plain", updatedAt: 300 };
-  legacyDatabase(path, [
-    plain,
-    { ...sample, titleSubjects: [{ name: "Ore", quality: 2 }, { name: "Quest", type: "quest" }] },
-    { ...sample, id: "archived", archivedAt: 400, turns: [...sample.turns, { id: "pending", question: "More?", status: "thinking", text: "" }] },
-    { ...sample, id: "mismatch", session: { context: "other", id: "wrong-session" } },
-  ]);
-  let history = openHistory(path);
-  try {
-    assert.deepEqual(history.get("plain"), { ...plain, titleSubjects: [] });
-    assert.deepEqual(history.get("thread")?.titleSubjects, [{ name: "Ore", quality: 2 }, { name: "Quest", type: "quest" }]);
-    assert.deepEqual(history.get("thread")?.session, sample.session);
-    assert.equal(history.get("mismatch")?.session, undefined);
-    assert.equal(history.findContext("context")?.id, "plain");
-    assert.equal(history.get("archived")?.archivedAt, 400);
-    assert.equal(history.get("archived")?.turns[1].status, "error");
-    assert.deepEqual(history.listArchived(), [{ id: "archived", title: "Ore" }]);
-    const order = ["mismatch", "thread", "plain"];
-    assert.deepEqual(history.list().map(thread => thread.id), order);
-    history.save({ ...plain, titleSubjects: [] });
-    history.close();
-    const db = new DatabaseSync(path);
-    try {
-      assert.equal(db.prepare("SELECT 1 FROM sqlite_schema WHERE name = 'conversations'").get(), undefined);
-      assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
-      db.exec("VACUUM");
-    } finally { db.close(); }
-    history = openHistory(path);
-    assert.deepEqual(history.list().map(thread => thread.id), order);
-    assert.equal(history.get("archived")?.archivedAt, 400);
-    assert.equal(history.get("thread")?.turns[0].text, "Keep it.");
-  } finally { history.close(); }
-});
-
-test("a failed migration leaves the legacy history intact and can be retried", () => {
-  const path = databasePath();
-  legacyDatabase(path, [sample, { ...sample, id: "invalid", titleSubjects: [{ name: "Ore", quality: 2.5 }] }]);
-  assert.throws(() => openHistory(path), /INTEGER/);
-  const db = new DatabaseSync(path);
-  try {
-    assert.equal(db.prepare("SELECT count(*) AS count FROM conversations").get()?.count, 2);
-    assert.equal(db.prepare("SELECT 1 FROM sqlite_schema WHERE name = 'threads'").get(), undefined);
-    const original = db.prepare("SELECT data FROM conversations WHERE id = ?").get(sample.id);
-    assert.deepEqual(JSON.parse(String(original?.data)), sample);
-    db.prepare("UPDATE conversations SET data = ? WHERE id = 'invalid'").run(JSON.stringify({ ...sample, id: "invalid" }));
-  } finally { db.close(); }
-  const history = openHistory(path);
-  try { assert.equal(history.list().length, 2); } finally { history.close(); }
-});
 
 test("failed saves roll back the thread, turns and title subjects together", () => {
   const history = openHistory(databasePath());

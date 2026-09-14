@@ -72,23 +72,6 @@ const schema = `
   ) STRICT, WITHOUT ROWID;
 `;
 
-// Pre-release builds kept each thread as one JSON row in conversations.sqlite.
-const fromConversations = `
-  INSERT INTO threads (seq, id, title, session_id, updated_at, archived_at, request)
-    SELECT rowid, id, title,
-      CASE WHEN data ->> '$.session.context' = data ->> '$.request.context' THEN data ->> '$.session.id' END,
-      updated_at, nullif(archived_at, 0), data -> '$.request'
-    FROM conversations;
-  INSERT INTO turns (thread_id, position, request_id, question, status, text)
-    SELECT conversations.id, turn.key,
-      turn.value ->> '$.id', turn.value ->> '$.question', turn.value ->> '$.status', turn.value ->> '$.text'
-    FROM conversations, json_each(data, '$.turns') AS turn;
-  INSERT INTO title_subjects (thread_id, position, name, type, quality)
-    SELECT conversations.id, subject.key, subject.value ->> '$.name', subject.value ->> '$.type', subject.value ->> '$.quality'
-    FROM conversations, json_each(data, '$.titleSubjects') AS subject;
-  DROP TABLE conversations;
-`;
-
 /** Runs `work` in a transaction, rolling back if it throws. */
 function transaction<T>(db: DatabaseSync, work: () => T): T {
   db.exec("BEGIN");
@@ -106,12 +89,7 @@ export function openHistory(path: string) {
   const db = new DatabaseSync(path);
   try {
     db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON");
-    transaction(db, () => {
-      db.exec(schema);
-      if (db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'conversations'").get()) {
-        db.exec(fromConversations);
-      }
-    });
+    db.exec(schema);
   } catch (error) {
     db.close();
     throw error;
