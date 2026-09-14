@@ -89,7 +89,7 @@ Favicons are fetched in the main process from Google's favicon service by hostna
 
 On startup, replies still marked as thinking become errors the player can retry. Lists sort by an explicit creation sequence that survives `VACUUM`, so replies and database maintenance don't reorder threads. Title subjects retain each item's quality so titles can use their in-game colours.
 
-Archiving sets `archived_at`. Archived threads are read-only, can't be found by context, and are never deleted. The overlay lists the latest 6.
+Archiving sets `archived_at`. Archived threads are read-only, can't be found by context, and are never deleted. The overlay lists them all under a collapsed heading, five at a time.
 
 ### Settings
 

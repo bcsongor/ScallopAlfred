@@ -107,7 +107,7 @@ export function openHistory(path: string) {
   const summaries = db.prepare(`SELECT id, title, title_subjects AS titleSubjects, updated_at AS updatedAt,
     (SELECT question FROM turns WHERE thread_id = threads.id AND position = 0) AS question
     FROM threads WHERE archived_at IS NULL ORDER BY seq DESC`);
-  const archivedSummaries = db.prepare("SELECT id, title FROM threads WHERE archived_at IS NOT NULL ORDER BY seq DESC LIMIT 6");
+  const archivedSummaries = db.prepare("SELECT id, title FROM threads WHERE archived_at IS NOT NULL ORDER BY seq DESC");
 
   // Replies still thinking at startup were cut off when the app last closed.
   db.prepare("UPDATE turns SET status = 'error', text = ? WHERE status = 'thinking'")

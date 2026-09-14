@@ -77,6 +77,12 @@ window.addEventListener("DOMContentLoaded", () => {
   let resizing;
   /** @type {string | undefined} */
   let latestTurn;
+  /** @type {ToOverlay["history"] | undefined} */
+  let latestHistory;
+  // The archived section starts collapsed and reveals five threads at a time.
+  const archivedPage = 5;
+  let archivedOpen = false;
+  let archivedShown = archivedPage;
 
   const nearBottom = () => answer.scrollHeight - answer.scrollTop - answer.clientHeight < 24;
 
@@ -135,6 +141,22 @@ window.addEventListener("DOMContentLoaded", () => {
       textContent: thread.title,
       dataset: { thread: thread.id },
     });
+  }
+
+  /** @param {import("./history.ts").ArchivedThreadSummary[]} archived */
+  function archivedSection(archived) {
+    const header = h("button", {
+      type: "button",
+      className: "archived-header",
+      ariaExpanded: String(archivedOpen),
+      textContent: `Archived (${archived.length})`,
+      dataset: { toggleArchived: "" },
+    });
+    const rows = archivedOpen ? archived.slice(0, archivedShown).map(archivedRow) : [];
+    const more = archivedOpen && archived.length > archivedShown
+      ? [h("button", { type: "button", className: "archived-more", textContent: `Show ${Math.min(archivedPage, archived.length - archivedShown)} more`, dataset: { moreArchived: "" } })]
+      : [];
+    return h("section", { className: "archived-threads", ariaLabel: "Archived threads" }, header, ...rows, ...more);
   }
 
   /** @param {HTMLAnchorElement} link */
@@ -206,7 +228,14 @@ window.addEventListener("DOMContentLoaded", () => {
     const archive = target?.closest("button[data-archive-thread]");
     const entry = target?.closest("button[data-thread]");
     const link = target?.closest("a");
-    if (archive instanceof HTMLElement) {
+    if (target?.closest("button[data-toggle-archived]")) {
+      archivedOpen = !archivedOpen;
+      archivedShown = archivedPage;
+      renderHistory();
+    } else if (target?.closest("button[data-more-archived]")) {
+      archivedShown += archivedPage;
+      renderHistory();
+    } else if (archive instanceof HTMLElement) {
       send("archive-thread", archive.dataset.archiveThread ?? "");
     } else if (entry instanceof HTMLElement) {
       send("open-thread", entry.dataset.thread ?? "");
@@ -231,7 +260,9 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  on("history", ({ threads, archived, fontSize }) => {
+  function renderHistory() {
+    if (!latestHistory) return;
+    const { threads, archived, fontSize } = latestHistory;
     const scrollTop = answer.querySelector(".active-threads")?.scrollTop ?? 0;
     const archivedScrollTop = answer.querySelector(".archived-threads")?.scrollTop ?? 0;
     setFrame("Threads", undefined, false, "history", fontSize);
@@ -246,13 +277,16 @@ window.addEventListener("DOMContentLoaded", () => {
       ? []
       : [h("p", { textContent: "No threads yet. Press Alt+Q in WoW to ask a question." })];
     const activeList = h("div", { className: "active-threads" }, ...threads.map(historyRow), ...empty);
-    const archivedSections = archived.length
-      ? [h("section", { className: "archived-threads", ariaLabel: "Archived threads" }, h("h2", { textContent: "Archived" }), ...archived.map(archivedRow))]
-      : [];
+    const archivedSections = archived.length ? [archivedSection(archived)] : [];
     answer.replaceChildren(activeList, ...archivedSections);
     activeList.scrollTop = scrollTop;
     for (const section of archivedSections) section.scrollTop = archivedScrollTop;
     markScrollable();
+  }
+
+  on("history", history => {
+    latestHistory = history;
+    renderHistory();
   });
 
   on("thread", ({ state, titleSubjects, turns, canFollowup, fontSize }) => {

@@ -257,13 +257,9 @@ button:hover {
   box-shadow: 0 -4px 8px -2px #0009;
 }
 
-#answer .archived-threads h2 {
-  margin: 0 0 6px;
-  color: var(--archive-text);
-  font-weight: 700;
-}
-
-.archived-thread {
+.archived-header,
+.archived-thread,
+.archived-more {
   display: block;
   width: 100%;
   padding: 5px 0;
@@ -276,7 +272,21 @@ button:hover {
   text-overflow: ellipsis;
 }
 
-.archived-thread:hover {
+.archived-header {
+  font-weight: 700;
+}
+
+.archived-header::before {
+  content: "▸ " / "";
+}
+
+.archived-header[aria-expanded="true"]::before {
+  content: "▾ " / "";
+}
+
+.archived-header:hover,
+.archived-thread:hover,
+.archived-more:hover {
   background: transparent;
   color: var(--archive-hover);
 }
