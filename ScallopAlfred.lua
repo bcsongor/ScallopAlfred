@@ -312,9 +312,10 @@ hint:SetJustifyH("LEFT")
 
 local buttons = {}
 
--- Quests show the quest-giver mark and WoW's default yellow; items use their quality colour.
+-- Quests show the quest-giver mark and WoW's default yellow; items use their quality colour. A targeted NPC
+-- titles the menu and the custom editor like a hovered subject, and custom questions then ask about it.
 local function subjectTitle()
-    local subject = selectedSubject
+    local subject = selectedSubject or selectedTarget
     if not subject then return "Ask Scallop Alfred about World of Warcraft" end
     if subject.type == "quest" then
         return CreateAtlasMarkup("QuestNormal", 16, 16) .. " " .. NORMAL_FONT_COLOR:WrapTextInColorCode(subject.name)
@@ -361,7 +362,7 @@ local function sendQuestion(question, subject, category, thread)
 end
 
 edit:SetScript("OnEnterPressed", function()
-    if mode == "question" then sendQuestion(edit:GetText(), selectedSubject, selectedCategory) end
+    if mode == "question" then sendQuestion(edit:GetText(), selectedSubject or selectedTarget, selectedCategory) end
 end)
 
 hooksecurefunc(ChatFrameUtil, "InsertLink", function(link)

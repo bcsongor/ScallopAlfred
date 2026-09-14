@@ -19,7 +19,7 @@ You need [Node.js](https://nodejs.org) 24 or later and [Codex CLI](https://devel
 Press Alt+Q outside combat.
 
 - Hover an item, spell, currency, achievement or quest link first to get presets for it, plus **Custom question**. Quests also work from the quest log and map, but not from the objective tracker.
-- Without a tooltip, choose **Game mechanics**, **Professions**, **My gear** or **Custom question**, then type your question. With an NPC targeted, the menu offers **What should I know about my target?** instead of the topics. Where WoW hides the target, as in delves, the dialog says so and you can ask by name.
+- Without a tooltip, choose **Game mechanics**, **Professions**, **My gear** or **Custom question**, then type your question. With an NPC targeted, the menu shows its name and offers **What should I know about my target?** instead of the topics. A custom question then asks about it too. Where WoW hides the target, as in delves, the dialog says so and you can ask by name.
 
 Shift-click links into the question box to ask about up to eight things at once. Press Enter, then Ctrl+C (Cmd+C on macOS) to copy the request. The box closes when you let go of the keys.
 

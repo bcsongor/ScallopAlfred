@@ -470,16 +470,24 @@ test("a targeted NPC replaces the topics with a question about it", () => {
   game.execute(`
     tooltipHidden = true
     targetGUID = "Creature-0-1234-2552-12-219013-000ABCDEF0"; targetName = "Grumbles"
-    ScallopAlfred_Ask(); choose("What should I know about my target?")
+    ScallopAlfred_Ask(); caption = widgets[1].text; choose("What should I know about my target?")
   `);
   const request = game.payload();
+  assert.equal(game.value("caption"), "Grumbles");
   assert.equal(request.question, "What should I know about my target?");
-  assert.deepEqual(request.subjects, [{ type: "npc", name: "Grumbles", link: "npc:219013", tooltip: ["Grumbles", "Level 80 Elite"] }]);
+  const grumbles = { type: "npc", name: "Grumbles", link: "npc:219013", tooltip: ["Grumbles", "Level 80 Elite"] };
+  assert.deepEqual(request.subjects, [grumbles]);
   game.execute(`
-    -- The topics make way for it; Custom stays.
+    -- The topics make way for it. Custom stays and asks about the target.
     ScallopAlfred_Ask(); hintText = widgets[2].text
     assert(not pcall(choose, "Game mechanics"))
     choose("Custom question")
+    focused:SetText("How do I beat it?")
+    focused.scripts.OnEnterPressed()
+  `);
+  assert.equal(game.payload().question, "How do I beat it?");
+  assert.deepEqual(game.payload().subjects, [grumbles]);
+  game.execute(`
     -- A hovered subject takes over the menu.
     tooltipHidden = false; ScallopAlfred_Ask()
     assert(not pcall(choose, "What should I know about my target?"))
