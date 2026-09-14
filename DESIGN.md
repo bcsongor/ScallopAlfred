@@ -44,7 +44,7 @@ A request is one line, `SCALLOPALFRED:` followed by JSON:
   "thread": "new",
   "question": "Is it an upgrade?",
   "category": "gear",
-  "player": { "class": "Druid", "spec": "Restoration", "level": 90 },
+  "player": { "class": "Druid", "spec": "Restoration", "level": 90, "itemLevel": 310 },
   "gameVersion": "12.1.0",
   "subjects": [{ "type": "item", "name": "Example ring", "link": "item:123", "tooltip": ["Tooltip text"] }],
   "equipped": []

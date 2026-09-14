@@ -5,7 +5,7 @@ import { parseRequest, type WoWRequest } from "../app/protocol.ts";
 
 const request: WoWRequest = {
   id: "copy-1", context: "item-1", thread: "new", question: "What's this for?",
-  player: { class: "Druid", spec: "Restoration", level: 90 }, gameVersion: "12.1.0",
+  player: { class: "Druid", spec: "Restoration", level: 90, itemLevel: 310 }, gameVersion: "12.1.0",
   subjects: [{ type: "item", name: 'Ring "of" stars', link: "item:123", tooltip: ["Line one\nLine two"] }],
   equipped: [],
 };

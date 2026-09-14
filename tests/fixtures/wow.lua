@@ -37,6 +37,7 @@ function IsMetaKeyDown() return metaDown or false end
 function IsKeyDown(key) return key == "C" and cDown or false end
 function UnitClass() return "Druid" end
 function UnitLevel() return 90 end
+function GetAverageItemLevel() return 312.6, 310.4, 300 end
 function GetBuildInfo() return "12.1.0", "12345" end
 function GetBindingKey() return nil end
 function GetBindingAction() return existingBinding or "" end

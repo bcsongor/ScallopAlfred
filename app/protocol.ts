@@ -64,6 +64,7 @@ export const requestSchema = z.object({
     class: z.string().max(64),
     spec: z.string().max(64),
     level: z.number().int().min(1).max(1000),
+    itemLevel: z.number().int().nonnegative().max(10_000).optional(),
   }),
   gameVersion: z.string().max(64),
   subjects: z.array(subjectSchema).max(8),

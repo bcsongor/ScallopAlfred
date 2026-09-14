@@ -210,12 +210,15 @@ local function buildRequest(question, subject, category, thread)
     local gear = category == "gear"
     local specIndex = Public(Read(C_SpecializationInfo.GetSpecialization), "number")
     local specName = specIndex and Public((select(2, C_SpecializationInfo.GetSpecializationInfo(specIndex))), "string")
+    -- The equipped average, floored like the character pane shows it.
+    local itemLevel = Count(Read(function() return (select(2, GetAverageItemLevel())) end))
     return {
         id = nextID(), context = nextID(), thread = thread, question = question, category = category,
         player = {
             class = Public(Read(UnitClass, "player"), "string"),
             spec = specName or "Unselected",
             level = Public(Read(UnitLevel, "player"), "number"),
+            itemLevel = itemLevel and math.floor(itemLevel),
         },
         gameVersion = Public(Read(GetBuildInfo), "string"),
         subjects = subjects,
