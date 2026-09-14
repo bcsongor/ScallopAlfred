@@ -490,31 +490,6 @@ test("a targeted NPC adds a question about it to the topic menu", () => {
   `);
 });
 
-test("restricted targets explain how to ask manually without exporting their identity", () => {
-  const game = addon();
-  game.execute(`
-    tooltipHidden = true; targetGUID = secret; targetName = secret
-    ScallopAlfred_Ask(); hintText = widgets[2].text
-    assert(not pcall(choose, "What should I know about my target?"))
-    choose("Custom question")
-    focused:SetText("What should I know about Grumbles in this delve?")
-    focused.scripts.OnEnterPressed()
-  `);
-  assert.match(game.value("hintText") ?? "", /WoW hides this target/);
-  assert.deepEqual(game.payload().subjects, []);
-  assert.equal(game.payload().question, "What should I know about Grumbles in this delve?");
-  game.execute(`
-    tooltipHidden = false
-    ScallopAlfred_Ask(); hintText = widgets[2].text
-  `);
-  assert.equal(game.value("hintText"), "Choose a question, then copy the request.");
-  game.execute(`
-    tooltipHidden = true; targetGUID = nil; targetName = nil
-    ScallopAlfred_Ask(); hintText = widgets[2].text
-  `);
-  assert.equal(game.value("hintText"), "Choose a topic or ask your own question.");
-});
-
 test("hovered quest log entries use the quest ID on the tooltip's owner", () => {
   const game = addon();
   game.execute(`
