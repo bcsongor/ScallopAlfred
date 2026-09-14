@@ -3,8 +3,8 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { openHistory, type Thread, type Turn } from "../sidecar/history.ts";
-import type { WoWRequest } from "../sidecar/protocol.ts";
+import { openHistory, type Thread, type Turn } from "../app/history.ts";
+import type { WoWRequest } from "../app/protocol.ts";
 
 const databasePath = (): string => join(mkdtempSync(join(tmpdir(), "scallop-history-")), "threads.sqlite");
 

@@ -1,6 +1,6 @@
-import type { Session } from "../../sidecar/codex.ts";
-import type { WoWRequest } from "../../sidecar/protocol.ts";
-import type { TrayItem } from "../../sidecar/tray.ts";
+import type { Session } from "../../app/codex.ts";
+import type { WoWRequest } from "../../app/protocol.ts";
+import type { TrayItem } from "../../app/tray.ts";
 
 export type CodexCall = { request: WoWRequest; session?: Session };
 

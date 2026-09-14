@@ -3,10 +3,10 @@ import { app, nativeImage } from "electron";
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { startApp } from "../../sidecar/app.ts";
-import type { Ask } from "../../sidecar/codex.ts";
-import { createFavicons } from "../../sidecar/favicons.ts";
-import type { SystemTray, TrayItem } from "../../sidecar/tray.ts";
+import { startApp } from "../../app/app.ts";
+import type { Ask } from "../../app/codex.ts";
+import { createFavicons } from "../../app/favicons.ts";
+import type { SystemTray, TrayItem } from "../../app/tray.ts";
 
 const data = process.env.SCALLOPALFRED_TEST_DATA;
 if (!data) throw new Error("Set SCALLOPALFRED_TEST_DATA to a temporary directory.");

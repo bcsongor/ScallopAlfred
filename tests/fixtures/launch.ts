@@ -5,8 +5,8 @@ import { join } from "node:path";
 import type { TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { _electron, type ElectronApplication, type Page } from "playwright";
-import type { Config } from "../../sidecar/config.ts";
-import type { WoWRequest } from "../../sidecar/protocol.ts";
+import type { Config } from "../../app/config.ts";
+import type { WoWRequest } from "../../app/protocol.ts";
 import type { CodexCall } from "./harness.ts";
 
 type WindowState = { visible: boolean; focusable: boolean; topmost: boolean; minimized: boolean };

@@ -205,15 +205,16 @@ local function buildRequest(question, subject, category, thread)
         if linked.type == "item" then linked.tsm = tsmPrices(linked.link) end
     end
     local gear = category == "gear"
-    local specIndex = C_SpecializationInfo.GetSpecialization()
+    local specIndex = Public(Read(C_SpecializationInfo.GetSpecialization), "number")
+    local specName = specIndex and Public((select(2, C_SpecializationInfo.GetSpecializationInfo(specIndex))), "string")
     return {
         id = nextID(), context = nextID(), thread = thread, question = question, category = category,
         player = {
-            class = UnitClass("player"),
-            spec = specIndex and select(2, C_SpecializationInfo.GetSpecializationInfo(specIndex)) or "Unselected",
-            level = UnitLevel("player"),
+            class = Public(Read(UnitClass, "player"), "string"),
+            spec = specName or "Unselected",
+            level = Public(Read(UnitLevel, "player"), "number"),
         },
-        gameVersion = GetBuildInfo(),
+        gameVersion = Public(Read(GetBuildInfo), "string"),
         subjects = subjects,
         equipped = equippedItems(subjects, gear),
         professions = Read(addon.GetProfessions, category == "professions"),
@@ -315,8 +316,7 @@ local function subjectTitle()
         return CreateAtlasMarkup("QuestNormal", 16, 16) .. " " .. NORMAL_FONT_COLOR:WrapTextInColorCode(subject.name)
     end
     if subject.type == "item" then
-        local _, _, quality = C_Item.GetItemInfo(subject.link)
-        local colour = Public(quality, "number") and ITEM_QUALITY_COLORS[quality]
+        local colour = subject.quality and ITEM_QUALITY_COLORS[subject.quality]
         if colour then return colour.color:WrapTextInColorCode(subject.name) end
     end
     return subject.name

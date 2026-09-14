@@ -286,9 +286,7 @@ window.addEventListener("DOMContentLoaded", () => {
     setFrame(state.title, titleSubjects, true, state.status, fontSize);
     answer.role = "log";
     answer.ariaLabel = "Thread";
-    const notice = !turns.length || (state.status === "error" && turns.at(-1)?.text !== state.text)
-      ? [h("div", { className: "notice", textContent: state.text })]
-      : [];
+    const notice = state.notice === undefined ? [] : [h("div", { className: "notice", textContent: state.notice })];
     answer.replaceChildren(...turns.map(turnSection), ...notice);
     latestTurn = turns.at(-1)?.id;
     followup.hidden = !canFollowup;

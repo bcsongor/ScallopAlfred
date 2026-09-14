@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildPrompt, codexArguments } from "../sidecar/codex.ts";
-import { parseRequest, type WoWRequest } from "../sidecar/protocol.ts";
+import { buildPrompt, codexArguments } from "../app/codex.ts";
+import { parseRequest, type WoWRequest } from "../app/protocol.ts";
 
 const request: WoWRequest = {
   id: "copy-1", context: "item-1", thread: "new", question: "What's this for?",

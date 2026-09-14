@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { watchClipboard, type Clipboard } from "../sidecar/clipboard.ts";
+import { watchClipboard, type Clipboard } from "../app/clipboard.ts";
 
 const copied = (id: string): string => `SCALLOPALFRED:${JSON.stringify({
   id, context: id, thread: "new", question: "Hi", subjects: [],

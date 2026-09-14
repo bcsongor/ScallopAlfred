@@ -8,14 +8,14 @@ WoW addons can't reach the network or the file system. The clipboard is the one 
 - `Professions.lua` and `Talents.lua` read profession and talent snapshots.
 - `ScallopAlfred.lua` owns the dialog, builds requests and encodes them as JSON.
 - `Bindings.xml` defines the keybind. WoW loads it by file name, and listing it in the TOC would run it through the wrong parser. The binding fires on key release so the keystroke can't land in the question box.
-- `sidecar/main.ts` is the Electron entry point. It creates the real tray and passes it, the clipboard, Codex, `fetch` and the browser opener to `app.ts`.
-- `sidecar/app.ts` wires the modules together and owns the app's state: what the overlay shows, the running request and the follow-up editor. Everything outside the app arrives as a port, so tests run the real app with fakes.
-- `sidecar/threads.ts` holds the pure thread logic: starting and finishing turns, and what the overlay shows for a view.
-- `sidecar/clipboard.ts` watches the clipboard for requests, and `sidecar/tray.ts` builds the tray menu from the app's state.
-- `sidecar/overlay.ts` owns the window: focus, click-through, raising and resizing.
-- `sidecar/ipc.ts` types every message between the main process and the overlay, and validates the ones coming from the overlay.
-- `sidecar/preload.cjs` renders `overlay.html`, which `overlay.css` styles.
-- `sidecar/protocol.ts` validates clipboard requests. `codex.ts` runs Codex with `prompt.md`, `history.ts` stores threads, `favicons.ts` fetches link icons, `config.ts` loads and saves settings and `markdown.ts` renders answers.
+- `app/main.ts` is the Electron entry point. It creates the real tray and passes it, the clipboard, Codex, `fetch` and the browser opener to `app.ts`.
+- `app/app.ts` wires the modules together and owns the app's state: what the overlay shows, the running request and the follow-up editor. The clipboard, tray, Codex, network and browser arrive as ports, so tests run the real app with fakes. Electron's own APIs are imported directly.
+- `app/threads.ts` holds the pure thread logic: starting and finishing turns, and what the overlay shows for a view.
+- `app/clipboard.ts` watches the clipboard for requests, and `app/tray.ts` builds the tray menu from the app's state.
+- `app/overlay.ts` owns the window: focus, click-through, raising and resizing.
+- `app/ipc.ts` types every message between the main process and the overlay, and validates the ones coming from the overlay.
+- `app/preload.cjs` renders `overlay.html`, which `overlay.css` styles.
+- `app/protocol.ts` validates clipboard requests. `codex.ts` runs Codex with `prompt.md`, `history.ts` stores threads, `favicons.ts` fetches link icons, `config.ts` loads and saves settings and `markdown.ts` renders answers.
 
 Electron runs the TypeScript directly with `--experimental-strip-types`. There is no build step.
 

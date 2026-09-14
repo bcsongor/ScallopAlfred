@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import fengari from "fengari";
-import { buildPrompt } from "../sidecar/codex.ts";
-import { parseRequest, type WoWRequest } from "../sidecar/protocol.ts";
+import { buildPrompt } from "../app/codex.ts";
+import { parseRequest, type WoWRequest } from "../app/protocol.ts";
 
 const { lua, lauxlib, lualib, to_luastring } = fengari;
 const read = (file: string): string => readFileSync(join(import.meta.dirname, "..", file), "utf8");

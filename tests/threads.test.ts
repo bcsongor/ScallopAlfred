@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Thread } from "../sidecar/history.ts";
-import type { OverlayState } from "../sidecar/ipc.ts";
-import type { WoWRequest } from "../sidecar/protocol.ts";
-import { continuableThread, finishTurn, overlayState, startTurn, welcome } from "../sidecar/threads.ts";
+import type { Thread } from "../app/history.ts";
+import type { WoWRequest } from "../app/protocol.ts";
+import { continuableThread, finishTurn, overlayState, startTurn, welcome } from "../app/threads.ts";
 
 const request = (id: string, fields: Partial<WoWRequest> = {}): WoWRequest => ({
   id, context: "context", thread: "new", question: `Question ${id}`, subjects: [],
@@ -35,9 +34,9 @@ test("retrying the last request replaces its turn", () => {
 
 test("the overlay shows a notice first, then the last turn, then the welcome text", () => {
   const answered = finishTurn(startTurn(empty, request("first")), { status: "answer", text: "Done" });
-  const notice: OverlayState = { status: "error", title: "Couldn't open the link", text: "Blocked" };
-  assert.deepEqual(overlayState({ kind: "thread", thread: answered, notice }), notice);
-  assert.deepEqual(overlayState({ kind: "thread", thread: answered }), { status: "answer", title: "Question first", text: "Done" });
+  const notice = { title: "Couldn't open the link", text: "Blocked" };
+  assert.deepEqual(overlayState({ kind: "thread", thread: answered, notice }), { status: "error", title: "Couldn't open the link", notice: "Blocked" });
+  assert.deepEqual(overlayState({ kind: "thread", thread: answered }), { status: "answer", title: "Question first" });
   assert.deepEqual(overlayState({ kind: "thread" }), welcome);
 });
 

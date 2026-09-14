@@ -8,14 +8,13 @@ import { createSettingsWriter, loadConfig, type AppearanceChanges, type Config }
 import { errorMessage } from "./errors.ts";
 import { createFavicons } from "./favicons.ts";
 import { openHistory, type Thread } from "./history.ts";
-import type { OverlayState } from "./ipc.ts";
 import { renderMarkdown, webUrl } from "./markdown.ts";
 import { createOverlay } from "./overlay.ts";
 import type { WoWRequest } from "./protocol.ts";
 import { continuableThread, finishTurn, overlayState, startTurn, type ThreadView, type View } from "./threads.ts";
 import { trayMenu, type SystemTray } from "./tray.ts";
 
-/** What the app takes from the outside world. Tests pass fakes for all of it. */
+/** What tests replace with fakes: the clipboard, tray, Codex, network and browser. Electron itself is imported directly. */
 type Ports = {
   userData: string;
   clipboard: Clipboard;
@@ -24,8 +23,6 @@ type Ports = {
   fetch: typeof fetch;
   openExternal: (url: string) => Promise<void>;
 };
-
-const readFailure = (error: unknown): OverlayState => ({ status: "error", title: "Couldn't read the request", text: errorMessage(error) });
 
 export async function startApp({ userData, clipboard, tray, createCodex, fetch, openExternal }: Ports): Promise<void> {
   const settingsPath = join(userData, "settings.json");
@@ -69,11 +66,11 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     render(reveal);
   }
 
-  function showNotice(notice: OverlayState): void {
-    show({ kind: "thread", thread: view.kind === "thread" ? view.thread : undefined, notice }, true);
+  function showNotice(title: string, error: unknown): void {
+    show({ kind: "thread", thread: view.kind === "thread" ? view.thread : undefined, notice: { title, text: errorMessage(error) } }, true);
   }
 
-  function editFollowup(thread?: Thread): void {
+  function editFollowup(thread: Thread | undefined): void {
     if (followup === thread) return;
     followup = thread;
     overlay.setEditing(thread !== undefined);
@@ -82,11 +79,13 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     if (!thread) render();
   }
 
+  const closeFollowup = (): void => editFollowup(undefined);
+
   function saveThread(thread: Thread, failure: string): ThreadView {
     try {
       return { kind: "thread", thread: history.save(thread) };
     } catch (error) {
-      return { kind: "thread", thread, notice: { status: "error", title: thread.title, text: `${failure}: ${errorMessage(error)}` } };
+      return { kind: "thread", thread, notice: { title: thread.title, text: `${failure}: ${errorMessage(error)}` } };
     }
   }
 
@@ -103,14 +102,15 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   }
 
   function refreshMenu(): void {
-    const state = view.kind === "thread" ? overlayState(view) : undefined;
+    const turn = view.kind === "thread" ? view.thread?.turns.at(-1) : undefined;
+    const reply = turn?.status === "answer" ? turn.text : undefined;
     const thread = openThread();
     tray.setMenu(trayMenu(
       {
         theme,
         clickThrough: overlay.isClickThrough(),
         clickThroughAvailable: process.platform !== "linux",
-        canCopyAnswer: state?.status === "answer",
+        canCopyAnswer: reply !== undefined,
         canRetry: thread !== undefined,
         canCancel: running !== undefined,
       },
@@ -121,7 +121,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
           overlay.setClickThrough(enabled);
           refreshMenu();
         },
-        copyAnswer: () => { if (state) void clipboard.writeText(state.text); },
+        copyAnswer: () => { if (reply !== undefined) void clipboard.writeText(reply); },
         retry: () => { if (thread) void answer(thread.request, thread); },
         cancel: () => running?.abort("Question cancelled. Retry from the tray menu when ready."),
         openSettings: () => void shell.openPath(settingsPath),
@@ -132,7 +132,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
 
   async function answer(request: WoWRequest, thread?: Thread): Promise<void> {
     if (running) return;
-    editFollowup();
+    closeFollowup();
     const started = startTurn(thread ?? { id: randomUUID(), title: "", titleSubjects: [], updatedAt: Date.now(), request, turns: [] }, request);
     const saved = saveThread(started, "Couldn't save the question");
     if (saved.notice) {
@@ -171,14 +171,14 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     const copies = watchClipboard(clipboard, {
       signal: quit.signal,
       paused: () => running !== undefined || followup !== undefined,
-      onInvalid: error => showNotice(readFailure(error)),
+      onInvalid: error => showNotice("Couldn't read the request", error),
     });
     for await (const request of copies) {
       try {
         overlay.raise();
         await answerCopied(request);
       } catch (error) {
-        showNotice(readFailure(error));
+        showNotice("Couldn't start the question", error);
       }
     }
   }
@@ -186,20 +186,20 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   overlay.handle("favicon", favicon);
   overlay.listen("edit-followup", editing => {
     const thread = openThread();
-    if (!editing) editFollowup();
+    if (!editing) closeFollowup();
     else if (thread) editFollowup(thread);
   });
   overlay.listen("submit-followup", question => {
     if (followup && !running) void answer({ ...followup.request, id: randomUUID(), thread: "continue", question }, followup);
   });
   overlay.listen("show-history", () => {
-    editFollowup();
+    closeFollowup();
     show({ kind: "history" });
   });
   overlay.listen("open-thread", id => {
     const thread = history.get(id);
     if (!thread) return;
-    editFollowup();
+    closeFollowup();
     show({ kind: "thread", thread });
   });
   overlay.listen("archive-thread", id => {
@@ -211,7 +211,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     }
   });
   overlay.listen("hide-overlay", () => {
-    editFollowup();
+    closeFollowup();
     overlay.hide();
   });
   overlay.listen("resize-height", ({ height, finished }) => {
@@ -220,9 +220,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   });
   overlay.listen("open-link", target => {
     const url = webUrl(target);
-    if (url) openExternal(url).catch((error: unknown) => {
-      showNotice({ status: "error", title: "Couldn't open the link", text: errorMessage(error) });
-    });
+    if (url) openExternal(url).catch((error: unknown) => showNotice("Couldn't open the link", error));
   });
 
   tray.onClick(overlay.raise);
@@ -237,5 +235,5 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   overlay.send("theme", theme);
   if (process.platform === "darwin") app.dock?.hide();
   render(true);
-  answerCopiedRequests().catch((error: unknown) => showNotice(readFailure(error)));
+  answerCopiedRequests().catch((error: unknown) => showNotice("Stopped watching the clipboard", error));
 }

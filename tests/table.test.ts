@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { renderMarkdown } from "../sidecar/markdown.ts";
+import { renderMarkdown } from "../app/markdown.ts";
 import { launch, until } from "./fixtures/launch.ts";
 
 test("tables keep words intact and scroll wide content within the overlay", { timeout: 30000 }, async t => {
@@ -9,7 +9,7 @@ test("tables keep words intact and scroll wide content within the overlay", { ti
   await desktop.waitForStatus("ready");
   const render = (text: string) => desktop.app.evaluate(({ BrowserWindow }, { text, html }) => {
     BrowserWindow.getAllWindows()[0].webContents.send("thread", {
-      state: { status: "answer", title: "Altar choices", text }, fontSize: 14, canFollowup: false,
+      state: { status: "answer", title: "Altar choices" }, fontSize: 14, canFollowup: false,
       turns: [{ id: "table", question: "How shall I use the altar?", status: "answer", text, html }],
     });
   }, { text, html: renderMarkdown(text) });

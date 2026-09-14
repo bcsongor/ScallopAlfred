@@ -2,14 +2,15 @@ import type { Thread, Turn } from "./history.ts";
 import type { OverlayState } from "./ipc.ts";
 import type { WoWRequest } from "./protocol.ts";
 
-/** A notice replaces the thread's own status, for errors that belong to no turn. */
-export type ThreadView = { kind: "thread"; thread?: Thread; notice?: OverlayState };
+/** An error that belongs to no turn. While shown it replaces the thread's title and status. */
+export type Notice = { title: string; text: string };
+export type ThreadView = { kind: "thread"; thread?: Thread; notice?: Notice };
 export type View = { kind: "history" } | ThreadView;
 
 export const welcome: OverlayState = {
   status: "ready",
   title: "Ask about World of Warcraft",
-  text: "Press Alt+Q in WoW to ask a question. Hover a tooltip first or Shift-click a link into the question box, then copy the request.",
+  notice: "Press Alt+Q in WoW to ask a question. Hover a tooltip first or Shift-click a link into the question box, then copy the request.",
 };
 
 /**
@@ -24,7 +25,7 @@ export function startTurn(thread: Thread, request: WoWRequest): Thread {
   return {
     ...started,
     title: request.subjects.map(subject => subject.name).join(", ") || request.question,
-    titleSubjects: request.subjects.map(({ name, type, quality }) => quality === undefined ? { name, type } : { name, type, quality }),
+    titleSubjects: request.subjects.map(({ name, type, quality }) => ({ name, type, quality })),
   };
 }
 
@@ -34,9 +35,9 @@ export function finishTurn(thread: Thread, outcome: Pick<Turn, "status" | "text"
 }
 
 export function overlayState({ thread, notice }: ThreadView): OverlayState {
-  if (notice) return notice;
+  if (notice) return { status: "error", title: notice.title, notice: notice.text };
   const turn = thread?.turns.at(-1);
-  return thread && turn ? { status: turn.status, title: thread.title, text: turn.text } : welcome;
+  return thread && turn ? { status: turn.status, title: thread.title } : welcome;
 }
 
 /** The thread on screen, when it accepts a follow-up or retry. */

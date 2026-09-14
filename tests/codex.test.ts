@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { runCodex } from "../sidecar/codex.ts";
+import { runCodex } from "../app/codex.ts";
 
 const fake = join(import.meta.dirname, "fixtures", "codex.ts");
 const run = (mode: string, signal = new AbortController().signal) =>

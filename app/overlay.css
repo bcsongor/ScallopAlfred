@@ -10,8 +10,8 @@
 
 :root {
   color-scheme: dark;
-  --font: "Berkeley Mono", "Berkeley Mono Variable", monospace;
-  --code-font: "Berkeley Mono", "Berkeley Mono Variable", monospace;
+  --font: "Berkeley Mono", "Berkeley Mono Variable", ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --code-font: var(--font);
   --text: #f0f0f0;
   --panel: #191b20;
   --header-bg: #292c32;

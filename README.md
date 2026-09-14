@@ -6,11 +6,11 @@ Addons can't reach the network, so the clipboard carries the request. The deskto
 
 ## Setup
 
-You need [Bun](https://bun.sh), Node.js 24 or later, and [Codex CLI](https://developers.openai.com/codex/cli/). It was tested with Codex CLI 0.154.0.
+You need [Node.js](https://nodejs.org) 24 or later and [Codex CLI](https://developers.openai.com/codex/cli/). It was tested with Codex CLI 0.154.0.
 
 1. Put this folder at `World of Warcraft/_retail_/Interface/AddOns/ScallopAlfred`.
 2. Run `codex login`.
-3. In this folder, run `bun install`, then `bun start`. Keep the app running while you play.
+3. In this folder, run `npm install`, then `npm start`. Keep the app running while you play.
 4. Enable Scallop Alfred in WoW's addon list. Restart WoW if it was already open.
 5. Set WoW to windowed or windowed fullscreen, otherwise the overlay can't sit above it.
 
@@ -65,6 +65,6 @@ After updating, run `/reload` in WoW and restart the app. Both sides must speak 
 
 ## Development
 
-`bun run check` type-checks the app and the tests. `bun run test` runs the addon's Lua against mocked WoW APIs, unit-tests the pure modules and the Codex process runner, and drives the real Electron app with a fake clipboard, tray and Codex, so tests never touch your clipboard or a model. The tests use Node's runner because Playwright's Electron launcher hangs under Bun's runner on Windows.
+`npm run check` type-checks the app and the tests. `npm test` runs the addon's Lua against mocked WoW APIs, unit-tests the pure modules and the Codex process runner, and drives the real Electron app with a fake clipboard, tray and Codex, so tests never touch your clipboard or a model.
 
 Only Windows has been tested, and in-game capture still needs checking in WoW itself. [DESIGN.md](DESIGN.md) explains how it works.

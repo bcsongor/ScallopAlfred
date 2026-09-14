@@ -6,7 +6,8 @@ import { requestSchema } from "./protocol.ts";
 export type OverlayState = {
   status: "ready" | Turn["status"];
   title: string;
-  text: string;
+  /** Shown after the turns: the welcome text, or an error that belongs to no turn. */
+  notice?: string;
 };
 
 export type ToOverlay = {
