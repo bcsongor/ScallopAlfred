@@ -102,7 +102,9 @@ end
 
 -- The player's target, when it's an NPC. NPC GUIDs look like Creature-0-server-instance-zone-npcID-spawn.
 local function targetSubject()
-    local guid = Public(UnitGUID("target"), "string")
+    local guid = UnitGUID("target")
+    if issecretvalue(guid) then return nil, "WoW hides this target here. Use Custom question and type its name." end
+    guid = Public(guid, "string")
     local guidType, npcID = (guid or ""):match("^(%a+)%-%d+%-%d+%-%d+%-%d+%-(%d+)%-")
     if guidType ~= "Creature" and guidType ~= "Vehicle" then return end
     return readSubject("npc:" .. npcID, UnitName("target"), Read(C_TooltipInfo.GetUnit, "target"))
@@ -393,11 +395,13 @@ end
 function ScallopAlfred_Ask()
     if InCombatLockdown() then notify("Ask again after combat."); return end
     selectedSubject = hoveredSubject()
-    selectedTarget = not selectedSubject and targetSubject() or nil
+    selectedTarget = nil
+    local targetNotice
+    if not selectedSubject then selectedTarget, targetNotice = targetSubject() end
     selectedCategory = nil
     mode = "menu"
     label:SetText(subjectTitle())
-    hint:SetText(selectedSubject and "Choose a question, then copy the request." or "Choose a topic or ask your own question.")
+    hint:SetText(targetNotice or (selectedSubject and "Choose a question, then copy the request." or "Choose a topic or ask your own question."))
     edit:Hide()
     edit:ClearFocus()
     local shown = 0
