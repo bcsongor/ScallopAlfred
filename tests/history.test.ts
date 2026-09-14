@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { openHistory, type Conversation } from "../sidecar/history.ts";
 import type { WoWRequest } from "../sidecar/protocol.ts";
 
-const databasePath = (): string => join(mkdtempSync(join(tmpdir(), "scallop-history-")), "conversations.sqlite");
+const databasePath = (): string => join(mkdtempSync(join(tmpdir(), "scallop-history-")), "threads.sqlite");
 
 const sample: Conversation = {
   id: "thread", title: "Ore", titleSubjects: [{ name: "Ore", type: "item", quality: 2 }], updatedAt: 100,

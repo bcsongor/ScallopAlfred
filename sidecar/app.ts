@@ -33,7 +33,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   await mkdir(workspace, { recursive: true });
   const config = await loadConfig(settingsPath);
   const writeSettings = createSettingsWriter(settingsPath);
-  const history = openHistory(join(userData, "conversations.sqlite"));
+  const history = openHistory(join(userData, "threads.sqlite"));
   const ask = createCodex({ codexPath: config.codexPath, model: config.model, workspace });
   const favicon = createFavicons(join(userData, "favicons"), fetch);
   const overlay = createOverlay(config);

@@ -55,7 +55,7 @@ The tray menu copies the answer, retries, cancels, switches between the Original
 | `theme` | `original` | `original` or `wowhead` |
 | `timeoutSeconds` | `180` | 10 to 600 |
 
-The same folder holds `conversations.sqlite`, with your threads and the game data sent with them, and a `favicons` cache. Favicons for source links come from Google's favicon service, which only sees the site's hostname.
+The same folder holds `threads.sqlite`, with your threads and the game data sent with them, and a `favicons` cache. Favicons for source links come from Google's favicon service, which only sees the site's hostname.
 
 ## Troubleshooting
 
