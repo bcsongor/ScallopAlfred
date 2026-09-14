@@ -12,7 +12,7 @@ WoW addons can't reach the network or the file system. The clipboard is the one 
 - `app/app.ts` wires the modules together and owns the app's state: what the overlay shows, the running request and the follow-up editor. The clipboard, tray, Codex, network and browser arrive as ports, so tests run the real app with fakes. Electron's own APIs are imported directly.
 - `app/threads.ts` holds the pure thread logic: starting and finishing turns, and what the overlay shows for a view.
 - `app/clipboard.ts` watches the clipboard for requests, and `app/tray.ts` builds the tray menu from the app's state.
-- `app/overlay.ts` owns the window: focus, click-through, raising and resizing.
+- `app/overlay.ts` owns the window: focus, raising and resizing.
 - `app/ipc.ts` types every message between the main process and the overlay, and validates the ones coming from the overlay.
 - `app/preload.cjs` renders `overlay.html`, which `overlay.css` styles.
 - `app/protocol.ts` validates clipboard requests. `codex.ts` runs Codex with `prompt.md`, `history.ts` stores threads, `favicons.ts` fetches link icons, `config.ts` loads and saves settings and `markdown.ts` renders answers.
@@ -71,7 +71,6 @@ From the JSONL stream the app reads `thread.started`, the last `agent_message` a
 
 The window is transparent, frameless, always on top and not focusable, so it never takes the keyboard from WoW. Several quirks of Electron on Windows shape `overlay.ts`:
 
-- Click-through uses `setIgnoreMouseEvents` with forwarding. The preload reports when the pointer is over a control or scrollable content, and the main process switches click-through off there. Linux has no forwarding, so the overlay stays clickable.
 - Electron's default always-on-top level doesn't always make the window topmost on Windows, so the overlay uses the `"screen-saver"` level. Something outside the app can also clear the flag without Electron emitting an event, which leaves the overlay behind WoW. While the overlay is visible, it checks the flag every second and restores it.
 - New clipboard questions and the tray call `raise`, which also calls `moveTop`. Other updates only show a hidden window and restore the topmost flag, leaving focus and window order alone.
 - The follow-up editor makes the window focusable and focuses it. Windows ties taskbar visibility to focusability, so the app reapplies `setSkipTaskbar(true)`. Closing the editor doesn't hand focus back, so the player clicks into WoW. Hiding makes the window non-focusable again.

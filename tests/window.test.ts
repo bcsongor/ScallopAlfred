@@ -15,13 +15,7 @@ test("the overlay stays above the game without taking focus", { timeout: 30000 }
   // The page runs model output as HTML, so it must have no Node or Electron access.
   assert.equal(await page.evaluate(() => "require" in window || "process" in window), false);
 
-  // Clicks pass through to the game except over controls.
   const hide = page.getByRole("button", { name: "Hide", exact: true });
-  await hide.hover();
-  await until(async () => await desktop.ignoresMouse() === false);
-  await page.locator("#title").hover();
-  await until(async () => await desktop.ignoresMouse() === (process.platform !== "linux"));
-
   await hide.click();
   await until(async () => !(await desktop.window()).visible);
   await desktop.clickTray("Show overlay");

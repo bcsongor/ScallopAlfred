@@ -31,7 +31,6 @@ const messages = {
   "open-thread": z.string(),
   "archive-thread": z.string(),
   "resize-height": z.object({ height: z.number(), finished: z.boolean() }),
-  "hover-control": z.boolean(),
   "open-link": z.string(),
 };
 

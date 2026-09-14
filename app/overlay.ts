@@ -5,21 +5,10 @@ import { fromOverlay, overlayRequests, type FromOverlay, type OverlayRequests, t
 
 export const iconPath = join(import.meta.dirname, "..", "assets", "scallop.jpg");
 
-/**
- * Creates the always-on-top overlay window. It never takes focus from the game on its own and passes
- * mouse input through, except over controls or while the player edits a follow-up.
- */
+/** Creates the always-on-top overlay window. It never takes focus from the game on its own. */
 export function createOverlay(config: Config) {
   const window = createWindow(config);
-  let clickThrough = process.platform !== "linux";
-  let overControl = false;
-  let editing = false;
   let dismissed = false;
-
-  // Forward mouse movement so controls and links stay clickable above the game.
-  function updateMouseEvents(): void {
-    window.setIgnoreMouseEvents(clickThrough && !overControl && !editing, { forward: true });
-  }
 
   function keepOnTop(): void {
     if (!window.isAlwaysOnTop()) setTopmost(window);
@@ -44,12 +33,6 @@ export function createOverlay(config: Config) {
     });
   }
 
-  listen("hover-control", hovered => {
-    overControl = hovered;
-    updateMouseEvents();
-  });
-  updateMouseEvents();
-
   // Windows can drop the native topmost flag from outside the app without any event, leaving the overlay behind WoW.
   const topmostCheck = setInterval(() => {
     if (window.isVisible()) keepOnTop();
@@ -64,11 +47,6 @@ export function createOverlay(config: Config) {
       window.webContents.send(channel, message);
     },
     isDismissed: () => dismissed,
-    isClickThrough: () => clickThrough,
-    setClickThrough(enabled: boolean): void {
-      clickThrough = enabled;
-      updateMouseEvents();
-    },
     /** Shows a hidden overlay without taking focus or reordering an overlay that is already visible. */
     reveal(): void {
       dismissed = false;
@@ -92,8 +70,6 @@ export function createOverlay(config: Config) {
     },
     /** Takes keyboard focus while the follow-up editor is open. Closing it leaves focus alone. */
     setEditing(enabled: boolean): void {
-      editing = enabled;
-      updateMouseEvents();
       if (!enabled) return;
       window.setFocusable(true);
       // Electron changes taskbar visibility with focusability on Windows.

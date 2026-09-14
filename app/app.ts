@@ -108,8 +108,6 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     tray.setMenu(trayMenu(
       {
         theme,
-        clickThrough: overlay.isClickThrough(),
-        clickThroughAvailable: process.platform !== "linux",
         canCopyAnswer: reply !== undefined,
         canRetry: thread !== undefined,
         canCancel: running !== undefined,
@@ -117,10 +115,6 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
       {
         show: overlay.raise,
         setTheme,
-        setClickThrough: enabled => {
-          overlay.setClickThrough(enabled);
-          refreshMenu();
-        },
         copyAnswer: () => { if (reply !== undefined) void clipboard.writeText(reply); },
         retry: () => { if (thread) void answer(thread.request, thread); },
         cancel: () => running?.abort("Question cancelled. Retry from the tray menu when ready."),

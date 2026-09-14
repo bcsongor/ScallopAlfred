@@ -22,8 +22,6 @@ test("answers render Markdown with external source links and cached favicons", {
 
   // Links open in the browser, never in the overlay, and only web URLs leave the app.
   const source = page.getByRole("link", { name: "Wowhead", exact: true });
-  await source.hover();
-  await until(async () => await desktop.ignoresMouse() === false);
   const overlayUrl = page.url();
   await source.locator("img").click();
   await until(async () => (await desktop.openedUrls()).length === 1);

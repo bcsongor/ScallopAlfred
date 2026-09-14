@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderMarkdown } from "../app/markdown.ts";
-import { launch, until } from "./fixtures/launch.ts";
+import { launch } from "./fixtures/launch.ts";
 
 test("tables keep words intact and scroll wide content within the overlay", { timeout: 30000 }, async t => {
   const desktop = await launch(t);
@@ -44,13 +44,12 @@ test("tables keep words intact and scroll wide content within the overlay", { ti
     assert.equal(await page.locator("table").evaluate(element => element.scrollWidth > element.clientWidth), false);
   }
 
-  // Unbreakable content scrolls inside the table, and the table then accepts mouse input.
+  // Unbreakable content scrolls inside the table.
   await render("| Item | Source | Notes |\n| --- | --- | --- |\n| UnusuallyLongUnbrokenItemName | AnotherLongUnbrokenSourceName | Keep this item. |");
   await page.getByRole("cell", { name: "UnusuallyLongUnbrokenItemName", exact: true }).waitFor();
   assert.equal(await page.locator("table").evaluate(element => element.scrollWidth > element.clientWidth), true);
   assert.equal(await page.locator("#answer").evaluate(element => element.scrollWidth > element.clientWidth), false);
   await page.locator("table").hover();
-  await until(async () => await desktop.ignoresMouse() === false);
   await page.mouse.wheel(300, 0);
   await page.waitForFunction(() => (document.querySelector("table")?.scrollLeft ?? 0) > 0);
 });

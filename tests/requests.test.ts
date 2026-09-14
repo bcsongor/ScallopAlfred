@@ -26,7 +26,6 @@ test("copied requests start threads, and follow-ups resume the same Codex sessio
   await followup.click();
   await question.fill("  Can you explain that?  ");
   assert.equal((await desktop.window()).focusable, true);
-  await until(async () => await desktop.ignoresMouse() === false);
   const submitted = await desktop.windowOperations(async () => {
     await page.keyboard.down("Enter");
     await desktop.waitForStatus("thinking");

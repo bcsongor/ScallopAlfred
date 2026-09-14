@@ -24,7 +24,6 @@ globalThis.harness = {
   iconRequests: [],
   openedUrls: [],
   windowOperations: [],
-  ignoresMouse: false,
   skipsTaskbar: false,
   trayItem(labels) {
     let items = menu;
@@ -84,8 +83,6 @@ app.on("browser-window-created", (_event, window) => {
   window.setFocusable = focusable => { record("setFocusable"); setFocusable(focusable); };
   const setAlwaysOnTop = window.setAlwaysOnTop.bind(window);
   window.setAlwaysOnTop = (...args) => { record("setAlwaysOnTop"); setAlwaysOnTop(...args); };
-  const setIgnoreMouseEvents = window.setIgnoreMouseEvents.bind(window);
-  window.setIgnoreMouseEvents = (...args) => { harness.ignoresMouse = args[0]; setIgnoreMouseEvents(...args); };
   const setSkipTaskbar = window.setSkipTaskbar.bind(window);
   window.setSkipTaskbar = skip => { harness.skipsTaskbar = skip; setSkipTaskbar(skip); };
 });

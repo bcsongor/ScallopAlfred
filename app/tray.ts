@@ -18,8 +18,6 @@ export type SystemTray = {
 
 type TrayState = {
   theme: Config["theme"];
-  clickThrough: boolean;
-  clickThroughAvailable: boolean;
   canCopyAnswer: boolean;
   canRetry: boolean;
   canCancel: boolean;
@@ -28,7 +26,6 @@ type TrayState = {
 type TrayActions = {
   show(): void;
   setTheme(theme: Config["theme"]): void;
-  setClickThrough(enabled: boolean): void;
   copyAnswer(): void;
   retry(): void;
   cancel(): void;
@@ -43,10 +40,6 @@ export function trayMenu(state: TrayState, actions: TrayActions): TrayItem[] {
       { label: "Original", type: "radio", checked: state.theme === "original", click: () => actions.setTheme("original") },
       { label: "WoWhead", type: "radio", checked: state.theme === "wowhead", click: () => actions.setTheme("wowhead") },
     ] },
-    {
-      label: "Click-through", type: "checkbox", checked: state.clickThrough, enabled: state.clickThroughAvailable,
-      click: () => actions.setClickThrough(!state.clickThrough),
-    },
     { label: "Copy answer", enabled: state.canCopyAnswer, click: actions.copyAnswer },
     { label: "Retry last question", enabled: state.canRetry, click: actions.retry },
     { label: "Cancel question", enabled: state.canCancel, click: actions.cancel },

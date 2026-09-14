@@ -11,7 +11,6 @@ type Harness = {
   iconRequests: string[];
   openedUrls: string[];
   windowOperations: string[];
-  ignoresMouse: boolean;
   skipsTaskbar: boolean;
   trayItem: (labels: string[]) => TrayItem;
   clickTrayIcon: () => void;

@@ -73,28 +73,10 @@ window.addEventListener("DOMContentLoaded", () => {
   const resize = element("resize-height", HTMLElement);
   const archiveIcon = element("archive-icon", HTMLTemplateElement);
 
-  let interactive = false;
   /** @type {{ y: number, height: number, next: number } | undefined} */
   let resizing;
   /** @type {string | undefined} */
   let latestTurn;
-
-  /** @param {boolean} next */
-  function setInteractive(next) {
-    if (next === interactive) return;
-    interactive = next;
-    send("hover-control", next);
-  }
-
-  /** @param {Element} node */
-  const scrollable = node => node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth;
-
-  // Mouse input passes through to the game except over controls and scrollable content.
-  function updateInteractive() {
-    setInteractive(!!resizing || !!document.querySelector("button:hover, textarea:hover, #answer a:hover, #resize-height:hover") ||
-      [answer, ...answer.querySelectorAll(".active-threads, .archived-threads, table")]
-        .some(node => node.matches(":hover") && scrollable(node)));
-  }
 
   const nearBottom = () => answer.scrollHeight - answer.scrollTop - answer.clientHeight < 24;
 
@@ -201,14 +183,11 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  document.addEventListener("mousemove", updateInteractive);
-  document.addEventListener("mouseleave", () => setInteractive(!!resizing));
   resize.addEventListener("pointerdown", event => {
     if (event.button !== 0) return;
     event.preventDefault();
     resizing = { y: event.screenY, height: window.innerHeight, next: window.innerHeight };
     resize.setPointerCapture(event.pointerId);
-    updateInteractive();
   });
   resize.addEventListener("pointermove", event => {
     if (!resizing) return;
@@ -220,7 +199,6 @@ window.addEventListener("DOMContentLoaded", () => {
     const height = resizing.next;
     resizing = undefined;
     send("resize-height", { height, finished: true });
-    updateInteractive();
   });
 
   answer.addEventListener("click", event => {
@@ -240,7 +218,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
   on("theme", theme => {
     document.documentElement.dataset.theme = theme;
-    updateInteractive();
   });
 
   on("followup-editor", editing => {
@@ -276,7 +253,6 @@ window.addEventListener("DOMContentLoaded", () => {
     activeList.scrollTop = scrollTop;
     for (const section of archivedSections) section.scrollTop = archivedScrollTop;
     markScrollable();
-    updateInteractive();
   });
 
   on("thread", ({ state, titleSubjects, turns, canFollowup, fontSize }) => {
@@ -292,6 +268,5 @@ window.addEventListener("DOMContentLoaded", () => {
     followup.hidden = !canFollowup;
     answer.scrollTop = followLatest ? answer.scrollHeight : scrollTop;
     markScrollable();
-    updateInteractive();
   });
 });

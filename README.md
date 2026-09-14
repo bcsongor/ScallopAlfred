@@ -36,9 +36,9 @@ If Alt+Q is already taken, bind **Scallop Alfred: Ask about a tooltip or link** 
 - **Hide** hides the overlay while replies keep running. Click the tray icon to bring it back.
 - Drag the bottom edge to change the height.
 
-Clicks go through to the game except over buttons, links and anything scrollable. Linux can't forward clicks, so there the overlay always takes them. After typing a follow-up, click back into WoW to give it the keyboard.
+After typing a follow-up, click back into WoW to give it the keyboard.
 
-The tray menu copies the answer, retries, cancels, switches between the Original and WoWhead themes, toggles click-through and opens the settings.
+The tray menu copies the answer, retries, cancels, switches between the Original and WoWhead themes and opens the settings.
 
 ## Settings
 

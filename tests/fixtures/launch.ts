@@ -62,7 +62,6 @@ export async function launch(t: TestContext, settings?: Partial<Config>) {
     codexCalls: (): Promise<CodexCall[]> => session.app.evaluate(() => harness.codexCalls),
     iconRequests: () => session.app.evaluate(() => harness.iconRequests),
     openedUrls: () => session.app.evaluate(() => harness.openedUrls),
-    ignoresMouse: () => session.app.evaluate(() => harness.ignoresMouse),
     skipsTaskbar: () => session.app.evaluate(() => harness.skipsTaskbar),
     clickTray: (...labels: string[]) => session.app.evaluate((_electron, labels) => { harness.trayItem(labels).click?.(); }, labels),
     trayItem: (...labels: string[]) => session.app.evaluate((_electron, labels) => {
