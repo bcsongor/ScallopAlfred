@@ -9,7 +9,7 @@ const request = (id: string, fields: Partial<WoWRequest> = {}): WoWRequest => ({
   id, context: "context", thread: "new", question: `Question ${id}`, subjects: [],
   player: { class: "Druid", spec: "Restoration", level: 90 }, gameVersion: "12.1.0", ...fields,
 });
-const empty: Conversation = { id: "thread", title: "", updatedAt: 0, request: request("first"), turns: [] };
+const empty: Conversation = { id: "thread", title: "", titleSubjects: [], updatedAt: 0, request: request("first"), turns: [] };
 
 test("requests add thinking turns, and a thread keeps the name of its first request", () => {
   const ore = { type: "item", name: "Ore", link: "item:1", quality: 2, tooltip: [] };

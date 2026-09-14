@@ -133,7 +133,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   async function answer(request: WoWRequest, thread?: Conversation): Promise<void> {
     if (running) return;
     editFollowup();
-    const started = startTurn(thread ?? { id: randomUUID(), title: "", updatedAt: Date.now(), request, turns: [] }, request);
+    const started = startTurn(thread ?? { id: randomUUID(), title: "", titleSubjects: [], updatedAt: Date.now(), request, turns: [] }, request);
     const saved = saveThread(started, "Couldn't save the question");
     if (saved.notice) {
       show({ kind: "thread", conversation: finishTurn(started, { status: "error", text: saved.notice.text }) }, true);
