@@ -50,7 +50,7 @@ The tray menu copies the answer, retries, cancels, switches between the Original
 | `codexPath` | empty | Set it if Codex isn't found. On Windows, point at `codex.exe`, not a `.cmd` or `.ps1` shim |
 | `width` | `380` | 280 to 800 pixels |
 | `height` | `640` | 320 to 900 pixels |
-| `x`, `y` | `null` | Window position. `null` puts it at the top right |
+| `x`, `y` | `null` | Window position. `null` puts it near the top right, clear of the minimap |
 | `fontSize` | `14` | 12 to 28 pixels |
 | `theme` | `original` | `original` or `wowhead` |
 | `timeoutSeconds` | `180` | 10 to 600 |

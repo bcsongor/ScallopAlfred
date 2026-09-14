@@ -117,10 +117,13 @@ function setTopmost(window: BrowserWindow): void {
   window.setAlwaysOnTop(true, "screen-saver");
 }
 
+// Keeps the default position clear of WoW's minimap and objective tracker in the top-right corner.
+const rightEdgeClearance = 340;
+
 function createWindow(config: Config): BrowserWindow {
   const area = screen.getPrimaryDisplay().workArea;
   const requested = {
-    x: config.x ?? area.x + area.width - config.width - 24,
+    x: config.x ?? area.x + area.width - config.width - rightEdgeClearance,
     y: config.y ?? area.y + 80,
     width: config.width,
     height: config.height,
