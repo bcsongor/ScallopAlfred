@@ -85,13 +85,6 @@ local function hoveredSubject()
     if Public(spellID, "number") then
         return readSubject(C_Spell.GetSpellLink(spellID), spellName, data)
     end
-    -- NPC GUIDs look like Creature-0-server-instance-zone-npcID-spawn. Players and pets have no NPC ID.
-    local unitName, unit = GameTooltip:GetUnit()
-    local guid = Public(unit, "string") and Public(UnitGUID(unit), "string")
-    local guidType, npcID = (guid or ""):match("^(%a+)%-%d+%-%d+%-%d+%-%d+%-(%d+)%-")
-    if guidType == "Creature" or guidType == "Vehicle" then
-        return readSubject("npc:" .. npcID, unitName, data)
-    end
     if data and not issecretvalue(data.type) and not issecretvalue(data.id) then
         local kind = tooltipLinkTypes[data.type]
         if kind and data.id then
@@ -105,6 +98,14 @@ local function hoveredSubject()
     if questID then
         return readSubject("quest:" .. questID, C_QuestLog.GetTitleForQuestID(questID))
     end
+end
+
+-- The player's target, when it's an NPC. NPC GUIDs look like Creature-0-server-instance-zone-npcID-spawn.
+local function targetSubject()
+    local guid = Public(UnitGUID("target"), "string")
+    local guidType, npcID = (guid or ""):match("^(%a+)%-%d+%-%d+%-%d+%-%d+%-(%d+)%-")
+    if guidType ~= "Creature" and guidType ~= "Vehicle" then return end
+    return readSubject("npc:" .. npcID, UnitName("target"), Read(C_TooltipInfo.GetUnit, "target"))
 end
 
 local function linkedSubjects(question, hovered)
@@ -227,7 +228,6 @@ end
 local defaultQuestions = {
     item = "What's this for?",
     quest = "How do I complete this quest?",
-    npc = "What should I know about this NPC?",
     spell = "How does this spell work?",
     achievement = "How do I earn this achievement?",
     currency = "How do I earn and spend this currency?",
@@ -237,13 +237,14 @@ local function defaultQuestion(subject)
     return defaultQuestions[subject.type] or "Tell me about this."
 end
 
--- Subject presets ask straight away and topics open the editor without a subject. Custom opens the
--- editor for the hovered subject, or without one. A preset's text can depend on the subject.
+-- Subject presets ask about the hovered subject straight away. With nothing hovered, the target preset asks about
+-- a targeted NPC and topics open the editor. Custom opens the editor either way. Text can depend on the subject.
 local presets = {
     { kind = "subject", text = defaultQuestion },
     { kind = "subject", text = "Is it an upgrade?", itemOnly = true, category = "gear" },
     { kind = "subject", text = "Keep, sell or disenchant?", itemOnly = true },
     { kind = "subject", text = "Where does it drop?", itemOnly = true },
+    { kind = "target", text = "What should I know about my target?" },
     { kind = "topic", text = "Game mechanics", category = "mechanics" },
     { kind = "topic", text = "Professions", category = "professions" },
     { kind = "topic", text = "My gear", category = "gear" },
@@ -252,14 +253,16 @@ local presets = {
 
 local mode -- "menu", "question" or "copy"
 local selectedSubject
+local selectedTarget
 local selectedCategory
 
 local function notify(message)
     print("|cffe2c180Scallop Alfred:|r " .. message)
 end
 
-local function presetAvailable(preset, subject)
+local function presetAvailable(preset, subject, target)
     if preset.kind == "custom" then return true end
+    if preset.kind == "target" then return subject == nil and target ~= nil end
     if preset.kind == "topic" then return subject == nil end
     return subject ~= nil and (not preset.itemOnly or subject.type == "item")
 end
@@ -375,6 +378,8 @@ for index, preset in ipairs(presets) do
     button:SetScript("OnClick", function()
         if preset.kind == "subject" then
             sendQuestion(presetText(preset, selectedSubject), selectedSubject, preset.category)
+        elseif preset.kind == "target" then
+            sendQuestion(preset.text, selectedTarget)
         elseif preset.kind == "custom" then
             openEditor(subjectTitle())
         else
@@ -388,6 +393,7 @@ end
 function ScallopAlfred_Ask()
     if InCombatLockdown() then notify("Ask again after combat."); return end
     selectedSubject = hoveredSubject()
+    selectedTarget = not selectedSubject and targetSubject() or nil
     selectedCategory = nil
     mode = "menu"
     label:SetText(subjectTitle())
@@ -398,7 +404,7 @@ function ScallopAlfred_Ask()
     for index, button in ipairs(buttons) do
         local preset = presets[index]
         button:Hide()
-        if presetAvailable(preset, selectedSubject) then
+        if presetAvailable(preset, selectedSubject, selectedTarget) then
             button:SetText(presetText(preset, selectedSubject))
             button:ClearAllPoints()
             button:SetPoint("TOPLEFT", 20, -70 - shown * 34)

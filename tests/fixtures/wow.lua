@@ -75,9 +75,10 @@ GameTooltip = {
   GetPrimaryTooltipInfo = function() return tooltipInfo end,
   GetTooltipData = function() return tooltipData end,
   GetOwner = function() return tooltipOwner end,
-  GetUnit = function() if hoveredUnit then return unitName, hoveredUnit end end,
 }
-function UnitGUID(unit) if unit == hoveredUnit then return unitGUID end end
+function UnitGUID(unit) if unit == "target" then return targetGUID end end
+function UnitName(unit) if unit == "target" then return targetName end end
+C_TooltipInfo.GetUnit = function() return { lines = { { leftText = targetName }, { leftText = "Level 80 Elite" } } } end
 C_QuestLog = { GetTitleForQuestID = function(id) return "Quest " .. id end }
 ChatFrameUtil = { InsertLink = function() end }
 SlashCmdList = {}

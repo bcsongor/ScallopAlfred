@@ -18,8 +18,8 @@ You need [Bun](https://bun.sh), Node.js 24 or later, and [Codex CLI](https://dev
 
 Press Alt+Q outside combat.
 
-- Hover an item, spell, NPC, currency, achievement or quest link first to get presets for it, plus **Custom question**. Quests also work from the quest log and map, but not from the objective tracker.
-- Without a tooltip, choose **Game mechanics**, **Professions**, **My gear** or **Custom question**, then type your question.
+- Hover an item, spell, currency, achievement or quest link first to get presets for it, plus **Custom question**. Quests also work from the quest log and map, but not from the objective tracker.
+- Without a tooltip, choose **Game mechanics**, **Professions**, **My gear** or **Custom question**, then type your question. With an NPC targeted, the menu also offers **What should I know about my target?**
 
 Shift-click links into the question box to ask about up to eight things at once. Press Enter, then Ctrl+C (Cmd+C on macOS) to copy the request. The box closes when you let go of the keys.
 

@@ -465,19 +465,29 @@ test("hovered quests, currencies and achievements retain their ID, name and tool
   }
 });
 
-test("hovered NPCs use their creature ID, name and tooltip, but players do not", () => {
+test("a targeted NPC adds a question about it to the topic menu", () => {
   const game = addon();
   game.execute(`
-    noItem = true
-    hoveredUnit = "mouseover"; unitName = "Grumbles"
-    unitGUID = "Creature-0-1234-2552-12-219013-000ABCDEF0"
-    tooltipData = { lines = { { leftText = "Grumbles" }, { leftText = "Level 80 Elite" } } }
-    ScallopAlfred_Ask(); choose("What should I know about this NPC?")
+    tooltipHidden = true
+    targetGUID = "Creature-0-1234-2552-12-219013-000ABCDEF0"; targetName = "Grumbles"
+    ScallopAlfred_Ask(); choose("What should I know about my target?")
   `);
-  assert.deepEqual(game.payload().subjects, [{ type: "npc", name: "Grumbles", link: "npc:219013", tooltip: ["Grumbles", "Level 80 Elite"] }]);
-  // Players and restricted GUIDs leave no subject, so the topic menu opens instead.
-  game.execute('unitGUID = "Player-1234-0ABCDEF0"; ScallopAlfred_Ask(); choose("Game mechanics")');
-  game.execute('unitGUID = secret; ScallopAlfred_Ask(); choose("Game mechanics")');
+  const request = game.payload();
+  assert.equal(request.question, "What should I know about my target?");
+  assert.deepEqual(request.subjects, [{ type: "npc", name: "Grumbles", link: "npc:219013", tooltip: ["Grumbles", "Level 80 Elite"] }]);
+  game.execute(`
+    -- The topics stay available alongside it.
+    ScallopAlfred_Ask(); choose("Game mechanics")
+    -- A hovered subject takes over the menu.
+    tooltipHidden = false; ScallopAlfred_Ask()
+    assert(not pcall(choose, "What should I know about my target?"))
+    -- Players and restricted GUIDs are not NPCs.
+    tooltipHidden = true
+    for _, guid in ipairs({ "Player-1234-0ABCDEF0", secret }) do
+      targetGUID = guid; ScallopAlfred_Ask()
+      assert(not pcall(choose, "What should I know about my target?"))
+    end
+  `);
 });
 
 test("hovered quest log entries use the quest ID on the tooltip's owner", () => {
