@@ -85,6 +85,13 @@ local function hoveredSubject()
     if Public(spellID, "number") then
         return readSubject(C_Spell.GetSpellLink(spellID), spellName, data)
     end
+    -- NPC GUIDs look like Creature-0-server-instance-zone-npcID-spawn. Players and pets have no NPC ID.
+    local unitName, unit = GameTooltip:GetUnit()
+    local guid = Public(unit, "string") and Public(UnitGUID(unit), "string")
+    local guidType, npcID = (guid or ""):match("^(%a+)%-%d+%-%d+%-%d+%-%d+%-(%d+)%-")
+    if guidType == "Creature" or guidType == "Vehicle" then
+        return readSubject("npc:" .. npcID, unitName, data)
+    end
     if data and not issecretvalue(data.type) and not issecretvalue(data.id) then
         local kind = tooltipLinkTypes[data.type]
         if kind and data.id then
@@ -220,6 +227,7 @@ end
 local defaultQuestions = {
     item = "What's this for?",
     quest = "How do I complete this quest?",
+    npc = "What should I know about this NPC?",
     spell = "How does this spell work?",
     achievement = "How do I earn this achievement?",
     currency = "How do I earn and spend this currency?",

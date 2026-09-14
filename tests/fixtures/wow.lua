@@ -75,7 +75,9 @@ GameTooltip = {
   GetPrimaryTooltipInfo = function() return tooltipInfo end,
   GetTooltipData = function() return tooltipData end,
   GetOwner = function() return tooltipOwner end,
+  GetUnit = function() if hoveredUnit then return unitName, hoveredUnit end end,
 }
+function UnitGUID(unit) if unit == hoveredUnit then return unitGUID end end
 C_QuestLog = { GetTitleForQuestID = function(id) return "Quest " .. id end }
 ChatFrameUtil = { InsertLink = function() end }
 SlashCmdList = {}

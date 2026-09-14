@@ -465,6 +465,21 @@ test("hovered quests, currencies and achievements retain their ID, name and tool
   }
 });
 
+test("hovered NPCs use their creature ID, name and tooltip, but players do not", () => {
+  const game = addon();
+  game.execute(`
+    noItem = true
+    hoveredUnit = "mouseover"; unitName = "Grumbles"
+    unitGUID = "Creature-0-1234-2552-12-219013-000ABCDEF0"
+    tooltipData = { lines = { { leftText = "Grumbles" }, { leftText = "Level 80 Elite" } } }
+    ScallopAlfred_Ask(); choose("What should I know about this NPC?")
+  `);
+  assert.deepEqual(game.payload().subjects, [{ type: "npc", name: "Grumbles", link: "npc:219013", tooltip: ["Grumbles", "Level 80 Elite"] }]);
+  // Players and restricted GUIDs leave no subject, so the topic menu opens instead.
+  game.execute('unitGUID = "Player-1234-0ABCDEF0"; ScallopAlfred_Ask(); choose("Game mechanics")');
+  game.execute('unitGUID = secret; ScallopAlfred_Ask(); choose("Game mechanics")');
+});
+
 test("hovered quest log entries use the quest ID on the tooltip's owner", () => {
   const game = addon();
   game.execute(`
