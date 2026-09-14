@@ -31,6 +31,14 @@ const professionsSchema = z.object({
     skillLevel: professionNumber.optional(),
     maxSkillLevel: professionNumber.optional(),
     skillModifier: professionNumber.optional(),
+    expansions: z.array(z.object({
+      skillLineID: professionNumber.int(),
+      name: z.string().max(256).optional(),
+      expansionName: z.string().max(256).optional(),
+      skillLevel: professionNumber.optional(),
+      maxSkillLevel: professionNumber.optional(),
+      skillModifier: professionNumber.optional(),
+    })).max(32).optional(),
     specialization: z.object({
       skillLineID: professionNumber.int(),
       unspentKnowledge: professionNumber.optional(),

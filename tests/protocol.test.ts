@@ -47,12 +47,14 @@ test("runs keep the read-only sandbox, disabled tools and explicit model setting
 test("profession snapshots stay optional and bounded", () => {
   const profession = {
     name: "Alchemy", skillLineID: 171, skillLevel: 75, maxSkillLevel: 100,
+    expansions: [{ skillLineID: 2906, name: "Midnight Alchemy", expansionName: "Midnight", skillLevel: 75, maxSkillLevel: 100 }],
     specialization: { skillLineID: 2906, unspentKnowledge: 0, paths: [] },
   };
   const parse = (entries: unknown[]) => parseRequest(copied({ ...request, professions: { capturedAt: 1800000000, entries } }));
   assert.deepEqual(parse([profession])?.professions?.entries, [profession]);
   assert.throws(() => parse(Array(6).fill(profession)));
   assert.throws(() => parse([{ ...profession, skillLevel: -1 }]));
+  assert.throws(() => parse([{ ...profession, expansions: Array(33).fill(profession.expansions[0]) }]));
   assert.throws(() => parse([{ ...profession, specialization: { ...profession.specialization, unspentKnowledge: "unknown" } }]));
 });
 

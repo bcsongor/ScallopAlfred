@@ -46,7 +46,7 @@ local function specialization(skillLineID)
 end
 
 function addon.GetProfessions(includeSpecializations)
-    local lines = includeSpecializations and Read(C_TradeSkillUI.GetAllProfessionTradeSkillLines) or {}
+    local lines = Read(C_TradeSkillUI.GetAllProfessionTradeSkillLines) or {}
     local entries = {}
     local infoBySkillLine = {}
     -- The returned slots are sparse when a primary or secondary profession is missing.
@@ -59,18 +59,27 @@ function addon.GetProfessions(includeSpecializations)
                 name = name, skillLineID = skillLineID,
                 skillLineName = Public(skillLineName, "string"),
                 skillLevel = Count(skill), maxSkillLevel = Count(maximum), skillModifier = Count(modifier),
+                expansions = {},
             }
+            -- Every expansion's skill line goes along, so questions about legacy content see those skills too.
             for lineIndex, childID in ipairs(lines) do
                 if lineIndex > 256 then break end
-                if infoBySkillLine[childID] == nil then
+                childID = Count(childID)
+                if childID and infoBySkillLine[childID] == nil then
                     infoBySkillLine[childID] = Read(C_TradeSkillUI.GetProfessionInfoBySkillLineID, childID) or false
                 end
-                local info = infoBySkillLine[childID]
-                if info and Count(info.parentProfessionID) == skillLineID and profession.skillLineName
-                    and Public(info.professionName, "string") == profession.skillLineName then
-                    local ok, details = pcall(specialization, childID)
-                    if ok then profession.specialization = details end
-                    break
+                local info = childID and infoBySkillLine[childID]
+                if info and Count(info.parentProfessionID) == skillLineID then
+                    local lineName = Public(info.professionName, "string")
+                    profession.expansions[#profession.expansions + 1] = {
+                        skillLineID = childID, name = lineName, expansionName = Public(info.expansionName, "string"),
+                        skillLevel = Count(info.skillLevel), maxSkillLevel = Count(info.maxSkillLevel),
+                        skillModifier = Count(info.skillModifier),
+                    }
+                    if includeSpecializations and profession.skillLineName and lineName == profession.skillLineName then
+                        local ok, details = pcall(specialization, childID)
+                        if ok then profession.specialization = details end
+                    end
                 end
             end
             entries[#entries + 1] = profession

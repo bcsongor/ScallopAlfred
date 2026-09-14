@@ -67,6 +67,7 @@ C_TooltipInfo = {
   end,
 }
 Enum = { TooltipDataType = { Quest = 23, Currency = 5, Achievement = 12 } }
+C_TradeSkillUI = { GetAllProfessionTradeSkillLines = function() return {} end }
 C_Spell = { GetSpellLink = function(id) return "|cff71d5ff|Hspell:" .. id .. "|h[Rejuvenation]|h|r" end }
 GameTooltip = {
   IsShown = function() return not tooltipHidden end,

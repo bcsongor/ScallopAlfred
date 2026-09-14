@@ -61,7 +61,7 @@ test("addon exports valid JSON, both ring slots, and no restricted tooltip value
   assert.deepEqual(request.equipped?.map(item => item.link), ["item:11", "item:12"]);
 });
 
-test("profession snapshots include sparse slots and displayed specialisation ranks", () => {
+test("profession snapshots include sparse slots, every expansion's skill line and displayed specialisation ranks", () => {
   const game = addon();
   game.execute(`
     function GetProfessions() return 1, nil, nil, 4 end
@@ -73,7 +73,10 @@ test("profession snapshots include sparse slots and displayed specialisation ran
       GetAllProfessionTradeSkillLines = function() return { 999, 2906 } end,
       GetProfessionInfoBySkillLineID = function(id)
         professionReads = (professionReads or 0) + 1
-        return { parentProfessionID = 171, professionName = id == 999 and "Khaz Algar Alchemy" or "Midnight Alchemy" }
+        if id == 999 then
+          return { parentProfessionID = 171, professionName = "Khaz Algar Alchemy", expansionName = "Khaz Algar", skillLevel = 50, maxSkillLevel = 100, skillModifier = 0 }
+        end
+        return { parentProfessionID = 171, professionName = "Midnight Alchemy", expansionName = "Midnight", skillLevel = 75, maxSkillLevel = 100, skillModifier = 6 }
       end,
     }
     C_ProfSpecs = {
@@ -105,6 +108,11 @@ test("profession snapshots include sparse slots and displayed specialisation ran
   assert.equal(alchemy?.maxSkillLevel, 100);
   assert.equal(alchemy?.skillModifier, 6);
   assert.equal(alchemy?.skillLineName, "Midnight Alchemy");
+  assert.deepEqual(alchemy?.expansions, [
+    { skillLineID: 999, name: "Khaz Algar Alchemy", expansionName: "Khaz Algar", skillLevel: 50, maxSkillLevel: 100, skillModifier: 0 },
+    { skillLineID: 2906, name: "Midnight Alchemy", expansionName: "Midnight", skillLevel: 75, maxSkillLevel: 100, skillModifier: 6 },
+  ]);
+  assert.deepEqual(snapshot?.entries.find(entry => entry.skillLineID === 356)?.expansions, []);
   assert.equal(alchemy?.specialization?.skillLineID, 2906);
   assert.equal(alchemy?.specialization?.unspentKnowledge, 7);
   assert.equal(alchemy?.specialization?.hasStagedChanges, true);
@@ -133,7 +141,7 @@ test("profession snapshots include sparse slots and displayed specialisation ran
     game.execute(`
       tooltipHidden = ${topic}; ScallopAlfred_Ask(); choose("${action}")
       ${topic || action === "Custom question" ? 'focused:SetText("A question"); focused.scripts.OnEnterPressed()' : ""}
-      assert(professionReads == 0 and specializationReads == 0 and childLineReads == 0)
+      assert(specializationReads == 0)
     `);
     assert.deepEqual(game.payload().professions?.entries, skillsOnly);
   }
