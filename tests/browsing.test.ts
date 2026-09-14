@@ -17,21 +17,21 @@ test("threads can be browsed, archived and continued after a restart", { timeout
     await desktop.waitForAnswer(`Answer: ${question}`);
   }
   const back = () => desktop.page.getByRole("button", { name: "Back to threads" });
-  const thread = (title: string) => desktop.page.locator(".conversation").filter({ hasText: title });
+  const thread = (title: string) => desktop.page.locator(".thread").filter({ hasText: title });
   const archiveButton = (title: string) => desktop.page.getByRole("button", { name: `Archive thread: ${title}`, exact: true });
-  const titles = () => desktop.page.locator(".conversation-title").allTextContents();
+  const titles = () => desktop.page.locator(".thread-title").allTextContents();
 
   await back().click();
   await desktop.waitForStatus("history");
   assert.equal(await desktop.page.locator("footer").isVisible(), false);
   assert.deepEqual(await titles(), ["Newest thread", "Second thread", "First thread", "Epic ring"]);
-  assert.equal(await desktop.page.locator('.conversation-title [data-quality="4"]').textContent(), "Epic ring");
+  assert.equal(await desktop.page.locator('.thread-title [data-quality="4"]').textContent(), "Epic ring");
 
   // Archived threads move to a read-only section pinned to the bottom.
   await archiveButton("Second thread").click();
   await archiveButton("Second thread").waitFor({ state: "detached" });
   assert.deepEqual(await titles(), ["Newest thread", "First thread", "Epic ring"]);
-  const archiveBounds = await desktop.page.locator(".archived-conversations").boundingBox();
+  const archiveBounds = await desktop.page.locator(".archived-threads").boundingBox();
   const historyBounds = await desktop.page.locator("#answer").boundingBox();
   assert.ok(archiveBounds && historyBounds);
   assert.ok(Math.abs(archiveBounds.y + archiveBounds.height - historyBounds.y - historyBounds.height) < 1);
@@ -46,7 +46,7 @@ test("threads can be browsed, archived and continued after a restart", { timeout
   await desktop.restart();
   await desktop.waitForStatus("history");
   assert.equal(await archiveButton("Second thread").count(), 0);
-  assert.equal(await desktop.page.locator(".archived-conversation").filter({ hasText: "Second thread" }).count(), 1);
+  assert.equal(await desktop.page.locator(".archived-thread").filter({ hasText: "Second thread" }).count(), 1);
   await thread("First thread").click();
   await desktop.waitForAnswer("Answer: First thread");
   await desktop.page.getByRole("button", { name: "Follow up", exact: true }).click();
@@ -74,7 +74,7 @@ test("threads can be browsed, archived and continued after a restart", { timeout
   await back().click();
   await archiveButton(subject.name).click();
   await archiveButton(subject.name).waitFor({ state: "detached" });
-  await desktop.page.locator(".archived-conversation").filter({ hasText: subject.name }).click();
+  await desktop.page.locator(".archived-thread").filter({ hasText: subject.name }).click();
   await desktop.waitForStatus("thinking");
   await desktop.clickTray("Cancel question");
   await desktop.waitForAnswer("Question cancelled. Retry from the tray menu when ready.");
@@ -85,15 +85,15 @@ test("threads can be browsed, archived and continued after a restart", { timeout
 
   // Startup opens the history even when every thread is archived.
   await back().click();
-  while (await desktop.page.locator(".archive-conversation").count()) {
-    const button = desktop.page.locator(".archive-conversation").first();
-    const id = await button.getAttribute("data-archive-conversation");
+  while (await desktop.page.locator(".archive-thread").count()) {
+    const button = desktop.page.locator(".archive-thread").first();
+    const id = await button.getAttribute("data-archive-thread");
     await button.click();
-    await desktop.page.locator(`[data-archive-conversation="${id}"]`).waitFor({ state: "detached" });
+    await desktop.page.locator(`[data-archive-thread="${id}"]`).waitFor({ state: "detached" });
   }
-  const archivedCount = await desktop.page.locator(".archived-conversation").count();
+  const archivedCount = await desktop.page.locator(".archived-thread").count();
   await desktop.restart();
   await desktop.waitForStatus("history");
-  assert.equal(await desktop.page.locator(".conversation").count(), 0);
-  assert.equal(await desktop.page.locator(".archived-conversation").count(), archivedCount);
+  assert.equal(await desktop.page.locator(".thread").count(), 0);
+  assert.equal(await desktop.page.locator(".archived-thread").count(), archivedCount);
 });

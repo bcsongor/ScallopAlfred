@@ -29,7 +29,7 @@ test("parseRequest ignores unrelated text and rejects malformed or oversized req
   }
 });
 
-test("resume is restricted to the same conversation context", () => {
+test("resume is restricted to the same thread context", () => {
   const session = { context: "item-1", id: "session-1" };
   assert.ok(!codexArguments(request, "", session).includes("resume"));
   assert.deepEqual(codexArguments({ ...request, thread: "continue" }, "", session).slice(-3), ["resume", "session-1", "-"]);

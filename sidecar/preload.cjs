@@ -92,7 +92,7 @@ window.addEventListener("DOMContentLoaded", () => {
   // Mouse input passes through to the game except over controls and scrollable content.
   function updateInteractive() {
     setInteractive(!!resizing || !!document.querySelector("button:hover, textarea:hover, #answer a:hover, #resize-height:hover") ||
-      [answer, ...answer.querySelectorAll(".active-conversations, .archived-conversations, table")]
+      [answer, ...answer.querySelectorAll(".active-threads, .archived-threads, table")]
         .some(node => node.matches(":hover") && scrollable(node)));
   }
 
@@ -100,7 +100,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // The follow-up bar and archived section cast their shadows only when content scrolls beneath them.
   function markScrollable() {
-    for (const list of [answer, answer.querySelector(".active-conversations")]) {
+    for (const list of [answer, answer.querySelector(".active-threads")]) {
       list?.toggleAttribute("data-scrollable", list.scrollHeight > list.clientHeight);
     }
   }
@@ -122,36 +122,36 @@ window.addEventListener("DOMContentLoaded", () => {
     document.body.style.fontSize = `${fontSize}px`;
   }
 
-  /** @param {import("./history.ts").ConversationSummary} conversation */
-  function historyRow(conversation) {
-    const date = new Date(conversation.updatedAt);
-    const preview = conversation.question === conversation.title
+  /** @param {import("./history.ts").ThreadSummary} thread */
+  function historyRow(thread) {
+    const date = new Date(thread.updatedAt);
+    const preview = thread.question === thread.title
       ? []
-      : [h("span", { className: "conversation-preview", textContent: conversation.question })];
-    return h("div", { className: "conversation-row" },
-      h("button", { type: "button", className: "conversation", dataset: { conversation: conversation.id } },
-        h("span", { className: "conversation-title" }, ...titleContent(conversation.title, conversation.titleSubjects)),
+      : [h("span", { className: "thread-preview", textContent: thread.question })];
+    return h("div", { className: "thread-row" },
+      h("button", { type: "button", className: "thread", dataset: { thread: thread.id } },
+        h("span", { className: "thread-title" }, ...titleContent(thread.title, thread.titleSubjects)),
         ...preview,
         h("time", { dateTime: date.toISOString(), textContent: date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) }),
       ),
       h("button", {
         type: "button",
-        className: "archive-conversation",
+        className: "archive-thread",
         title: "Archive thread",
-        ariaLabel: `Archive thread: ${conversation.title}`,
-        dataset: { archiveConversation: conversation.id },
+        ariaLabel: `Archive thread: ${thread.title}`,
+        dataset: { archiveThread: thread.id },
       }, archiveIcon.content.cloneNode(true)),
     );
   }
 
-  /** @param {import("./history.ts").ArchivedConversationSummary} conversation */
-  function archivedRow(conversation) {
+  /** @param {import("./history.ts").ArchivedThreadSummary} thread */
+  function archivedRow(thread) {
     return h("button", {
       type: "button",
-      className: "archived-conversation",
-      title: conversation.title,
-      textContent: conversation.title,
-      dataset: { conversation: conversation.id },
+      className: "archived-thread",
+      title: thread.title,
+      textContent: thread.title,
+      dataset: { thread: thread.id },
     });
   }
 
@@ -225,13 +225,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
   answer.addEventListener("click", event => {
     const target = event.target instanceof Element ? event.target : undefined;
-    const archive = target?.closest("button[data-archive-conversation]");
-    const entry = target?.closest("button[data-conversation]");
+    const archive = target?.closest("button[data-archive-thread]");
+    const entry = target?.closest("button[data-thread]");
     const link = target?.closest("a");
     if (archive instanceof HTMLElement) {
-      send("archive-conversation", archive.dataset.archiveConversation ?? "");
+      send("archive-thread", archive.dataset.archiveThread ?? "");
     } else if (entry instanceof HTMLElement) {
-      send("open-conversation", entry.dataset.conversation ?? "");
+      send("open-thread", entry.dataset.thread ?? "");
     } else if (link) {
       event.preventDefault();
       send("open-link", link.getAttribute("href") ?? "");
@@ -254,9 +254,9 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  on("history", ({ conversations, archived, fontSize }) => {
-    const scrollTop = answer.querySelector(".active-conversations")?.scrollTop ?? 0;
-    const archivedScrollTop = answer.querySelector(".archived-conversations")?.scrollTop ?? 0;
+  on("history", ({ threads, archived, fontSize }) => {
+    const scrollTop = answer.querySelector(".active-threads")?.scrollTop ?? 0;
+    const archivedScrollTop = answer.querySelector(".archived-threads")?.scrollTop ?? 0;
     setFrame("Threads", undefined, false, "history", fontSize);
     followup.hidden = true;
     form.hidden = true;
@@ -265,12 +265,12 @@ window.addEventListener("DOMContentLoaded", () => {
     answer.role = "region";
     answer.ariaLabel = "Thread history";
 
-    const empty = conversations.length || archived.length
+    const empty = threads.length || archived.length
       ? []
       : [h("p", { textContent: "No threads yet. Press Alt+Q in WoW to ask a question." })];
-    const activeList = h("div", { className: "active-conversations" }, ...conversations.map(historyRow), ...empty);
+    const activeList = h("div", { className: "active-threads" }, ...threads.map(historyRow), ...empty);
     const archivedSections = archived.length
-      ? [h("section", { className: "archived-conversations", ariaLabel: "Archived threads" }, h("h2", { textContent: "Archived" }), ...archived.map(archivedRow))]
+      ? [h("section", { className: "archived-threads", ariaLabel: "Archived threads" }, h("h2", { textContent: "Archived" }), ...archived.map(archivedRow))]
       : [];
     answer.replaceChildren(activeList, ...archivedSections);
     activeList.scrollTop = scrollTop;

@@ -1,10 +1,10 @@
 import { z } from "zod";
 import type { Config } from "./config.ts";
-import type { ArchivedConversationSummary, ConversationSummary, ConversationTurn, TitleSubject } from "./history.ts";
+import type { ArchivedThreadSummary, ThreadSummary, Turn, TitleSubject } from "./history.ts";
 import { requestSchema } from "./protocol.ts";
 
 export type OverlayState = {
-  status: "ready" | ConversationTurn["status"];
+  status: "ready" | Turn["status"];
   title: string;
   text: string;
 };
@@ -13,11 +13,11 @@ export type ToOverlay = {
   thread: {
     state: OverlayState;
     titleSubjects?: TitleSubject[];
-    turns: (ConversationTurn & { html: string | null })[];
+    turns: (Turn & { html: string | null })[];
     canFollowup: boolean;
     fontSize: number;
   };
-  history: { conversations: ConversationSummary[]; archived: ArchivedConversationSummary[]; fontSize: number };
+  history: { threads: ThreadSummary[]; archived: ArchivedThreadSummary[]; fontSize: number };
   theme: Config["theme"];
   "followup-editor": boolean;
 };
@@ -27,8 +27,8 @@ const messages = {
   "show-history": z.undefined(),
   "edit-followup": z.boolean(),
   "submit-followup": requestSchema.shape.question,
-  "open-conversation": z.string(),
-  "archive-conversation": z.string(),
+  "open-thread": z.string(),
+  "archive-thread": z.string(),
   "resize-height": z.object({ height: z.number(), finished: z.boolean() }),
   "hover-control": z.boolean(),
   "open-link": z.string(),

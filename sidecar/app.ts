@@ -7,7 +7,7 @@ import type { Ask, CodexOptions } from "./codex.ts";
 import { createSettingsWriter, loadConfig, type AppearanceChanges, type Config } from "./config.ts";
 import { errorMessage } from "./errors.ts";
 import { createFavicons } from "./favicons.ts";
-import { openHistory, type Conversation } from "./history.ts";
+import { openHistory, type Thread } from "./history.ts";
 import type { OverlayState } from "./ipc.ts";
 import { renderMarkdown, webUrl } from "./markdown.ts";
 import { createOverlay } from "./overlay.ts";
@@ -43,19 +43,19 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   let theme = config.theme;
   let running: AbortController | undefined;
   /** The thread a follow-up continues, set only while the editor is open. */
-  let followup: Conversation | undefined;
+  let followup: Thread | undefined;
 
-  const openThread = (): Conversation | undefined => continuableThread(view, running !== undefined);
+  const openThread = (): Thread | undefined => continuableThread(view, running !== undefined);
 
   function render(reveal = false): void {
     if (view.kind === "history") {
-      overlay.send("history", { conversations: history.list(), archived: history.listArchived(), fontSize: config.fontSize });
+      overlay.send("history", { threads: history.list(), archived: history.listArchived(), fontSize: config.fontSize });
     } else {
       overlay.send("thread", {
         state: overlayState(view),
         // A notice replaces the title, so only the thread's own title shows its subjects.
-        titleSubjects: view.notice ? undefined : view.conversation?.titleSubjects,
-        turns: (view.conversation?.turns ?? []).map(turn => ({ ...turn, html: turn.status === "answer" ? renderMarkdown(turn.text) : null })),
+        titleSubjects: view.notice ? undefined : view.thread?.titleSubjects,
+        turns: (view.thread?.turns ?? []).map(turn => ({ ...turn, html: turn.status === "answer" ? renderMarkdown(turn.text) : null })),
         canFollowup: openThread() !== undefined,
         fontSize: config.fontSize,
       });
@@ -70,10 +70,10 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   }
 
   function showNotice(notice: OverlayState): void {
-    show({ kind: "thread", conversation: view.kind === "thread" ? view.conversation : undefined, notice }, true);
+    show({ kind: "thread", thread: view.kind === "thread" ? view.thread : undefined, notice }, true);
   }
 
-  function editFollowup(thread?: Conversation): void {
+  function editFollowup(thread?: Thread): void {
     if (followup === thread) return;
     followup = thread;
     overlay.setEditing(thread !== undefined);
@@ -82,11 +82,11 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     if (!thread) render();
   }
 
-  function saveThread(conversation: Conversation, failure: string): ThreadView {
+  function saveThread(thread: Thread, failure: string): ThreadView {
     try {
-      return { kind: "thread", conversation: history.save(conversation) };
+      return { kind: "thread", thread: history.save(thread) };
     } catch (error) {
-      return { kind: "thread", conversation, notice: { status: "error", title: conversation.title, text: `${failure}: ${errorMessage(error)}` } };
+      return { kind: "thread", thread, notice: { status: "error", title: thread.title, text: `${failure}: ${errorMessage(error)}` } };
     }
   }
 
@@ -130,13 +130,13 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     ));
   }
 
-  async function answer(request: WoWRequest, thread?: Conversation): Promise<void> {
+  async function answer(request: WoWRequest, thread?: Thread): Promise<void> {
     if (running) return;
     editFollowup();
     const started = startTurn(thread ?? { id: randomUUID(), title: "", titleSubjects: [], updatedAt: Date.now(), request, turns: [] }, request);
     const saved = saveThread(started, "Couldn't save the question");
     if (saved.notice) {
-      show({ kind: "thread", conversation: finishTurn(started, { status: "error", text: saved.notice.text }) }, true);
+      show({ kind: "thread", thread: finishTurn(started, { status: "error", text: saved.notice.text }) }, true);
       return;
     }
     const cancel = new AbortController();
@@ -153,7 +153,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     running = undefined;
     if (quit.signal.aborted) return;
     const stored = saveThread(finished, "Couldn't save the reply");
-    show(view.kind === "thread" && view.conversation?.id === finished.id ? stored : view, !overlay.isDismissed());
+    show(view.kind === "thread" && view.thread?.id === finished.id ? stored : view, !overlay.isDismissed());
   }
 
   /** A follow-up from the game continues the thread on screen, or starts a new one when there isn't one to continue. */
@@ -196,13 +196,13 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     editFollowup();
     show({ kind: "history" });
   });
-  overlay.listen("open-conversation", id => {
-    const conversation = history.get(id);
-    if (!conversation) return;
+  overlay.listen("open-thread", id => {
+    const thread = history.get(id);
+    if (!thread) return;
     editFollowup();
-    show({ kind: "thread", conversation });
+    show({ kind: "thread", thread });
   });
-  overlay.listen("archive-conversation", id => {
+  overlay.listen("archive-thread", id => {
     if (view.kind !== "history") return;
     try {
       if (history.archive(id)) render();

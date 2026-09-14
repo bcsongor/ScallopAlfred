@@ -68,7 +68,7 @@
   font-size: 14px;
 }
 
-:root[data-theme="wowhead"] :is(.conversation-preview, .conversation time) {
+:root[data-theme="wowhead"] :is(.thread-preview, .thread time) {
   font-size: 13px;
 }
 
@@ -88,7 +88,7 @@
 
 /* Thread titles are white. Quests use WoW's default yellow, and items their quality colour. */
 #title,
-.conversation-title {
+.thread-title {
   color: var(--strong);
 }
 
@@ -182,7 +182,7 @@ button:hover {
   display: none !important;
 }
 
-.conversation-heading {
+.thread-heading {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -205,19 +205,19 @@ button:hover {
  * HISTORY
  */
 
-.conversation-row {
+.thread-row {
   position: relative;
   margin-bottom: 8px;
 }
 
-.conversation {
+.thread {
   display: block;
   width: 100%;
   padding: 10px 42px 10px 10px;
   text-align: left;
 }
 
-.archive-conversation {
+.archive-thread {
   position: absolute;
   top: 7px;
   right: 7px;
@@ -231,19 +231,19 @@ button:hover {
   color: var(--muted);
 }
 
-.archive-conversation:hover {
+.archive-thread:hover {
   color: var(--text);
   background: var(--button-hover);
 }
 
-.active-conversations {
+.active-threads {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 10px 0;
 }
 
-.archived-conversations {
+.archived-threads {
   flex-shrink: 0;
   max-height: 50%;
   overflow-y: auto;
@@ -253,17 +253,17 @@ button:hover {
 }
 
 /* Mirrors the header: a shadow cast up over threads that scroll beneath the section. */
-.active-conversations[data-scrollable] + .archived-conversations {
+.active-threads[data-scrollable] + .archived-threads {
   box-shadow: 0 -4px 8px -2px #0009;
 }
 
-#answer .archived-conversations h2 {
+#answer .archived-threads h2 {
   margin: 0 0 6px;
   color: var(--archive-text);
   font-weight: 700;
 }
 
-.archived-conversation {
+.archived-thread {
   display: block;
   width: 100%;
   padding: 5px 0;
@@ -276,26 +276,26 @@ button:hover {
   text-overflow: ellipsis;
 }
 
-.archived-conversation:hover {
+.archived-thread:hover {
   background: transparent;
   color: var(--archive-hover);
 }
 
-.conversation-title,
-.conversation-preview {
+.thread-title,
+.thread-preview {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
 
-.conversation-preview,
-.conversation time {
+.thread-preview,
+.thread time {
   color: var(--muted);
   font-size: 12px;
 }
 
-.conversation time {
+.thread time {
   display: block;
   margin-top: 6px;
 }

@@ -36,7 +36,7 @@ test("answers render Markdown with external source links and cached favicons", {
   // Saved threads reuse cached icons after a restart.
   await desktop.restart();
   await desktop.waitForStatus("history");
-  await desktop.page.locator(".conversation").first().click();
+  await desktop.page.locator(".thread").first().click();
   await desktop.page.waitForFunction(() => document.querySelector<HTMLImageElement>("#answer .favicon")?.naturalWidth === 16);
   assert.ok(!(await desktop.iconRequests()).some(url => url.includes("www.wowhead.com")));
 

@@ -2,7 +2,7 @@ import { DatabaseSync, type SQLOutputValue } from "node:sqlite";
 import { z } from "zod";
 import { requestSchema } from "./protocol.ts";
 
-const conversationTurnSchema = z.object({
+const turnSchema = z.object({
   id: z.string(),
   question: z.string(),
   status: z.enum(["thinking", "answer", "error"]),
@@ -11,7 +11,7 @@ const conversationTurnSchema = z.object({
 
 const titleSubjectSchema = z.object({ name: z.string(), type: z.string().optional(), quality: z.number().int().optional() });
 
-const conversationSchema = z.object({
+const threadSchema = z.object({
   id: z.string(),
   title: z.string(),
   // The subjects the thread was named after, so titles can show items in their quality colour.
@@ -20,18 +20,18 @@ const conversationSchema = z.object({
   archivedAt: z.number().optional(),
   request: requestSchema,
   session: z.object({ context: z.string(), id: z.string() }).optional(),
-  turns: z.array(conversationTurnSchema).min(1),
+  turns: z.array(turnSchema).min(1),
 });
 
-const summarySchema = conversationSchema.pick({ id: true, title: true, titleSubjects: true, updatedAt: true })
+const summarySchema = threadSchema.pick({ id: true, title: true, titleSubjects: true, updatedAt: true })
   .extend({ question: z.string() });
-const archivedSummarySchema = conversationSchema.pick({ id: true, title: true });
+const archivedSummarySchema = threadSchema.pick({ id: true, title: true });
 
 export type TitleSubject = z.infer<typeof titleSubjectSchema>;
-export type ConversationTurn = z.infer<typeof conversationTurnSchema>;
-export type Conversation = z.infer<typeof conversationSchema>;
-export type ConversationSummary = z.infer<typeof summarySchema>;
-export type ArchivedConversationSummary = z.infer<typeof archivedSummarySchema>;
+export type Turn = z.infer<typeof turnSchema>;
+export type Thread = z.infer<typeof threadSchema>;
+export type ThreadSummary = z.infer<typeof summarySchema>;
+export type ArchivedThreadSummary = z.infer<typeof archivedSummarySchema>;
 
 type Row = Record<string, SQLOutputValue>;
 
@@ -113,10 +113,10 @@ export function openHistory(path: string) {
   db.prepare("UPDATE turns SET status = 'error', text = ? WHERE status = 'thinking'")
     .run("Scallop Alfred closed before this reply finished. Retry from the tray menu.");
 
-  function read(row: Row | undefined): Conversation | undefined {
+  function read(row: Row | undefined): Thread | undefined {
     if (!row) return undefined;
     const { archivedAt, sessionId, context, request, titleSubjects, ...thread } = row;
-    return conversationSchema.parse({
+    return threadSchema.parse({
       ...thread,
       ...(archivedAt === null ? {} : { archivedAt }),
       ...(sessionId === null ? {} : { session: { context, id: sessionId } }),
@@ -126,8 +126,8 @@ export function openHistory(path: string) {
     });
   }
 
-  function save(conversation: Conversation): Conversation {
-    const { id, title, titleSubjects, request, session, turns } = conversation;
+  function save(thread: Thread): Thread {
+    const { id, title, titleSubjects, request, session, turns } = thread;
     const updatedAt = Date.now();
     // A session only resumes requests with its context, and every request in a thread shares one.
     const sessionId = session?.context === request.context ? session.id : null;
@@ -137,17 +137,17 @@ export function openHistory(path: string) {
       turns.forEach((turn, position) => insertTurn.run(id, position, turn.id, turn.question, turn.status, turn.text));
       return z.number().nullable().parse(row?.archivedAt);
     });
-    return { ...conversation, session: sessionId === null ? undefined : session, updatedAt, archivedAt: archivedAt ?? undefined };
+    return { ...thread, session: sessionId === null ? undefined : session, updatedAt, archivedAt: archivedAt ?? undefined };
   }
 
   return {
     save,
     /** Returns false when the thread is missing or already archived. */
     archive: (id: string): boolean => archive.run(Date.now(), id).changes > 0,
-    get: (id: string): Conversation | undefined => read(selectThread.get(id)),
-    findContext: (context: string): Conversation | undefined => read(selectContext.get(context)),
-    list: (): ConversationSummary[] => summaries.all().map(row => summarySchema.parse({ ...row, titleSubjects: json(row.titleSubjects) })),
-    listArchived: (): ArchivedConversationSummary[] => archivedSummaries.all().map(row => archivedSummarySchema.parse(row)),
+    get: (id: string): Thread | undefined => read(selectThread.get(id)),
+    findContext: (context: string): Thread | undefined => read(selectContext.get(context)),
+    list: (): ThreadSummary[] => summaries.all().map(row => summarySchema.parse({ ...row, titleSubjects: json(row.titleSubjects) })),
+    listArchived: (): ArchivedThreadSummary[] => archivedSummaries.all().map(row => archivedSummarySchema.parse(row)),
     close: () => db.close(),
   };
 }
