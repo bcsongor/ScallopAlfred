@@ -16,6 +16,7 @@ const subjectSchema = z.object({
   type: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*$/).max(64),
   name: z.string().min(1).max(256),
   link: z.string().min(1).max(2048),
+  quality: z.number().int().min(0).max(8).optional(),
   tooltip: z.array(z.string().max(2048)).max(80),
   tsm: tsmSchema.optional(),
 });

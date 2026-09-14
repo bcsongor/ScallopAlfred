@@ -12,8 +12,11 @@ const request = (id: string, fields: Partial<WoWRequest> = {}): WoWRequest => ({
 const empty: Conversation = { id: "thread", title: "", updatedAt: 0, request: request("first"), turns: [] };
 
 test("requests add thinking turns, and a thread keeps the name of its first request", () => {
-  const ore = { type: "item", name: "Ore", link: "item:1", tooltip: [] };
-  assert.equal(startTurn(empty, request("first", { subjects: [ore] })).title, "Ore");
+  const ore = { type: "item", name: "Ore", link: "item:1", quality: 2, tooltip: [] };
+  const named = startTurn(empty, request("first", { subjects: [ore] }));
+  assert.equal(named.title, "Ore");
+  assert.deepEqual(named.titleSubjects, [{ name: "Ore", quality: 2 }]);
+  assert.deepEqual(startTurn(named, request("second")).titleSubjects, named.titleSubjects);
   const first = finishTurn(startTurn(empty, request("first")), { status: "answer", text: "Done" });
   assert.equal(first.title, "Question first");
   const second = startTurn(first, request("second", { subjects: [ore] }));

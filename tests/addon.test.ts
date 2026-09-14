@@ -53,6 +53,7 @@ test("addon exports valid JSON, both ring slots, and no restricted tooltip value
   const request = game.payload();
   assert.equal(request.subjects[0].name, 'Ring "of" stars');
   assert.equal(request.subjects[0].type, "item");
+  assert.equal(request.subjects[0].quality, 4);
   assert.equal(request.player.spec, "Restoration");
   assert.equal(request.subjects[0].tooltip.length, 3);
   assert.ok(request.subjects[0].tooltip[0].includes("\n"));

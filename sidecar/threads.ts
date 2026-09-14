@@ -19,8 +19,13 @@ export const welcome: OverlayState = {
 export function startTurn(conversation: Conversation, request: WoWRequest): Conversation {
   const earlier = conversation.turns.at(-1)?.id === request.id ? conversation.turns.slice(0, -1) : conversation.turns;
   const turn: ConversationTurn = { id: request.id, question: request.question, status: "thinking", text: "" };
-  const title = conversation.title || request.subjects.map(subject => subject.name).join(", ") || request.question;
-  return { ...conversation, request, turns: [...earlier, turn], title };
+  const started = { ...conversation, request, turns: [...earlier, turn] };
+  if (conversation.title) return started;
+  return {
+    ...started,
+    title: request.subjects.map(subject => subject.name).join(", ") || request.question,
+    titleSubjects: request.subjects.map(({ name, quality }) => quality === undefined ? { name } : { name, quality }),
+  };
 }
 
 export function finishTurn(conversation: Conversation, outcome: Pick<ConversationTurn, "status" | "text">): Conversation {

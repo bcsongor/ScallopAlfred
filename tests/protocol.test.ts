@@ -16,6 +16,9 @@ test("parseRequest ignores unrelated text and rejects malformed or oversized req
   assert.equal(parseRequest("ordinary clipboard text"), undefined);
   assert.deepEqual(parseRequest(copied(request)), request);
   assert.equal(parseRequest(copied({ ...request, thread: "followup" }))?.thread, "followup");
+  const epic = { ...request, subjects: [{ ...request.subjects[0], quality: 4 }] };
+  assert.deepEqual(parseRequest(copied(epic)), epic);
+  assert.throws(() => parseRequest(copied({ ...request, subjects: [{ ...request.subjects[0], quality: 9 }] })));
   for (const text of [
     "SCALLOPALFRED:{broken",
     copied({ ...request, player: {} }),

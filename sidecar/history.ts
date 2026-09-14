@@ -9,9 +9,13 @@ const conversationTurnSchema = z.object({
   text: z.string(),
 });
 
+const titleSubjectSchema = z.object({ name: z.string(), quality: z.number().int().optional() });
+
 const conversationSchema = z.object({
   id: z.string(),
   title: z.string(),
+  // The subjects the thread was named after, so titles can show items in their quality colour.
+  titleSubjects: z.array(titleSubjectSchema).optional(),
   updatedAt: z.number(),
   archivedAt: z.number().optional(),
   request: requestSchema,
@@ -19,10 +23,14 @@ const conversationSchema = z.object({
   turns: z.array(conversationTurnSchema).min(1),
 });
 
-const summarySchema = conversationSchema.pick({ id: true, title: true, updatedAt: true })
-  .extend({ question: z.string() });
+const summarySchema = conversationSchema.pick({ id: true, title: true, updatedAt: true }).extend({
+  question: z.string(),
+  titleSubjects: z.string().nullable()
+    .transform(json => json === null ? undefined : z.array(titleSubjectSchema).parse(JSON.parse(json))),
+});
 const archivedSummarySchema = conversationSchema.pick({ id: true, title: true });
 
+export type TitleSubject = z.infer<typeof titleSubjectSchema>;
 export type ConversationTurn = z.infer<typeof conversationTurnSchema>;
 export type Conversation = z.infer<typeof conversationSchema>;
 export type ConversationSummary = z.infer<typeof summarySchema>;
@@ -46,7 +54,8 @@ export function openHistory(path: string) {
   const archive = db.prepare("UPDATE conversations SET archived_at = ? WHERE id = ? AND archived_at = 0");
   // Row IDs follow thread creation, so replies and archiving never reorder the lists.
   const summaries = db.prepare(`SELECT id, title, updated_at AS updatedAt,
-    json_extract(data, '$.turns[0].question') AS question FROM conversations WHERE archived_at = 0 ORDER BY rowid DESC`);
+    json_extract(data, '$.turns[0].question') AS question, json_extract(data, '$.titleSubjects') AS titleSubjects
+    FROM conversations WHERE archived_at = 0 ORDER BY rowid DESC`);
   const archivedSummaries = db.prepare(`SELECT id, title FROM conversations
     WHERE archived_at > 0 ORDER BY rowid DESC LIMIT 6`);
   const context = db.prepare(`SELECT data, archived_at AS archivedAt FROM conversations

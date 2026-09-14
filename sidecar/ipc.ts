@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Config } from "./config.ts";
-import type { ArchivedConversationSummary, ConversationSummary, ConversationTurn } from "./history.ts";
+import type { ArchivedConversationSummary, ConversationSummary, ConversationTurn, TitleSubject } from "./history.ts";
 import { requestSchema } from "./protocol.ts";
 
 export type OverlayState = {
@@ -12,6 +12,7 @@ export type OverlayState = {
 export type ToOverlay = {
   thread: {
     state: OverlayState;
+    titleSubjects?: TitleSubject[];
     turns: (ConversationTurn & { html: string | null })[];
     canFollowup: boolean;
     fontSize: number;

@@ -50,9 +50,14 @@ local function readSubject(link, name, tooltip)
     local kind = link:match("^(%a[%w_]*):")
     if not kind then return end
     tooltip = tooltip or Read(C_TooltipInfo.GetHyperlink, link)
-    if not name and kind == "item" then name = plainText(C_Item.GetItemInfo(link)) end
+    local quality
+    if kind == "item" then
+        local itemName, _, itemQuality = C_Item.GetItemInfo(link)
+        name = name or plainText(itemName)
+        quality = Count(itemQuality)
+    end
     if not name and tooltip and tooltip.lines and tooltip.lines[1] then name = plainText(tooltip.lines[1].leftText) end
-    local subject = { type = kind, name = name or link, link = link, tooltip = {} }
+    local subject = { type = kind, name = name or link, link = link, quality = quality, tooltip = {} }
     if tooltip and tooltip.lines then
         for _, line in ipairs(tooltip.lines) do
             for _, field in ipairs({ "leftText", "rightText" }) do

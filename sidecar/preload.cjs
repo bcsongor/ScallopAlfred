@@ -3,6 +3,7 @@ const { ipcRenderer } = require("electron");
 /** @typedef {import("./ipc.ts").ToOverlay} ToOverlay */
 /** @typedef {import("./ipc.ts").FromOverlay} FromOverlay */
 /** @typedef {import("./ipc.ts").OverlayRequests} OverlayRequests */
+/** @typedef {import("./history.ts").TitleSubject} TitleSubject */
 
 /** @type {<K extends keyof FromOverlay>(channel: K, ...message: import("./ipc.ts").MessageArgs<FromOverlay, K>) => void} */
 const send = (channel, ...message) => ipcRenderer.send(channel, ...message);
@@ -29,6 +30,20 @@ function h(tag, properties = {}, ...children) {
   Object.assign(element.dataset, dataset);
   element.append(...children);
   return element;
+}
+
+/**
+ * A thread title, with item names in their quality colour when the thread knows its subjects.
+ * @param {string} text
+ * @param {TitleSubject[] | undefined} subjects
+ * @returns {(Node | string)[]}
+ */
+function titleContent(text, subjects) {
+  if (!subjects?.length) return [text];
+  return subjects.flatMap(({ name, quality }, index) => [
+    ...(index ? [", "] : []),
+    h("span", { textContent: name, dataset: quality === undefined ? {} : { quality: String(quality) } }),
+  ]);
 }
 
 /**
@@ -92,12 +107,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
   /**
    * @param {string} text
+   * @param {TitleSubject[] | undefined} subjects
    * @param {boolean} backVisible
    * @param {string} status
    * @param {number} fontSize
    */
-  function setFrame(text, backVisible, status, fontSize) {
-    title.textContent = text;
+  function setFrame(text, subjects, backVisible, status, fontSize) {
+    title.replaceChildren(...titleContent(text, subjects));
     title.title = text;
     back.hidden = !backVisible;
     document.body.dataset.status = status;
@@ -112,7 +128,7 @@ window.addEventListener("DOMContentLoaded", () => {
       : [h("span", { className: "conversation-preview", textContent: conversation.question })];
     return h("div", { className: "conversation-row" },
       h("button", { type: "button", className: "conversation", dataset: { conversation: conversation.id } },
-        h("span", { className: "conversation-title", textContent: conversation.title }),
+        h("span", { className: "conversation-title" }, ...titleContent(conversation.title, conversation.titleSubjects)),
         ...preview,
         h("time", { dateTime: date.toISOString(), textContent: date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) }),
       ),
@@ -239,7 +255,7 @@ window.addEventListener("DOMContentLoaded", () => {
   on("history", ({ conversations, archived, fontSize }) => {
     const scrollTop = answer.querySelector(".active-conversations")?.scrollTop ?? 0;
     const archivedScrollTop = answer.querySelector(".archived-conversations")?.scrollTop ?? 0;
-    setFrame("Threads", false, "history", fontSize);
+    setFrame("Threads", undefined, false, "history", fontSize);
     followup.hidden = true;
     form.hidden = true;
     bar.hidden = false;
@@ -261,11 +277,11 @@ window.addEventListener("DOMContentLoaded", () => {
     updateInteractive();
   });
 
-  on("thread", ({ state, turns, canFollowup, fontSize }) => {
+  on("thread", ({ state, titleSubjects, turns, canFollowup, fontSize }) => {
     // New turns scroll into view; updates keep the reader's place unless they were already at the bottom.
     const followLatest = latestTurn !== turns.at(-1)?.id || nearBottom();
     const scrollTop = answer.scrollTop;
-    setFrame(state.title, true, state.status, fontSize);
+    setFrame(state.title, titleSubjects, true, state.status, fontSize);
     answer.role = "log";
     answer.ariaLabel = "Thread";
     const notice = !turns.length || (state.status === "error" && turns.at(-1)?.text !== state.text)

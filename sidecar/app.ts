@@ -53,6 +53,8 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     } else {
       overlay.send("thread", {
         state: overlayState(view),
+        // A notice replaces the title, so only the thread's own title shows its subjects.
+        titleSubjects: view.notice ? undefined : view.conversation?.titleSubjects,
         turns: (view.conversation?.turns ?? []).map(turn => ({ ...turn, html: turn.status === "answer" ? renderMarkdown(turn.text) : null })),
         canFollowup: openThread() !== undefined,
         fontSize: config.fontSize,

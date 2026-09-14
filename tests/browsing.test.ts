@@ -5,6 +5,13 @@ import { launch, request, until } from "./fixtures/launch.ts";
 test("threads can be browsed, archived and continued after a restart", { timeout: 60000 }, async t => {
   const desktop = await launch(t);
   await desktop.waitForStatus("ready");
+
+  // Item names in thread titles keep their in-game quality colour.
+  const ring = { type: "item", name: "Epic ring", link: "item:1", quality: 4, tooltip: [] };
+  await desktop.copy(request("Is it good?", { context: "epic", subjects: [ring] }));
+  await desktop.waitForAnswer("Answer: Is it good?");
+  assert.equal(await desktop.page.locator('#title [data-quality="4"]').textContent(), "Epic ring");
+
   for (const [question, context] of [["First thread", "first"], ["Second thread", "second"], ["Newest thread", "newest"]]) {
     await desktop.copy(request(question, { context }));
     await desktop.waitForAnswer(`Answer: ${question}`);
@@ -17,12 +24,13 @@ test("threads can be browsed, archived and continued after a restart", { timeout
   await back().click();
   await desktop.waitForStatus("history");
   assert.equal(await desktop.page.locator("footer").isVisible(), false);
-  assert.deepEqual(await titles(), ["Newest thread", "Second thread", "First thread"]);
+  assert.deepEqual(await titles(), ["Newest thread", "Second thread", "First thread", "Epic ring"]);
+  assert.equal(await desktop.page.locator('.conversation-title [data-quality="4"]').textContent(), "Epic ring");
 
   // Archived threads move to a read-only section pinned to the bottom.
   await archiveButton("Second thread").click();
   await archiveButton("Second thread").waitFor({ state: "detached" });
-  assert.deepEqual(await titles(), ["Newest thread", "First thread"]);
+  assert.deepEqual(await titles(), ["Newest thread", "First thread", "Epic ring"]);
   const archiveBounds = await desktop.page.locator(".archived-conversations").boundingBox();
   const historyBounds = await desktop.page.locator("#answer").boundingBox();
   assert.ok(archiveBounds && historyBounds);
@@ -53,7 +61,7 @@ test("threads can be browsed, archived and continued after a restart", { timeout
   await until(async () => !(await desktop.trayItem("Cancel question")).enabled);
   assert.equal(await desktop.page.locator("#title").textContent(), "Newest thread");
   await back().click();
-  assert.deepEqual(await titles(), ["Newest thread", "First thread"]);
+  assert.deepEqual(await titles(), ["Newest thread", "First thread", "Epic ring"]);
   await thread("First thread").click();
   await desktop.waitForAnswer("Answer: After restarting");
   assert.equal(await desktop.page.locator(".turn").count(), 2);

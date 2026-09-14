@@ -32,7 +32,7 @@ If Alt+Q is already taken, bind **Scallop Alfred: Ask about a tooltip or link** 
 ## Using the overlay
 
 - **Follow up** continues the thread with the same game data. Ask again from WoW to refresh it.
-- **←** lists your saved threads. The box icon archives a thread. Archived threads are read-only and listed at the bottom.
+- **←** lists your saved threads. Items in thread titles keep their in-game quality colours. The box icon archives a thread. Archived threads are read-only and listed at the bottom.
 - **Hide** hides the overlay while replies keep running. Click the tray icon to bring it back.
 - Drag the bottom edge to change the height.
 
