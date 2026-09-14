@@ -24,7 +24,7 @@ export function startTurn(conversation: Conversation, request: WoWRequest): Conv
   return {
     ...started,
     title: request.subjects.map(subject => subject.name).join(", ") || request.question,
-    titleSubjects: request.subjects.map(({ name, quality }) => quality === undefined ? { name } : { name, quality }),
+    titleSubjects: request.subjects.map(({ name, type, quality }) => quality === undefined ? { name, type } : { name, type, quality }),
   };
 }
 

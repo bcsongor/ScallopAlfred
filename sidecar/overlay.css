@@ -82,13 +82,19 @@
   background: #8c1515;
 }
 
-#title,
-.conversation-title,
 .response :is(h1, h2, h3, h4, h5, h6) {
   color: var(--heading);
 }
 
-/* WoW's item quality colours, for item names in thread titles. */
+/* Thread titles are white. Quests use WoW's default yellow, and items their quality colour. */
+#title,
+.conversation-title {
+  color: var(--strong);
+}
+
+[data-type="quest"] {
+  color: #ffd100;
+}
 [data-quality="0"] { color: #9d9d9d; }
 [data-quality="1"] { color: #ffffff; }
 [data-quality="2"] { color: #1eff00; }

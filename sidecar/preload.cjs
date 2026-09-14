@@ -33,17 +33,19 @@ function h(tag, properties = {}, ...children) {
 }
 
 /**
- * A thread title, with item names in their quality colour when the thread knows its subjects.
+ * A thread title, with each subject marked by type and item quality so CSS can colour it.
  * @param {string} text
  * @param {TitleSubject[] | undefined} subjects
  * @returns {(Node | string)[]}
  */
 function titleContent(text, subjects) {
   if (!subjects?.length) return [text];
-  return subjects.flatMap(({ name, quality }, index) => [
-    ...(index ? [", "] : []),
-    h("span", { textContent: name, dataset: quality === undefined ? {} : { quality: String(quality) } }),
-  ]);
+  return subjects.flatMap(({ name, type, quality }, index) => {
+    const subject = h("span", { textContent: name });
+    if (type) subject.dataset.type = type;
+    if (quality !== undefined) subject.dataset.quality = String(quality);
+    return index ? [", ", subject] : [subject];
+  });
 }
 
 /**

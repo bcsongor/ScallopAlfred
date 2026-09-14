@@ -21,7 +21,7 @@ test("history persists sessions, replaces retries and recovers interrupted repli
     talents: { capturedAt: 1800000000, selected: [{ spellID: 774, name: "Rejuvenation", rank: 1 }] },
   };
   const conversation: Conversation = {
-    id: "conversation", title: "A 'quoted' title", titleSubjects: [{ name: "Ore", quality: 2 }], updatedAt: 0, request,
+    id: "conversation", title: "A 'quoted' title", titleSubjects: [{ name: "Ore", type: "item", quality: 2 }], updatedAt: 0, request,
     session: { context: "context", id: "session-1" },
     turns: [{ id: "request", question: request.question, status: "thinking", text: "" }],
   };
@@ -42,7 +42,7 @@ test("history persists sessions, replaces retries and recovers interrupted repli
     assert.equal(history.findContext("context")?.turns[0].text, "**Keep it**");
     assert.equal(history.list().length, 1);
     assert.equal(history.list()[0].question, request.question);
-    assert.deepEqual(history.list()[0].titleSubjects, [{ name: "Ore", quality: 2 }]);
+    assert.deepEqual(history.list()[0].titleSubjects, [{ name: "Ore", type: "item", quality: 2 }]);
     // Threads saved before titles kept their subjects list with a plain title.
     const { titleSubjects: _, ...plain } = { ...recovered, id: "plain" };
     history.save(plain);

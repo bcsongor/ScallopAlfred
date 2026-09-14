@@ -15,7 +15,7 @@ test("requests add thinking turns, and a thread keeps the name of its first requ
   const ore = { type: "item", name: "Ore", link: "item:1", quality: 2, tooltip: [] };
   const named = startTurn(empty, request("first", { subjects: [ore] }));
   assert.equal(named.title, "Ore");
-  assert.deepEqual(named.titleSubjects, [{ name: "Ore", quality: 2 }]);
+  assert.deepEqual(named.titleSubjects, [{ name: "Ore", type: "item", quality: 2 }]);
   assert.deepEqual(startTurn(named, request("second")).titleSubjects, named.titleSubjects);
   const first = finishTurn(startTurn(empty, request("first")), { status: "answer", text: "Done" });
   assert.equal(first.title, "Question first");

@@ -9,7 +9,7 @@ const conversationTurnSchema = z.object({
   text: z.string(),
 });
 
-const titleSubjectSchema = z.object({ name: z.string(), quality: z.number().int().optional() });
+const titleSubjectSchema = z.object({ name: z.string(), type: z.string().optional(), quality: z.number().int().optional() });
 
 const conversationSchema = z.object({
   id: z.string(),
