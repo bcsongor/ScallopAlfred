@@ -229,17 +229,17 @@ local function defaultQuestion(subject)
     return defaultQuestions[subject.type] or "Tell me about this."
 end
 
--- Subject presets ask straight away, custom opens the editor for the hovered subject,
--- and topics open it without a subject. A preset's text can depend on the subject.
+-- Subject presets ask straight away and topics open the editor without a subject. Custom opens the
+-- editor for the hovered subject, or without one. A preset's text can depend on the subject.
 local presets = {
     { kind = "subject", text = defaultQuestion },
     { kind = "subject", text = "Is it an upgrade?", itemOnly = true, category = "gear" },
     { kind = "subject", text = "Keep, sell or disenchant?", itemOnly = true },
     { kind = "subject", text = "Where does it drop?", itemOnly = true },
-    { kind = "custom", text = "Custom question" },
     { kind = "topic", text = "Game mechanics", category = "mechanics" },
     { kind = "topic", text = "Professions", category = "professions" },
     { kind = "topic", text = "My gear", category = "gear" },
+    { kind = "custom", text = "Custom question" },
 }
 
 local mode -- "menu", "question" or "copy"
@@ -251,6 +251,7 @@ local function notify(message)
 end
 
 local function presetAvailable(preset, subject)
+    if preset.kind == "custom" then return true end
     if preset.kind == "topic" then return subject == nil end
     return subject ~= nil and (not preset.itemOnly or subject.type == "item")
 end
@@ -382,7 +383,7 @@ function ScallopAlfred_Ask()
     selectedCategory = nil
     mode = "menu"
     label:SetText(subjectTitle())
-    hint:SetText(selectedSubject and "Choose a question, then copy the request." or "Choose a topic, then type your question.")
+    hint:SetText(selectedSubject and "Choose a question, then copy the request." or "Choose a topic or ask your own question.")
     edit:Hide()
     edit:ClearFocus()
     local shown = 0

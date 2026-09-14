@@ -282,6 +282,20 @@ test("TSM prices both hovered and explicit items and skips other subject types",
   assert.ok(subjects.slice(2).every(subject => subject.tsm === undefined));
 });
 
+test("without a hovered tooltip, a custom question has no subject or topic", () => {
+  const game = addon();
+  game.execute(`
+    tooltipHidden = true; ScallopAlfred_Ask(); choose("Custom question")
+    caption = widgets[1].text
+    focused:SetText("What happened to the scallops?"); focused.scripts.OnEnterPressed()
+  `);
+  assert.equal(game.value("caption"), "Ask Scallop Alfred about World of Warcraft");
+  const request = game.payload();
+  assert.equal(request.question, "What happened to the scallops?");
+  assert.equal(request.category, undefined);
+  assert.deepEqual(request.subjects, []);
+});
+
 test("a general question needs no hovered item, and combat leaves the payload unchanged", () => {
   const game = addon();
   game.execute('noItem = true; ScallopAlfred_Ask(); choose("Game mechanics"); focused:SetText("Where should I go?"); focused.scripts.OnEnterPressed()');
