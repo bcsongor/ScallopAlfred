@@ -26,6 +26,7 @@ export type ToOverlay = {
 
 const messages = {
   "hide-overlay": z.undefined(),
+  "focus-overlay": z.undefined(),
   "show-history": z.undefined(),
   "edit-followup": z.boolean(),
   "submit-followup": requestSchema.shape.question,

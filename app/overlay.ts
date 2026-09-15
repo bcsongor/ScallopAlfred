@@ -68,9 +68,8 @@ export function createOverlay(config: Config) {
       window.setFocusable(false);
       window.setSkipTaskbar(true);
     },
-    /** Takes keyboard focus while the follow-up editor is open. Closing it leaves focus alone. */
-    setEditing(enabled: boolean): void {
-      if (!enabled) return;
+    /** Takes the keyboard from the game. Nothing hands it back, so the player clicks into WoW. */
+    focus(): void {
       window.setFocusable(true);
       // Electron changes taskbar visibility with focusability on Windows.
       window.setSkipTaskbar(true);

@@ -77,7 +77,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   function editFollowup(thread: Thread | undefined): void {
     if (followup === thread) return;
     followup = thread;
-    overlay.setEditing(thread !== undefined);
+    if (thread) overlay.focus();
     overlay.send("followup-editor", thread !== undefined);
     // Closing the editor must not activate another application or reorder windows.
     if (!thread) render();
@@ -219,6 +219,9 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     } catch (error) {
       dialog.showErrorBox("Couldn't archive the thread", errorMessage(error));
     }
+  });
+  overlay.listen("focus-overlay", () => {
+    if (openThread()) overlay.focus();
   });
   overlay.listen("hide-overlay", () => {
     closeFollowup();

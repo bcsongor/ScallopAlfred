@@ -292,6 +292,9 @@ window.addEventListener("DOMContentLoaded", () => {
     } else if (link) {
       event.preventDefault();
       send("open-link", link.getAttribute("href") ?? "");
+    } else if (!followup.hidden) {
+      // A click on the reply takes the keyboard so Enter can open the editor.
+      send("focus-overlay");
     }
   });
 

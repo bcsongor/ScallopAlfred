@@ -77,7 +77,7 @@ The window is transparent, frameless, always on top and not focusable, so it nev
 
 - Electron's default always-on-top level doesn't always make the window topmost on Windows, so the overlay uses the `"screen-saver"` level. Something outside the app can also clear the flag without Electron emitting an event, which leaves the overlay behind WoW. While the overlay is visible, it checks the flag every second and restores it.
 - New clipboard questions and the tray call `raise`, which also calls `moveTop`. Other updates only show a hidden window and restore the topmost flag, leaving focus and window order alone.
-- The follow-up editor makes the window focusable and focuses it. Windows ties taskbar visibility to focusability, so the app reapplies `setSkipTaskbar(true)`. Closing the editor doesn't hand focus back, so the player clicks into WoW. Hiding makes the window non-focusable again.
+- The follow-up editor makes the window focusable and focuses it, and so does a plain click on a reply that can be followed up, so Enter can open the editor. Windows ties taskbar visibility to focusability, so the app reapplies `setSkipTaskbar(true)`. Nothing hands focus back, so the player clicks into WoW. Hiding makes the window non-focusable again.
 - Chromium's window animations are off on Windows because they flash the transparent window.
 - Native resizing is off. The drag handle sends heights to the main process, which clamps them to 320 to 900 pixels and the space below the window.
 

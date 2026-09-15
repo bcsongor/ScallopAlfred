@@ -20,10 +20,13 @@ test("copied requests start threads, and follow-ups resume the same Codex sessio
   assert.equal(await page.locator("#answer img").count(), 0);
   assert.equal(await page.locator("#answer code").textContent(), "whoami");
 
-  // The editor takes focus. Submitting on key-down must survive the key-up arriving after it closes.
+  // Clicking the reply takes focus so Enter opens the editor. Submitting on key-down must survive the key-up arriving after it closes.
   const followup = page.getByRole("button", { name: "Follow up", exact: true });
   const question = page.getByRole("textbox", { name: "Follow-up question" });
-  await followup.click();
+  const focused = await desktop.windowOperations(() => page.locator(".response").click());
+  assert.ok(focused.includes("focus"));
+  await page.keyboard.press("Enter");
+  await question.waitFor({ state: "visible" });
   await question.fill("  Can you explain that?  ");
   assert.equal((await desktop.window()).focusable, true);
   const submitted = await desktop.windowOperations(async () => {
