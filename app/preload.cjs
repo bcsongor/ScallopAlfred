@@ -70,6 +70,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const bar = element("followup-bar", HTMLElement);
   const form = element("followup-form", HTMLFormElement);
   const question = element("question", HTMLTextAreaElement);
+  const sendFollowup = element("send-followup", HTMLButtonElement);
   const resize = element("resize-height", HTMLElement);
   const archiveIcon = element("archive-icon", HTMLTemplateElement);
 
@@ -244,6 +245,9 @@ window.addEventListener("DOMContentLoaded", () => {
   back.addEventListener("click", () => send("show-history"));
   followup.addEventListener("click", () => send("edit-followup", true));
   element("cancel-followup", HTMLButtonElement).addEventListener("click", () => send("edit-followup", false));
+  // A blank question greys out Send rather than triggering the browser's validation bubble.
+  const syncSend = () => { sendFollowup.disabled = !question.value.trim(); };
+  question.addEventListener("input", syncSend);
   form.addEventListener("submit", event => {
     event.preventDefault();
     if (question.value.trim()) send("submit-followup", question.value);
@@ -320,6 +324,7 @@ window.addEventListener("DOMContentLoaded", () => {
     } else {
       question.value = "";
       question.blur();
+      syncSend();
     }
   });
 

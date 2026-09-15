@@ -178,6 +178,11 @@ button:hover {
   background: var(--button-hover);
 }
 
+button:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 [hidden] {
   display: none !important;
 }

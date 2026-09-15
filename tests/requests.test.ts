@@ -61,8 +61,13 @@ test("copied requests start threads, and follow-ups resume the same Codex sessio
   // Invalid follow-ups are ignored, Escape discards the draft and Enter reopens the editor.
   const callCount = (await desktop.codexCalls()).length;
   await followup.click();
+  const sendButton = page.getByRole("button", { name: "Send", exact: true });
+  assert.equal(await sendButton.isDisabled(), true);
+  await question.fill("   ");
+  assert.equal(await sendButton.isDisabled(), true);
   for (const text of ["   ", "x".repeat(2001), { question: "Invalid" }]) await desktop.emit("submit-followup", text);
   await question.fill("Draft");
+  assert.equal(await sendButton.isDisabled(), false);
   await question.press("Escape");
   await question.waitFor({ state: "hidden" });
   await page.keyboard.press("Enter");
