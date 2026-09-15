@@ -86,6 +86,19 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const nearBottom = () => answer.scrollHeight - answer.scrollTop - answer.clientHeight < 24;
 
+  /**
+   * Keeps the reader's place unless a new turn starts or they are already at the bottom.
+   * @param {() => void} update
+   * @param {boolean} [newTurn]
+   */
+  function keepScroll(update, newTurn = false) {
+    const followLatest = newTurn || nearBottom();
+    const scrollTop = answer.scrollTop;
+    update();
+    answer.scrollTop = followLatest ? answer.scrollHeight : scrollTop;
+    markScrollable();
+  }
+
   // The follow-up bar and archived section cast their shadows only when content scrolls beneath them.
   function markScrollable() {
     for (const list of [answer, answer.querySelector(".active-threads")]) {
@@ -174,12 +187,43 @@ window.addEventListener("DOMContentLoaded", () => {
     }).catch(() => { /* The link remains usable without its icon. */ });
   }
 
+  /**
+   * @param {Element} response
+   * @param {string | null} html
+   * @param {string} [text]
+   */
+  function fillResponse(response, html, text = "Thinking…") {
+    if (html !== null) response.innerHTML = html;
+    else response.textContent = text;
+  }
+
+  /**
+   * Wraps the characters added since the last update so they fade in while earlier text stays put.
+   * @param {Element} response
+   * @param {number} added
+   */
+  function markFresh(response, added) {
+    const walker = document.createTreeWalker(response, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(/** @type {Text} */ (walker.currentNode));
+    let remaining = added;
+    for (const node of nodes.reverse()) {
+      if (remaining <= 0) return;
+      const start = Math.max(0, node.length - remaining);
+      remaining -= node.length - start;
+      if (!node.data.slice(start).trim()) continue;
+      const fresh = node.splitText(start);
+      const span = h("span", { className: "fresh" });
+      fresh.replaceWith(span);
+      span.append(fresh);
+    }
+  }
+
   /** @param {ToOverlay["thread"]["turns"][number]} turn */
   function turnSection(turn) {
     const response = h("div", { className: "response", role: "group", ariaLabel: "Scallop Alfred's reply" });
-    if (turn.html !== null) response.innerHTML = turn.html;
-    else response.textContent = turn.status === "thinking" ? "Thinking…" : turn.text;
-    response.querySelectorAll("a").forEach(addFavicon);
+    fillResponse(response, turn.html, turn.status === "thinking" ? "Thinking…" : turn.text);
+    if (turn.status === "answer") response.querySelectorAll("a").forEach(addFavicon);
     return h("section", { className: "turn", dataset: { status: turn.status } },
       h("div", { className: "question", role: "group", ariaLabel: "Your question", textContent: turn.question }),
       response,
@@ -290,17 +334,25 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   on("thread", ({ state, titleSubjects, turns, canFollowup, fontSize }) => {
-    // New turns scroll into view; updates keep the reader's place unless they were already at the bottom.
-    const followLatest = latestTurn !== turns.at(-1)?.id || nearBottom();
-    const scrollTop = answer.scrollTop;
-    setFrame(state.title, titleSubjects, true, state.status, fontSize);
-    answer.role = "log";
-    answer.ariaLabel = "Thread";
-    const notice = state.notice === undefined ? [] : [h("div", { className: "notice", textContent: state.notice })];
-    answer.replaceChildren(...turns.map(turnSection), ...notice);
-    latestTurn = turns.at(-1)?.id;
-    followup.hidden = !canFollowup;
-    answer.scrollTop = followLatest ? answer.scrollHeight : scrollTop;
-    markScrollable();
+    keepScroll(() => {
+      setFrame(state.title, titleSubjects, true, state.status, fontSize);
+      answer.role = "log";
+      answer.ariaLabel = "Thread";
+      const notice = state.notice === undefined ? [] : [h("div", { className: "notice", textContent: state.notice })];
+      answer.replaceChildren(...turns.map(turnSection), ...notice);
+      latestTurn = turns.at(-1)?.id;
+      followup.hidden = !canFollowup;
+    }, latestTurn !== turns.at(-1)?.id);
+  });
+
+  on("reply", ({ id, html }) => {
+    if (latestTurn !== id) return;
+    const response = answer.querySelector('.turn:last-child[data-status="thinking"] .response');
+    if (!response) return;
+    const previous = html === null ? 0 : (response.textContent ?? "").length;
+    keepScroll(() => {
+      fillResponse(response, html);
+      if (html !== null) markFresh(response, (response.textContent ?? "").length - previous);
+    });
   });
 });

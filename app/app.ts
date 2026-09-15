@@ -38,7 +38,8 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
 
   let view: View = history.list().length || history.listArchived().length ? { kind: "history" } : { kind: "thread" };
   let theme = config.theme;
-  let running: AbortController | undefined;
+  /** The question in flight and the text Codex has produced for it so far. */
+  let running: { cancel: AbortController; threadId: string; draft: string } | undefined;
   /** The thread a follow-up continues, set only while the editor is open. */
   let followup: Thread | undefined;
 
@@ -48,11 +49,14 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     if (view.kind === "history") {
       overlay.send("history", { threads: history.list(), archived: history.listArchived(), fontSize: config.fontSize });
     } else {
+      const thread = view.thread && view.thread.id === running?.threadId
+        ? finishTurn(view.thread, { status: "thinking", text: running.draft })
+        : view.thread;
       overlay.send("thread", {
         state: overlayState(view),
         // A notice replaces the title, so only the thread's own title shows its subjects.
         titleSubjects: view.notice ? undefined : view.thread?.titleSubjects,
-        turns: (view.thread?.turns ?? []).map(turn => ({ ...turn, html: turn.status === "answer" ? renderMarkdown(turn.text) : null })),
+        turns: (thread?.turns ?? []).map(turn => ({ ...turn, html: turn.status !== "error" && turn.text ? renderMarkdown(turn.text) : null })),
         canFollowup: openThread() !== undefined,
         fontSize: config.fontSize,
       });
@@ -117,7 +121,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
         setTheme,
         copyAnswer: () => { if (reply !== undefined) void clipboard.writeText(reply); },
         retry: () => { if (thread) void answer(thread.request, thread); },
-        cancel: () => running?.abort("Question cancelled. Retry from the tray menu when ready."),
+        cancel: () => running?.cancel.abort("Question cancelled. Retry from the tray menu when ready."),
         openSettings: () => void shell.openPath(settingsPath),
         quit: () => app.quit(),
       },
@@ -135,15 +139,27 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     }
     const cancel = new AbortController();
     const timeout = AbortSignal.timeout(config.timeoutSeconds * 1000);
-    running = cancel;
+    const signal = AbortSignal.any([cancel.signal, timeout, quit.signal]);
+    running = { cancel, threadId: started.id, draft: "" };
     show(saved, true);
-    const finished = await ask(request, { signal: AbortSignal.any([cancel.signal, timeout, quit.signal]), session: started.session }).then(
+    // Only the reply on screen is re-rendered, so earlier turns and the tray stay untouched.
+    const reveal = pace(30, text => {
+      if (view.kind !== "thread" || view.thread?.id !== started.id || view.notice) return;
+      overlay.send("reply", { id: request.id, html: text ? renderMarkdown(text) : null });
+    });
+    const onText = (text: string): void => {
+      if (signal.aborted || running?.cancel !== cancel) return;
+      running = { ...running, draft: text };
+      reveal.update(text);
+    };
+    const finished = await ask(request, { signal, session: started.session, onText }).then(
       ({ text, session }) => finishTurn({ ...started, session }, { status: "answer", text }),
       (error: unknown) => finishTurn(started, {
         status: "error",
         text: timeout.aborted ? "The request timed out. Retry from the tray menu." : errorMessage(error),
       }),
     );
+    reveal.stop();
     running = undefined;
     if (quit.signal.aborted) return;
     const stored = saveThread(finished, "Couldn't save the reply");
@@ -230,4 +246,29 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   if (process.platform === "darwin") app.dock?.hide();
   render(true);
   answerCopiedRequests().catch((error: unknown) => showNotice("Stopped watching the clipboard", error));
+}
+
+/**
+ * Reveals text at a steady pace instead of in the bursts it arrives in. Each tick shows a
+ * slice of the backlog, so a large chunk melts in over a few hundred milliseconds.
+ */
+function pace(intervalMs: number, reveal: (text: string) => void): { update: (text: string) => void; stop: () => void } {
+  let target = "";
+  let shown = 0;
+  let timer: ReturnType<typeof setInterval> | undefined;
+  const stop = (): void => { clearInterval(timer); timer = undefined; };
+  const tick = (): void => {
+    const backlog = target.length - shown;
+    if (backlog <= 0) return stop();
+    shown += Math.max(2, Math.ceil(backlog / 10));
+    reveal(target.slice(0, shown));
+  };
+  return {
+    update: text => {
+      target = text;
+      shown = Math.min(shown, text.length);
+      timer ??= setInterval(tick, intervalMs);
+    },
+    stop,
+  };
 }

@@ -31,6 +31,8 @@ If Alt+Q is already taken, bind **Scallop Alfred: Ask about a tooltip or link** 
 
 ## Using the overlay
 
+Replies appear as Codex writes them. The overlay follows new text while you're at the bottom. Scroll up to keep your place. Cancelling or failing a request replaces the unfinished reply with an error you can retry.
+
 - **Follow up** continues the thread with the same game data. Ask again from WoW to refresh it.
 - **←** lists your saved threads. Items in thread titles keep their in-game quality colours. The box icon archives a thread. Archived threads are read-only and collapsed at the bottom. Open the heading to see them five at a time.
 - **Hide** hides the overlay while replies keep running. Click the tray icon to bring it back.
@@ -56,6 +58,8 @@ The tray menu copies the answer, retries, cancels, switches between the Original
 | `timeoutSeconds` | `180` | 10 to 600 |
 
 The same folder holds `threads.sqlite`, with your threads and the game data sent with them, and a `favicons` cache. Favicons for source links come from Google's favicon service, which only sees the site's hostname.
+
+Other Codex user settings still apply. See [Codex configuration overrides](DESIGN.md#codex) for the settings the app controls.
 
 ## Troubleshooting
 

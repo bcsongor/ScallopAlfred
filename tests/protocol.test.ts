@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildPrompt, codexArguments } from "../app/codex.ts";
+import { buildPrompt, codexArguments, resumableSession } from "../app/codex.ts";
 import { parseRequest, type WoWRequest } from "../app/protocol.ts";
 
 const request: WoWRequest = {
@@ -31,17 +31,16 @@ test("parseRequest ignores unrelated text and rejects malformed or oversized req
 
 test("resume is restricted to the same thread context", () => {
   const session = { context: "item-1", id: "session-1" };
-  assert.ok(!codexArguments(request, "", session).includes("resume"));
-  assert.deepEqual(codexArguments({ ...request, thread: "continue" }, "", session).slice(-3), ["resume", "session-1", "-"]);
-  assert.ok(!codexArguments({ ...request, thread: "continue", context: "item-2" }, "", session).includes("resume"));
+  assert.equal(resumableSession(request, session), undefined);
+  assert.deepEqual(resumableSession({ ...request, thread: "continue" }, session), session);
+  assert.equal(resumableSession({ ...request, thread: "continue", context: "item-2" }, session), undefined);
 });
 
 test("runs keep the read-only sandbox, disabled tools and explicit model settings", () => {
-  const args = codexArguments({ ...request, thread: "continue" }, "test-model", { context: "item-1", id: "session-1" });
-  for (const argument of ["read-only", 'approval_policy="never"', "features.shell_tool=false", "--ignore-user-config", 'model_reasoning_effort="medium"', 'service_tier="fast"']) {
+  const args = codexArguments;
+  for (const argument of ["app-server", "stdio://", 'sandbox_mode="read-only"', 'approval_policy="never"', "features.shell_tool=false", "features.apps=false", "features.plugins=false", "features.hooks=false", 'model_reasoning_effort="medium"', 'service_tier="fast"']) {
     assert.ok(args.includes(argument), argument);
   }
-  assert.equal(args[args.indexOf("--model") + 1], "test-model");
 });
 
 test("profession snapshots stay optional and bounded", () => {

@@ -16,6 +16,8 @@ WoW addons can't reach the network or the file system. The clipboard is the one 
 - `app/ipc.ts` types every message between the main process and the overlay, and validates the ones coming from the overlay.
 - `app/preload.cjs` renders `overlay.html`, which `overlay.css` styles.
 - `app/protocol.ts` validates clipboard requests. `codex.ts` runs Codex with `prompt.md`, `history.ts` stores threads, `favicons.ts` fetches link icons, `config.ts` loads and saves settings and `markdown.ts` renders answers.
+- `app/codex-events.ts` validates App Server notifications and updates the active answer with a pure reducer.
+- `app/codex-connection.ts` routes RPC responses and notifications, and owns process cleanup.
 
 Electron runs the TypeScript directly with `--experimental-strip-types`. There is no build step.
 
@@ -63,9 +65,11 @@ The app checks the clipboard every 250 ms. It ignores what was there at launch a
 
 ### Codex
 
-Each run is `codex exec --json` in an empty workspace, with a read-only sandbox, approvals off, the shell tool off, live web search on and user config ignored. The app strips API key variables from the environment so Codex uses the player's login. The prompt goes over stdin and never through a shell. On Windows the app resolves npm's shim to the native `codex.exe` for the same reason.
+Each question starts `codex app-server --listen stdio://` in an empty workspace. The app keeps a read-only sandbox, approvals off, the shell tool off and live web search on. App Server has no `--ignore-user-config` flag, so the app disables apps, plugins and hooks explicitly, then reads the configuration and disables each configured MCP server before starting or resuming the thread. Other Codex preferences still apply. The app strips API key variables from the environment so Codex uses the player's login. Requests go over stdin and never through a shell. On Windows the app resolves npm's shim to the native `codex.exe` for the same reason.
 
-From the JSONL stream the app reads `thread.started`, the last `agent_message` and `turn.completed`. Only a completed turn updates a thread's session. A follow-up resumes with `exec resume` only when its context matches that session, so a skipped or failed question can't resume the wrong thread. Codex keeps its own session files, and resume needs them.
+The app completes the initialization handshake, calls `thread/start` or `thread/resume`, then submits the prompt with `turn/start`. The connection queues notifications that arrive before an RPC response and skips non-JSON diagnostic lines on stdout. `turn/started` identifies the active turn. `item/agentMessage/delta` extends its answer, and `item/completed` supplies the authoritative text. Commentary, tool output and events from other threads or turns stay out of the reply. Only a successful `turn/completed` with a completed, nonempty answer updates the stored session.
+
+A follow-up resumes only when its context matches that session. Codex keeps its own session files, and resume needs them. After a turn, the app closes stdin so Codex can flush its session, then kills the process if it has not exited within one second. Cancellation and timeouts stop the process immediately. Unsupported interactive requests fail with an error instead of waiting for a dialog the overlay cannot show.
 
 ### Overlay window
 
@@ -80,6 +84,8 @@ The window is transparent, frameless, always on top and not focusable, so it nev
 ### Rendering
 
 The page runs no scripts of its own (`script-src 'none'`). The sandboxed, context-isolated preload renders it. markdown-it turns answers into HTML in the main process with raw HTML and images disabled and only HTTP(S) links allowed. Clicking a link opens it in the default browser after a second URL check. The overlay never navigates.
+
+Partial answers stay in memory. Codex sends text in bursts, so the app reveals it at a steady pace: every 30 ms it renders a slightly longer prefix of the draft as Markdown and sends only the active reply to the overlay. Earlier turns stay in place. The overlay wraps the newly added characters so they fade in, and a cursor blinks at the end of the reply until it completes. Both animations are off under `prefers-reduced-motion`. Updates follow the bottom of the reply only while the reader is there. Opening a running thread restores its current draft, and streaming never raises a hidden window. Failures replace the draft with an error. Favicons load after the answer finishes.
 
 Favicons are fetched in the main process from Google's favicon service by hostname only, with a 5 second timeout and a 256 KiB cap. They are re-encoded as 16 pixel PNGs and cached under hashed file names. Image URLs from the model are never loaded.
 
@@ -97,4 +103,4 @@ Settings live in Electron's user data folder, not the addon folder, which may si
 
 ## Limits
 
-Only Windows has been tested. macOS should work, and Linux depends on the window manager. There is no installer, auto-updater or answer streaming. The tests mock the WoW API, so tooltip capture and copying still need checking in the game.
+Only Windows has been tested. macOS should work, and Linux depends on the window manager. There is no installer or auto-updater. The tests mock the WoW API, so tooltip capture and copying still need checking in the game.

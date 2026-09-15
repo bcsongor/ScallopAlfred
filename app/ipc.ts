@@ -11,6 +11,7 @@ export type OverlayState = {
 };
 
 export type ToOverlay = {
+  reply: { id: string; html: string | null };
   thread: {
     state: OverlayState;
     titleSubjects?: TitleSubject[];

@@ -12,6 +12,7 @@ type Harness = {
   openedUrls: string[];
   windowOperations: string[];
   skipsTaskbar: boolean;
+  stream?: { update: (text: string) => void; finish: () => void };
   trayItem: (labels: string[]) => TrayItem;
   clickTrayIcon: () => void;
   createFavicons: () => (target: unknown) => Promise<string | undefined>;
