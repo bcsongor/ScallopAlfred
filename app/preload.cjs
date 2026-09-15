@@ -238,6 +238,12 @@ window.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
     if (question.value.trim()) send("submit-followup", question.value);
   });
+  // Enter with nothing focused opens the editor, where Enter then sends the question.
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Enter" || event.isComposing || event.target !== document.body || followup.hidden) return;
+    event.preventDefault();
+    send("edit-followup", true);
+  });
   form.addEventListener("keydown", event => {
     if (event.isComposing) return;
     if (event.key === "Escape") {
