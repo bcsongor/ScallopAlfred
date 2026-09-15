@@ -145,7 +145,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     // Only the reply on screen is re-rendered, so earlier turns and the tray stay untouched.
     const reveal = pace(30, text => {
       if (view.kind !== "thread" || view.thread?.id !== started.id || view.notice) return;
-      overlay.send("reply", { id: request.id, html: text ? renderMarkdown(text) : null });
+      overlay.send("reply", { id: request.id, html: renderMarkdown(text) });
     });
     const onText = (text: string): void => {
       if (signal.aborted || running?.cancel !== cancel) return;

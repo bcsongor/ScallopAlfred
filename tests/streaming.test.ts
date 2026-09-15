@@ -9,6 +9,7 @@ test("streaming renders safe Markdown and preserves the reader's position", { ti
   await desktop.waitForStatus("ready");
   await desktop.copy(request("stream"));
   await desktop.waitForStatus("thinking");
+  assert.equal(await page.locator(".response").evaluate(node => getComputedStyle(node, "::before").content), '"Thinking…"');
   await update("**Par");
   await desktop.waitForAnswer("**Par");
   assert.equal((await desktop.trayItem("Copy answer")).enabled, false);
@@ -24,12 +25,18 @@ test("streaming renders safe Markdown and preserves the reader's position", { ti
   await update(long);
   await page.getByText("Paragraph 39", { exact: true }).waitFor();
   assert.ok(await page.locator(".response p:last-child .fresh").count() > 0, "the newest text fades in");
+  assert.ok(await page.locator(".fresh").count() > 1, "earlier reveals keep fading across renders");
   const distance = () => page.locator("#answer").evaluate(node => node.scrollHeight - node.scrollTop - node.clientHeight);
   assert.ok(await distance() < 24);
   await page.locator("#answer").evaluate(node => { node.scrollTop = 0; });
   await update(`${long}\n\nAnother paragraph`);
   await page.getByText("Another paragraph", { exact: true }).waitFor();
   assert.equal(await page.locator("#answer").evaluate(node => node.scrollTop), 0);
+  // Closing "**Done*" shrinks the rendered text. The fade has to cope, or the final render never shows the button.
+  await update(`${long}\n\nAnother paragraph\n\n**Done**`);
+  await page.locator(".response strong", { hasText: "Done" }).waitFor();
+  await desktop.app.evaluate(() => harness.stream?.finish());
+  await page.getByRole("button", { name: "Follow up", exact: true }).waitFor({ state: "visible" });
 });
 
 test("drafts survive navigation and completed answers survive hiding and restart", { timeout: 15000 }, async t => {

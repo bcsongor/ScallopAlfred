@@ -77,6 +77,14 @@ window.addEventListener("DOMContentLoaded", () => {
   let resizing;
   /** @type {string | undefined} */
   let latestTurn;
+  /** The turn whose reply is streaming, and how much of its text the last render showed. */
+  /** @type {string | undefined} */
+  let streaming;
+  let shown = 0;
+  /** Where recent reveals began and when, so re-rendering the reply resumes their fades. */
+  /** @type {{ offset: number, at: number }[]} */
+  let reveals = [];
+  const fadeMs = 300;
   /** @type {ToOverlay["history"] | undefined} */
   let latestHistory;
   // The archived section starts collapsed and reveals five threads at a time.
@@ -188,41 +196,43 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   /**
+   * Fades in the text added since the last render. Every update replaces the reply's HTML, so the
+   * last few reveals are wrapped again with a negative delay that resumes their animation.
    * @param {Element} response
-   * @param {string | null} html
-   * @param {string} [text]
    */
-  function fillResponse(response, html, text = "Thinking…") {
-    if (html !== null) response.innerHTML = html;
-    else response.textContent = text;
-  }
-
-  /**
-   * Wraps the characters added since the last update so they fade in while earlier text stays put.
-   * @param {Element} response
-   * @param {number} added
-   */
-  function markFresh(response, added) {
+  function fadeIn(response) {
+    const now = performance.now();
     const walker = document.createTreeWalker(response, NodeFilter.SHOW_TEXT);
     const nodes = [];
     while (walker.nextNode()) nodes.push(/** @type {Text} */ (walker.currentNode));
-    let remaining = added;
+    let end = nodes.reduce((length, node) => length + node.length, 0);
+    // Rendered text shrinks when Markdown syntax completes, so no earlier reveal may start after this one.
+    const offset = Math.min(shown, end);
+    reveals = reveals.filter(reveal => now - reveal.at < fadeMs).map(reveal => ({ ...reveal, offset: Math.min(reveal.offset, offset) }));
+    reveals.push({ offset, at: now });
+    shown = end;
     for (const node of nodes.reverse()) {
-      if (remaining <= 0) return;
-      const start = Math.max(0, node.length - remaining);
-      remaining -= node.length - start;
-      if (!node.data.slice(start).trim()) continue;
-      const fresh = node.splitText(start);
-      const span = h("span", { className: "fresh" });
-      fresh.replaceWith(span);
-      span.append(fresh);
+      const start = end - node.length;
+      for (const { offset, at } of reveals.toReversed()) {
+        if (offset >= end) continue;
+        const fresh = node.splitText(Math.max(0, offset - start));
+        if (fresh.data.trim()) {
+          const span = h("span", { className: "fresh" });
+          span.style.animationDelay = `${at - now}ms`;
+          fresh.replaceWith(span);
+          span.append(fresh);
+        }
+        if (offset <= start) break;
+      }
+      end = start;
     }
   }
 
   /** @param {ToOverlay["thread"]["turns"][number]} turn */
   function turnSection(turn) {
     const response = h("div", { className: "response", role: "group", ariaLabel: "Scallop Alfred's reply" });
-    fillResponse(response, turn.html, turn.status === "thinking" ? "Thinking…" : turn.text);
+    if (turn.html !== null) response.innerHTML = turn.html;
+    else response.textContent = turn.text;
     if (turn.status === "answer") response.querySelectorAll("a").forEach(addFavicon);
     return h("section", { className: "turn", dataset: { status: turn.status } },
       h("div", { className: "question", role: "group", ariaLabel: "Your question", textContent: turn.question }),
@@ -343,25 +353,30 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   on("thread", ({ state, titleSubjects, turns, canFollowup, fontSize }) => {
+    const last = turns.at(-1);
     keepScroll(() => {
       setFrame(state.title, titleSubjects, true, state.status, fontSize);
       answer.role = "log";
       answer.ariaLabel = "Thread";
       const notice = state.notice === undefined ? [] : [h("div", { className: "notice", textContent: state.notice })];
       answer.replaceChildren(...turns.map(turnSection), ...notice);
-      latestTurn = turns.at(-1)?.id;
+      // A reply that just finished streaming fades in the rest of its text. Anything else counts as shown.
+      const response = answer.querySelector(".turn:last-child .response");
+      if (response && last && last.id === streaming && last.status === "answer") fadeIn(response);
+      else shown = response?.textContent?.length ?? 0;
+      streaming = last?.status === "thinking" ? last.id : undefined;
+      latestTurn = last?.id;
       followup.hidden = !canFollowup;
-    }, latestTurn !== turns.at(-1)?.id);
+    }, latestTurn !== last?.id);
   });
 
   on("reply", ({ id, html }) => {
-    if (latestTurn !== id) return;
+    if (id !== streaming) return;
     const response = answer.querySelector('.turn:last-child[data-status="thinking"] .response');
     if (!response) return;
-    const previous = html === null ? 0 : (response.textContent ?? "").length;
     keepScroll(() => {
-      fillResponse(response, html);
-      if (html !== null) markFresh(response, (response.textContent ?? "").length - previous);
+      response.innerHTML = html;
+      fadeIn(response);
     });
   });
 });

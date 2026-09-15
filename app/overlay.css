@@ -369,42 +369,24 @@ body[data-status="history"] #answer {
   white-space: pre-wrap;
 }
 
-.turn[data-status="thinking"] .response:not(:has(> *)) {
+.turn[data-status="thinking"] .response:empty::before {
+  content: "Thinking…";
   color: var(--muted);
 }
 
-/* Streamed text fades in, and a cursor marks where the next chunk lands. */
+/* Streamed text fades in. The duration matches fadeMs in preload.cjs, which resumes it across renders. */
 .fresh {
-  animation: fresh-in 250ms ease-out;
-}
-
-.turn[data-status="thinking"] .response > :last-child::after {
-  content: "";
-  display: inline-block;
-  width: 2px;
-  height: 1em;
-  margin-left: 2px;
-  vertical-align: text-bottom;
-  background: currentColor;
-  animation: blink 1s steps(2, start) infinite;
+  animation: fresh-in 300ms ease-out;
 }
 
 @keyframes fresh-in {
   from {
     opacity: 0;
-    filter: blur(2px);
-  }
-}
-
-@keyframes blink {
-  to {
-    visibility: hidden;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fresh,
-  .turn[data-status="thinking"] .response > :last-child::after {
+  .fresh {
     animation: none;
   }
 }
