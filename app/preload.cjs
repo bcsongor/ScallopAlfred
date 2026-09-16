@@ -64,6 +64,7 @@ function element(id, type) {
 // Markdown renderer, never raw model output.
 window.addEventListener("DOMContentLoaded", () => {
   const title = element("title", HTMLElement);
+  const titleEditor = element("title-editor", HTMLInputElement);
   const answer = element("answer", HTMLElement);
   const back = element("back", HTMLButtonElement);
   const followup = element("followup", HTMLButtonElement);
@@ -78,6 +79,13 @@ window.addEventListener("DOMContentLoaded", () => {
   let resizing;
   /** @type {string | undefined} */
   let latestTurn;
+  /** The thread on screen and its title, which double-clicking the title edits. */
+  /** @type {string | undefined} */
+  let threadId;
+  let currentTitle = "";
+  /** The title as it was when editing began, so cancelling can tell nothing changed. */
+  /** @type {string | undefined} */
+  let editingTitle;
   /** The turn whose reply is streaming, and how much of its text the last render showed. */
   /** @type {string | undefined} */
   let streaming;
@@ -125,6 +133,8 @@ window.addEventListener("DOMContentLoaded", () => {
    * @param {number} fontSize
    */
   function setFrame(text, subjects, backVisible, status, fontSize) {
+    closeTitleEditor();
+    currentTitle = text;
     title.replaceChildren(...titleContent(text, subjects));
     title.title = text;
     back.hidden = !backVisible;
@@ -246,6 +256,45 @@ window.addEventListener("DOMContentLoaded", () => {
     );
   }
 
+  function closeTitleEditor() {
+    editingTitle = undefined;
+    titleEditor.hidden = true;
+    title.hidden = false;
+  }
+
+  /**
+   * Ends the edit. A kept change renames the thread, and an empty one asks Codex for a name.
+   * @param {boolean} keep
+   */
+  function finishTitleEdit(keep) {
+    if (editingTitle === undefined || threadId === undefined) return;
+    const next = titleEditor.value.trim();
+    const changed = next !== editingTitle;
+    closeTitleEditor();
+    if (!keep || !changed) return;
+    send("rename-thread", { id: threadId, title: next });
+    if (!next) title.replaceChildren(h("span", { className: "naming", textContent: "Naming the thread…" }));
+  }
+
+  // Double-clicking the title edits it wherever a follow-up is possible. Enter keeps the change, Escape
+  // drops it, and clicking away keeps a non-empty change.
+  title.addEventListener("dblclick", () => {
+    if (followup.hidden || threadId === undefined) return;
+    editingTitle = currentTitle;
+    titleEditor.value = currentTitle;
+    title.hidden = true;
+    titleEditor.hidden = false;
+    titleEditor.focus();
+    titleEditor.select();
+    send("focus-overlay");
+  });
+  titleEditor.addEventListener("keydown", event => {
+    if (event.isComposing || (event.key !== "Enter" && event.key !== "Escape")) return;
+    event.preventDefault();
+    finishTitleEdit(event.key === "Enter");
+  });
+  titleEditor.addEventListener("blur", () => finishTitleEdit(titleEditor.value.trim() !== ""));
+
   element("hide", HTMLButtonElement).addEventListener("click", () => send("hide-overlay"));
   back.addEventListener("click", () => send("show-history"));
   followup.addEventListener("click", () => send("edit-followup", true));
@@ -343,6 +392,7 @@ window.addEventListener("DOMContentLoaded", () => {
     form.hidden = true;
     bar.hidden = false;
     latestTurn = undefined;
+    threadId = undefined;
     answer.role = "region";
     answer.ariaLabel = "Thread history";
 
@@ -362,10 +412,11 @@ window.addEventListener("DOMContentLoaded", () => {
     renderHistory();
   });
 
-  on("thread", ({ state, titleSubjects, turns, canFollowup, fontSize }) => {
+  on("thread", ({ id, state, titleSubjects, turns, canFollowup, fontSize }) => {
     const last = turns.at(-1);
     keepScroll(() => {
       setFrame(state.title, titleSubjects, true, state.status, fontSize);
+      threadId = id;
       answer.role = "log";
       answer.ariaLabel = "Thread";
       const notice = state.notice === undefined ? [] : [h("div", { className: "notice", textContent: state.notice })];

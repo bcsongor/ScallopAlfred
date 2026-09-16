@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { ZodError } from "zod";
-import { runCodex } from "../app/codex.ts";
+import { cleanTitle, runCodex, titlePrompt } from "../app/codex.ts";
 
 const fake = join(import.meta.dirname, "fixtures", "codex.ts");
 const run = (mode: string, options: Partial<Parameters<typeof runCodex>[0]> = {}) => runCodex({
@@ -83,6 +83,22 @@ test("invalid responses preserve Zod's validation error", async () => {
 test("errors from the text callback reach the caller unchanged", async () => {
   const error = new TypeError("Could not render the reply");
   await assert.rejects(run("stream", { onText: () => { throw error; } }), actual => actual === error);
+});
+
+test("title prompts carry the questions and answers but skip failed replies", () => {
+  const prompt = titlePrompt([
+    { question: "Is Ore worth keeping?", status: "answer", text: "Keep it." },
+    { question: "And now?", status: "error", text: "Timed out" },
+  ]);
+  assert.match(prompt, /Question: Is Ore worth keeping\?\n\nAnswer: Keep it\.\n\nQuestion: And now\?$/);
+  assert.doesNotMatch(prompt, /Timed out/);
+});
+
+test("titles keep the first line of the reply without quotes, Markdown or trailing punctuation", () => {
+  assert.equal(cleanTitle('\n  **"Ore prices and crafting".**  \nA second line'), "Ore prices and crafting");
+  assert.equal(cleanTitle("# Selling Ore!"), "Selling Ore");
+  assert.equal(cleanTitle("x".repeat(100)).length, 80);
+  assert.throws(() => cleanTitle('""'), /no title/);
 });
 
 test("Codex runs without API keys, so it uses the player's login", async t => {

@@ -16,7 +16,7 @@ WoW addons can't reach the network or the file system. The clipboard is the one 
 - `app/overlay.ts` owns the window: focus, raising and resizing.
 - `app/ipc.ts` types every message between the main process and the overlay, and validates the ones coming from the overlay.
 - `app/preload.cjs` renders `overlay.html`, which `overlay.css` styles.
-- `app/protocol.ts` validates clipboard requests. `codex.ts` runs Codex with `prompt.md`, `history.ts` stores threads, `icons.ts` resolves link icons, `config.ts` loads and saves settings and `markdown.ts` renders answers.
+- `app/protocol.ts` validates clipboard requests. `codex.ts` runs Codex with `prompt.md` and names threads, `history.ts` stores threads, `icons.ts` resolves link icons, `config.ts` loads and saves settings and `markdown.ts` renders answers.
 - `app/codex-events.ts` validates App Server notifications and updates the active answer with a pure reducer.
 - `app/codex-connection.ts` routes RPC responses and notifications, and owns process cleanup.
 
@@ -72,6 +72,8 @@ Each question starts `codex app-server --listen stdio://` in an empty workspace.
 
 The app completes the initialization handshake, calls `thread/start` or `thread/resume`, then submits the prompt with `turn/start`. The connection queues notifications that arrive before an RPC response and skips non-JSON diagnostic lines on stdout. `turn/started` identifies the active turn. `item/agentMessage/delta` extends its answer, and `item/completed` supplies the authoritative text. Commentary, tool output and events from other threads or turns stay out of the reply. Only a successful `turn/completed` with a completed, nonempty answer updates the stored session.
 
+Naming a thread runs the same App Server with a short prompt holding the thread's questions and answers, each answer cut to 1500 characters, and always starts a fresh Codex thread so the player's own session never contains the naming turn. The reply's first line becomes the title, stripped of quotes and Markdown and cut to 80 characters.
+
 A follow-up resumes only when its context matches that session. Codex keeps its own session files, and resume needs them. After a turn, the app closes stdin so Codex can flush its session, then kills the process if it has not exited within one second. Cancellation and timeouts stop the process immediately. Unsupported interactive requests fail with an error instead of waiting for a dialog the overlay cannot show.
 
 ### Overlay window
@@ -97,6 +99,8 @@ The prompt asks Codex to link every item it names to Wowhead as `https://www.wow
 `threads.sqlite` has a `threads` table and a `turns` table. The latest request and the title subjects stay as JSON on the thread: the request keeps its game data for retries and follow-ups, and the subjects are only ever read with their thread. A thread stores its Codex session ID only when the session matches the request's context. The app saves the thread and its turns in one transaction before a run starts and again when it ends.
 
 On startup, replies still marked as thinking become errors the player can retry. Lists sort by an explicit creation sequence that survives `VACUUM`, so replies and database maintenance don't reorder threads. Title subjects retain each item's quality so titles can use their in-game colours.
+
+The database owns the title. A save writes it only when it inserts the thread, and returns the stored title, so a rename applied while a reply was running is not undone when that reply saves its copy of the thread. Renaming clears the title subjects, since the new title is plain text, and is refused for archived threads. The overlay allows a rename only where a follow-up is possible: a thread on screen that is neither archived nor running. Codex naming runs in the background, a newer rename of the same thread cancels it, and its result goes through the same rename.
 
 Archiving sets `archived_at`. Archived threads are read-only, can't be found by context, and are never deleted. The overlay lists them all under a collapsed heading, five at a time.
 

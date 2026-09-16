@@ -32,6 +32,26 @@ test("failed saves roll back the thread and its turns together", () => {
   } finally { history.close(); }
 });
 
+test("renaming drops the title subjects and outlasts saves of the thread's old copy", () => {
+  const history = openHistory(databasePath());
+  try {
+    history.save(sample);
+    const renamed = history.rename(sample.id, "Ore prices");
+    assert.equal(renamed?.title, "Ore prices");
+    assert.deepEqual(renamed?.titleSubjects, []);
+    assert.equal(history.list()[0].title, "Ore prices");
+    // A reply that started under the old name saves the stale thread and gets the stored title back.
+    const saved = history.save({ ...sample, turns: [...sample.turns, { id: "later", question: "More?", status: "answer", text: "Yes." }] });
+    assert.equal(saved.title, "Ore prices");
+    assert.deepEqual(saved.titleSubjects, []);
+    assert.equal(history.get(sample.id)?.title, "Ore prices");
+    assert.equal(history.rename("missing", "Nothing"), undefined);
+    history.archive(sample.id);
+    assert.equal(history.rename(sample.id, "Archived"), undefined);
+    assert.equal(history.get(sample.id)?.title, "Ore prices");
+  } finally { history.close(); }
+});
+
 test("saving a session for another context never makes it resumable", () => {
   const history = openHistory(databasePath());
   try {

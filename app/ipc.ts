@@ -14,6 +14,8 @@ export type OverlayState = {
 export type ToOverlay = {
   reply: { id: string; html: string };
   thread: {
+    /** The thread on screen, which a rename names. Absent on the welcome view. */
+    id?: string;
     state: OverlayState;
     titleSubjects?: TitleSubject[];
     turns: (Turn & { html: string | null })[];
@@ -33,6 +35,8 @@ const messages = {
   "submit-followup": requestSchema.shape.question,
   "open-thread": z.string(),
   "archive-thread": z.string(),
+  /** An empty title asks Codex to name the thread from its conversation. */
+  "rename-thread": z.object({ id: z.string(), title: z.string().trim().max(200) }),
   "resize-height": z.object({ height: z.number(), finished: z.boolean() }),
   "open-link": z.string(),
 };

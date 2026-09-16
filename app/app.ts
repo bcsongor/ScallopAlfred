@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { watchClipboard, type Clipboard } from "./clipboard.ts";
-import type { Ask, CodexOptions } from "./codex.ts";
+import type { Codex, CodexOptions } from "./codex.ts";
 import { createSettingsWriter, loadConfig, type AppearanceChanges, type Config } from "./config.ts";
 import { errorMessage } from "./errors.ts";
 import { openHistory, type Thread } from "./history.ts";
@@ -19,7 +19,7 @@ type Ports = {
   userData: string;
   clipboard: Clipboard;
   tray: SystemTray;
-  createCodex: (options: CodexOptions) => Ask;
+  createCodex: (options: CodexOptions) => Codex;
   fetch: typeof fetch;
   openExternal: (url: string) => Promise<void>;
 };
@@ -31,7 +31,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   const config = await loadConfig(settingsPath);
   const writeSettings = createSettingsWriter(settingsPath);
   const history = openHistory(join(userData, "threads.sqlite"));
-  const ask = createCodex({ codexPath: config.codexPath, model: config.model, workspace });
+  const codex = createCodex({ codexPath: config.codexPath, model: config.model, workspace });
   const icons = createIcons(join(userData, "favicons"), fetch);
   const overlay = createOverlay(config);
   const quit = new AbortController();
@@ -42,6 +42,8 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   let running: { cancel: AbortController; threadId: string; draft: string } | undefined;
   /** The thread a follow-up continues, set only while the editor is open. */
   let followup: Thread | undefined;
+  /** Threads Codex is naming, by ID. A newer rename of the same thread cancels the naming. */
+  const naming = new Map<string, AbortController>();
 
   const openThread = (): Thread | undefined => continuableThread(view, running !== undefined);
 
@@ -53,8 +55,9 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
         ? finishTurn(view.thread, { status: "thinking", text: running.draft })
         : view.thread;
       overlay.send("thread", {
+        // A notice replaces the title, so only the thread's own title shows its subjects or can be renamed.
+        id: view.notice ? undefined : view.thread?.id,
         state: overlayState(view),
-        // A notice replaces the title, so only the thread's own title shows its subjects.
         titleSubjects: view.notice ? undefined : view.thread?.titleSubjects,
         turns: (thread?.turns ?? []).map(turn => ({ ...turn, html: turn.status !== "error" && turn.text ? renderMarkdown(turn.text) : null })),
         canFollowup: openThread() !== undefined,
@@ -90,6 +93,32 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
       return { kind: "thread", thread: history.save(thread) };
     } catch (error) {
       return { kind: "thread", thread, notice: { title: thread.title, text: `${failure}: ${errorMessage(error)}` } };
+    }
+  }
+
+  /** Renames a stored thread and refreshes whichever view shows its title. */
+  function renameThread(id: string, title: string): void {
+    try {
+      const renamed = history.rename(id, title);
+      if (!renamed) return;
+      if (view.kind === "history") render();
+      else if (view.thread?.id === id) show({ kind: "thread", thread: renamed });
+    } catch (error) {
+      showNotice("Couldn't rename the thread", error);
+    }
+  }
+
+  async function nameThread(thread: Thread): Promise<void> {
+    const cancel = new AbortController();
+    naming.set(thread.id, cancel);
+    const signal = AbortSignal.any([cancel.signal, AbortSignal.timeout(config.timeoutSeconds * 1000), quit.signal]);
+    try {
+      const title = await codex.title(thread.turns, signal);
+      if (!signal.aborted) renameThread(thread.id, title);
+    } catch (error) {
+      if (!signal.aborted) showNotice("Couldn't name the thread", error);
+    } finally {
+      if (naming.get(thread.id) === cancel) naming.delete(thread.id);
     }
   }
 
@@ -152,7 +181,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
       running = { ...running, draft: text };
       reveal.update(text);
     };
-    const finished = await ask(request, { signal, session: started.session, onText }).then(
+    const finished = await codex.ask(request, { signal, session: started.session, onText }).then(
       ({ text, session }) => finishTurn({ ...started, session }, { status: "answer", text }),
       (error: unknown) => finishTurn(started, {
         status: "error",
@@ -219,6 +248,13 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     } catch (error) {
       dialog.showErrorBox("Couldn't archive the thread", errorMessage(error));
     }
+  });
+  overlay.listen("rename-thread", ({ id, title }) => {
+    const thread = openThread();
+    if (!thread || thread.id !== id) return;
+    naming.get(id)?.abort();
+    if (title) renameThread(id, title);
+    else void nameThread(thread);
   });
   overlay.listen("focus-overlay", () => {
     if (openThread()) overlay.focus();

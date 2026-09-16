@@ -90,11 +90,13 @@ export function openHistory(path: string) {
     throw error;
   }
 
-  // Saves never touch archived_at, so a reply that finishes after archiving leaves the thread archived.
+  // Saves never touch archived_at, so a reply that finishes after archiving leaves the thread archived. They set
+  // the title only on insert, so a rename survives a reply that was already running with the old name.
   const upsertThread = db.prepare(`INSERT INTO threads (id, title, title_subjects, session_id, updated_at, request) VALUES (?, ?, ?, ?, ?, ?)
-    ON CONFLICT (id) DO UPDATE SET title = excluded.title, title_subjects = excluded.title_subjects,
-      session_id = excluded.session_id, updated_at = excluded.updated_at, request = excluded.request
-    RETURNING archived_at AS archivedAt`);
+    ON CONFLICT (id) DO UPDATE SET session_id = excluded.session_id, updated_at = excluded.updated_at, request = excluded.request
+    RETURNING archived_at AS archivedAt, title, title_subjects AS titleSubjects`);
+  const savedSchema = z.object({ archivedAt: z.number().nullable(), title: z.string(), titleSubjects: z.array(titleSubjectSchema) });
+  const rename = db.prepare("UPDATE threads SET title = ?, title_subjects = '[]' WHERE id = ? AND archived_at IS NULL");
   const deleteTurns = db.prepare("DELETE FROM turns WHERE thread_id = ?");
   const insertTurn = db.prepare("INSERT INTO turns (thread_id, position, request_id, question, status, text) VALUES (?, ?, ?, ?, ?, ?)");
   const archive = db.prepare("UPDATE threads SET archived_at = ? WHERE id = ? AND archived_at IS NULL");
@@ -131,19 +133,24 @@ export function openHistory(path: string) {
     const updatedAt = Date.now();
     // A session only resumes requests with its context, and every request in a thread shares one.
     const sessionId = session?.context === request.context ? session.id : null;
-    const archivedAt = transaction(db, () => {
+    const saved = transaction(db, () => {
       const row = upsertThread.get(id, title, JSON.stringify(titleSubjects), sessionId, updatedAt, JSON.stringify(request));
       deleteTurns.run(id);
       turns.forEach((turn, position) => insertTurn.run(id, position, turn.id, turn.question, turn.status, turn.text));
-      return z.number().nullable().parse(row?.archivedAt);
+      return savedSchema.parse({ ...row, titleSubjects: json(row?.titleSubjects) });
     });
-    return { ...thread, session: sessionId === null ? undefined : session, updatedAt, archivedAt: archivedAt ?? undefined };
+    return {
+      ...thread, title: saved.title, titleSubjects: saved.titleSubjects,
+      session: sessionId === null ? undefined : session, updatedAt, archivedAt: saved.archivedAt ?? undefined,
+    };
   }
 
   return {
     save,
     /** Returns false when the thread is missing or already archived. */
     archive: (id: string): boolean => archive.run(Date.now(), id).changes > 0,
+    /** Renames an unarchived thread and drops its title subjects, since the new title is plain text. */
+    rename: (id: string, title: string): Thread | undefined => rename.run(title, id).changes > 0 ? read(selectThread.get(id)) : undefined,
     get: (id: string): Thread | undefined => read(selectThread.get(id)),
     findContext: (context: string): Thread | undefined => read(selectContext.get(context)),
     list: (): ThreadSummary[] => summaries.all().map(row => summarySchema.parse({ ...row, titleSubjects: json(row.titleSubjects) })),

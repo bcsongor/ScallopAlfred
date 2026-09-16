@@ -4,7 +4,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { startApp } from "../../app/app.ts";
-import type { Ask } from "../../app/codex.ts";
+import type { Ask, Title } from "../../app/codex.ts";
 import { createIcons } from "../../app/icons.ts";
 import type { SystemTray, TrayItem } from "../../app/tray.ts";
 
@@ -90,6 +90,14 @@ const ask: Ask = async (request, { signal, session, onText }) => {
   return { text: `Answer: ${request.question}`, session: { context: request.context, id: `session-${request.context}` } };
 };
 
+// Names a thread after its first question. A question of "unnameable" fails instead.
+const title: Title = async (turns, signal) => {
+  await delay(100, undefined, { signal });
+  const question = turns[0]?.question ?? "";
+  if (question === "unnameable") throw new Error("No title for this one");
+  return `Named: ${question}`;
+};
+
 const tray: SystemTray = {
   setMenu: items => { menu = items; },
   onClick: listener => { trayClick = listener; },
@@ -120,7 +128,7 @@ void app.whenReady().then(() => startApp({
     writeText: async text => { harness.clipboard = text; },
   },
   tray,
-  createCodex: () => ask,
+  createCodex: () => ({ ask, title }),
   fetch: fetchIcon,
   openExternal: async url => { harness.openedUrls.push(url); },
 }));

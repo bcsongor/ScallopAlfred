@@ -15,7 +15,7 @@ export const welcome: OverlayState = {
 
 /**
  * Adds a thinking turn for the request. Retrying the last request replaces its turn.
- * A new thread is named after its subjects or question, and keeps that name.
+ * A new thread is named after its subjects or question. Only a rename changes that name.
  */
 export function startTurn(thread: Thread, request: WoWRequest): Thread {
   const earlier = thread.turns.at(-1)?.id === request.id ? thread.turns.slice(0, -1) : thread.turns;

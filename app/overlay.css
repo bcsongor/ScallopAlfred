@@ -210,6 +210,25 @@ button:disabled {
   overflow: hidden;
 }
 
+/* Double-clicking the title swaps in this editor, sized like the title it replaces. */
+#title-editor {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--input-border);
+  border-radius: 3px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+}
+
+/* Shown in place of the title while Codex names the thread. */
+#title .naming {
+  color: var(--muted);
+  font-weight: 400;
+}
+
 /*
  * HISTORY
  */
