@@ -46,6 +46,8 @@ const schema = `
     session_id TEXT,
     updated_at INTEGER NOT NULL,
     archived_at INTEGER,
+    -- Deleted threads stay in the database but no query returns them.
+    deleted_at INTEGER,
     -- The latest request with its game data, which retries and follow-ups send again.
     request TEXT NOT NULL CHECK (json_type(request) = 'object'),
     context TEXT NOT NULL AS (request ->> '$.context')
@@ -100,16 +102,19 @@ export function openHistory(path: string) {
   const deleteTurns = db.prepare("DELETE FROM turns WHERE thread_id = ?");
   const insertTurn = db.prepare("INSERT INTO turns (thread_id, position, request_id, question, status, text) VALUES (?, ?, ?, ?, ?, ?)");
   const archive = db.prepare("UPDATE threads SET archived_at = ? WHERE id = ? AND archived_at IS NULL");
+  const unarchive = db.prepare("UPDATE threads SET archived_at = NULL WHERE id = ? AND archived_at IS NOT NULL AND deleted_at IS NULL");
+  // Only archived threads can be deleted, so the list of archived threads is the only place it happens.
+  const remove = db.prepare("UPDATE threads SET deleted_at = ? WHERE id = ? AND archived_at IS NOT NULL AND deleted_at IS NULL");
   const threadColumns = `id, title, title_subjects AS titleSubjects, updated_at AS updatedAt, archived_at AS archivedAt,
     session_id AS sessionId, context, request`;
-  const selectThread = db.prepare(`SELECT ${threadColumns} FROM threads WHERE id = ?`);
+  const selectThread = db.prepare(`SELECT ${threadColumns} FROM threads WHERE id = ? AND deleted_at IS NULL`);
   const selectContext = db.prepare(`SELECT ${threadColumns} FROM threads
-    WHERE context = ? AND archived_at IS NULL ORDER BY updated_at DESC, seq DESC LIMIT 1`);
+    WHERE context = ? AND archived_at IS NULL AND deleted_at IS NULL ORDER BY updated_at DESC, seq DESC LIMIT 1`);
   const selectTurns = db.prepare("SELECT request_id AS id, question, status, text FROM turns WHERE thread_id = ? ORDER BY position");
   const summaries = db.prepare(`SELECT id, title, title_subjects AS titleSubjects, updated_at AS updatedAt,
     (SELECT question FROM turns WHERE thread_id = threads.id AND position = 0) AS question
-    FROM threads WHERE archived_at IS NULL ORDER BY seq DESC`);
-  const archivedSummaries = db.prepare("SELECT id, title FROM threads WHERE archived_at IS NOT NULL ORDER BY seq DESC");
+    FROM threads WHERE archived_at IS NULL AND deleted_at IS NULL ORDER BY seq DESC`);
+  const archivedSummaries = db.prepare("SELECT id, title FROM threads WHERE archived_at IS NOT NULL AND deleted_at IS NULL ORDER BY seq DESC");
 
   // Replies still thinking at startup were cut off when the app last closed.
   db.prepare("UPDATE turns SET status = 'error', text = ? WHERE status = 'thinking'")
@@ -149,6 +154,10 @@ export function openHistory(path: string) {
     save,
     /** Returns false when the thread is missing or already archived. */
     archive: (id: string): boolean => archive.run(Date.now(), id).changes > 0,
+    /** Returns false when the thread is missing, not archived or deleted. */
+    unarchive: (id: string): boolean => unarchive.run(id).changes > 0,
+    /** Hides an archived thread for good. Returns false when it is missing, unarchived or already deleted. */
+    delete: (id: string): boolean => remove.run(Date.now(), id).changes > 0,
     /** Renames an unarchived thread and drops its title subjects, since the new title is plain text. */
     rename: (id: string, title: string): Thread | undefined => rename.run(title, id).changes > 0 ? read(selectThread.get(id)) : undefined,
     get: (id: string): Thread | undefined => read(selectThread.get(id)),

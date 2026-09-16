@@ -102,7 +102,7 @@ On startup, replies still marked as thinking become errors the player can retry.
 
 The database owns the title. A save writes it only when it inserts the thread, and returns the stored title, so a rename applied while a reply was running is not undone when that reply saves its copy of the thread. Renaming clears the title subjects, since the new title is plain text, and is refused for archived threads. The overlay allows a rename only where a follow-up is possible: a thread on screen that is neither archived nor running. Codex naming runs in the background, a newer rename of the same thread cancels it, and its result goes through the same rename.
 
-Archiving sets `archived_at`. Archived threads are read-only, can't be found by context, and are never deleted. The overlay lists them all under a collapsed heading, five at a time.
+Archiving sets `archived_at`. Archived threads are read-only, can't be found by context, and are the only threads that can be deleted. The overlay lists them all under a collapsed heading, five at a time, each with unarchive and delete buttons. Unarchiving clears `archived_at`, so the thread returns to the list in its creation order and can be continued again. Deleting sets `deleted_at` and nothing is removed from the database, but no query returns a deleted thread, and a reply that finishes afterwards saves without bringing it back.
 
 ### Settings
 

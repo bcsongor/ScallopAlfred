@@ -41,6 +41,8 @@ const messages = {
   "submit-followup": requestSchema.shape.question,
   "open-thread": z.string(),
   "archive-thread": z.string(),
+  "unarchive-thread": z.string(),
+  "delete-thread": z.string(),
   /** An empty title asks Codex to name the thread from its conversation. */
   "rename-thread": z.object({ id: z.string(), title: z.string().trim().max(200) }),
   "resize-height": z.object({ height: z.number(), finished: z.boolean() }),

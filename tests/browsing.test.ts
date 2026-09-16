@@ -118,4 +118,22 @@ test("threads can be browsed, archived and continued after a restart", { timeout
   assert.equal(await desktop.page.locator(".archived-thread").count(), 0);
   await archivedHeader().click();
   assert.equal(await desktop.page.locator(".archived-thread").count(), 5);
+
+  // Deleting an archived thread removes it from the list, and it stays gone after a restart.
+  await desktop.page.getByRole("button", { name: "Delete thread: Extra thread 2", exact: true }).click();
+  await desktop.page.getByRole("button", { name: "Delete thread: Extra thread 2", exact: true }).waitFor({ state: "detached" });
+  assert.equal(await archivedHeader().textContent(), "Archived (8)");
+  assert.equal(await desktop.page.locator(".archived-thread").filter({ hasText: "Extra thread 2" }).count(), 0);
+
+  // Unarchiving puts a thread back in the list, where it can be followed up again.
+  await desktop.page.getByRole("button", { name: "Unarchive thread: Extra thread 1", exact: true }).click();
+  await thread("Extra thread 1").waitFor();
+  assert.equal(await archivedHeader().textContent(), "Archived (7)");
+  await thread("Extra thread 1").click();
+  await desktop.waitForAnswer("Answer: Extra thread 1");
+  assert.equal(await desktop.page.locator("#followup").isVisible(), true);
+  await desktop.restart();
+  await desktop.waitForStatus("history");
+  assert.deepEqual(await titles(), ["Extra thread 1"]);
+  assert.equal(await archivedHeader().textContent(), "Archived (7)");
 });

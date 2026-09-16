@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { openHistory, type Thread, type Turn } from "../app/history.ts";
 import type { WoWRequest } from "../app/protocol.ts";
@@ -49,6 +50,39 @@ test("renaming drops the title subjects and outlasts saves of the thread's old c
     history.archive(sample.id);
     assert.equal(history.rename(sample.id, "Archived"), undefined);
     assert.equal(history.get(sample.id)?.title, "Ore prices");
+  } finally { history.close(); }
+});
+
+test("deleting hides an archived thread from every query but keeps its rows", () => {
+  const path = databasePath();
+  let history = openHistory(path);
+  try {
+    history.save(sample);
+    assert.equal(history.delete(sample.id), false, "unarchived threads cannot be deleted");
+    assert.equal(history.unarchive(sample.id), false, "only archived threads can be unarchived");
+    history.archive(sample.id);
+    assert.equal(history.unarchive(sample.id), true);
+    assert.equal(history.list().length, 1);
+    assert.equal(history.findContext(sample.request.context)?.id, sample.id);
+    history.archive(sample.id);
+    assert.equal(history.delete(sample.id), true);
+    assert.equal(history.delete(sample.id), false);
+    assert.equal(history.unarchive(sample.id), false, "deleted threads stay deleted");
+    assert.equal(history.get(sample.id), undefined);
+    assert.equal(history.findContext(sample.request.context), undefined);
+    assert.deepEqual(history.list(), []);
+    assert.deepEqual(history.listArchived(), []);
+    // A reply finishing after deletion saves without resurrecting the thread.
+    history.save({ ...sample, turns: [{ ...sample.turns[0], text: "Late reply" }] });
+    assert.equal(history.get(sample.id), undefined);
+    history.close();
+    history = openHistory(path);
+    assert.deepEqual(history.listArchived(), []);
+    const db = new DatabaseSync(path);
+    try {
+      assert.equal(db.prepare("SELECT count(*) AS turns FROM turns WHERE thread_id = ?").get(sample.id)?.turns, 1);
+      assert.ok(db.prepare("SELECT deleted_at FROM threads WHERE id = ?").get(sample.id)?.deleted_at);
+    } finally { db.close(); }
   } finally { history.close(); }
 });
 

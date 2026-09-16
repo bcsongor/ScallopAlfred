@@ -74,6 +74,8 @@ window.addEventListener("DOMContentLoaded", () => {
   const sendFollowup = element("send-followup", HTMLButtonElement);
   const resize = element("resize-height", HTMLElement);
   const archiveIcon = element("archive-icon", HTMLTemplateElement);
+  const deleteIcon = element("delete-icon", HTMLTemplateElement);
+  const unarchiveIcon = element("unarchive-icon", HTMLTemplateElement);
 
   /** @type {{ y: number, height: number, next: number } | undefined} */
   let resizing;
@@ -161,7 +163,7 @@ window.addEventListener("DOMContentLoaded", () => {
       ),
       h("button", {
         type: "button",
-        className: "archive-thread",
+        className: "row-action archive-thread",
         title: "Archive thread",
         ariaLabel: `Archive thread: ${thread.title}`,
         dataset: { archiveThread: thread.id },
@@ -171,13 +173,29 @@ window.addEventListener("DOMContentLoaded", () => {
 
   /** @param {import("./history.ts").ArchivedThreadSummary} thread */
   function archivedRow(thread) {
-    return h("button", {
-      type: "button",
-      className: "archived-thread",
-      title: thread.title,
-      textContent: thread.title,
-      dataset: { thread: thread.id },
-    });
+    return h("div", { className: "archived-row" },
+      h("button", {
+        type: "button",
+        className: "archived-thread",
+        title: thread.title,
+        textContent: thread.title,
+        dataset: { thread: thread.id },
+      }),
+      h("button", {
+        type: "button",
+        className: "row-action",
+        title: "Unarchive thread",
+        ariaLabel: `Unarchive thread: ${thread.title}`,
+        dataset: { unarchiveThread: thread.id },
+      }, unarchiveIcon.content.cloneNode(true)),
+      h("button", {
+        type: "button",
+        className: "row-action delete-thread",
+        title: "Delete thread",
+        ariaLabel: `Delete thread: ${thread.title}`,
+        dataset: { deleteThread: thread.id },
+      }, deleteIcon.content.cloneNode(true)),
+    );
   }
 
   /** @param {import("./history.ts").ArchivedThreadSummary[]} archived */
@@ -377,6 +395,8 @@ window.addEventListener("DOMContentLoaded", () => {
   answer.addEventListener("click", event => {
     const target = event.target instanceof Element ? event.target : undefined;
     const archive = target?.closest("button[data-archive-thread]");
+    const remove = target?.closest("button[data-delete-thread]");
+    const unarchive = target?.closest("button[data-unarchive-thread]");
     const entry = target?.closest("button[data-thread]");
     const link = target?.closest("a");
     if (target?.closest("button[data-toggle-archived]")) {
@@ -388,6 +408,10 @@ window.addEventListener("DOMContentLoaded", () => {
       renderHistory();
     } else if (archive instanceof HTMLElement) {
       send("archive-thread", archive.dataset.archiveThread ?? "");
+    } else if (remove instanceof HTMLElement) {
+      send("delete-thread", remove.dataset.deleteThread ?? "");
+    } else if (unarchive instanceof HTMLElement) {
+      send("unarchive-thread", unarchive.dataset.unarchiveThread ?? "");
     } else if (entry instanceof HTMLElement) {
       send("open-thread", entry.dataset.thread ?? "");
     } else if (link) {

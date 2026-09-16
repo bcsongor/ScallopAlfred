@@ -245,10 +245,8 @@ button:disabled {
   text-align: left;
 }
 
-.archive-thread {
-  position: absolute;
-  top: 7px;
-  right: 7px;
+/* Icon buttons on thread rows. Archived rows end 7px short so their last button lines up with the archive box. */
+.row-action {
   display: grid;
   place-items: center;
   width: 28px;
@@ -259,15 +257,22 @@ button:disabled {
   color: var(--muted);
 }
 
-.archive-thread:hover {
+.row-action:hover {
   color: var(--text);
   background: var(--button-hover);
+}
+
+.archive-thread {
+  position: absolute;
+  top: 7px;
+  right: 7px;
 }
 
 .active-threads {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 10px 12px 10px 14px;
 }
 
@@ -275,6 +280,7 @@ button:disabled {
   flex-shrink: 0;
   max-height: 50%;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 10px 12px 0 14px;
   position: relative;
   z-index: 1;
@@ -304,6 +310,27 @@ button:disabled {
 
 .archived-header {
   font-weight: 700;
+}
+
+.archived-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 7px;
+}
+
+.archived-row .archived-thread {
+  flex: 1;
+  min-width: 0;
+}
+
+.archived-row .row-action {
+  flex-shrink: 0;
+  color: var(--archive-text);
+}
+
+.delete-thread:hover {
+  color: var(--error);
 }
 
 .archived-header::before {
@@ -350,6 +377,7 @@ button:disabled {
   padding: 0 12px 0 14px;
   overflow-wrap: anywhere;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   flex: 1;
   min-height: 0;
 }

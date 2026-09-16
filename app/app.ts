@@ -247,14 +247,21 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     closeFollowup();
     show({ kind: "thread", thread });
   });
-  overlay.listen("archive-thread", id => {
-    if (view.kind !== "history") return;
-    try {
-      if (history.archive(id)) render();
-    } catch (error) {
-      dialog.showErrorBox("Couldn't archive the thread", errorMessage(error));
-    }
-  });
+  /** Changes a thread's place in the history list and re-renders it, reporting a database failure. */
+  function updateHistory(change: (id: string) => boolean, failure: string): (id: string) => void {
+    return id => {
+      if (view.kind !== "history") return;
+      try {
+        if (change(id)) render();
+      } catch (error) {
+        dialog.showErrorBox(failure, errorMessage(error));
+      }
+    };
+  }
+
+  overlay.listen("archive-thread", updateHistory(history.archive, "Couldn't archive the thread"));
+  overlay.listen("unarchive-thread", updateHistory(history.unarchive, "Couldn't unarchive the thread"));
+  overlay.listen("delete-thread", updateHistory(history.delete, "Couldn't delete the thread"));
   overlay.listen("rename-thread", ({ id, title }) => {
     const thread = openThread();
     if (!thread || thread.id !== id) return;
