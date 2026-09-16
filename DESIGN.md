@@ -86,7 +86,7 @@ The window is transparent, frameless, always on top and not focusable, so it nev
 
 ### Rendering
 
-The page runs no scripts of its own (`script-src 'none'`). The sandboxed, context-isolated preload renders it. markdown-it turns answers into HTML in the main process with raw HTML and images disabled and only HTTP(S) links allowed. Clicking a link opens it in the default browser after a second URL check. The overlay never navigates.
+The page runs no scripts of its own (`script-src 'none'`). The sandboxed, context-isolated preload renders it. markdown-it turns answers into HTML in the main process with raw HTML and images disabled and only HTTP(S) links allowed. A core rule then replaces money written as `1,234g 56s 7c` in text with coin icons from `assets`; gold is required so seconds such as `2s` stay text. Clicking a link opens it in the default browser after a second URL check. The overlay never navigates.
 
 Partial answers stay in memory. Codex sends text in bursts, so the app reveals it at a steady pace: every 30 ms it renders a slightly longer prefix of the draft as Markdown and sends only the active reply to the overlay. Earlier turns stay in place. Each update replaces the reply's HTML, so the overlay remembers where the last few updates began and wraps that text in spans whose fade-in resumes where the previous render left it. The final render fades in whatever the pacing had not shown yet. The animation is off under `prefers-reduced-motion`. Updates follow the bottom of the reply only while the reader is there. Opening a running thread restores its current draft, and streaming never raises a hidden window. Failures replace the draft with an error. Link icons load after the answer finishes.
 

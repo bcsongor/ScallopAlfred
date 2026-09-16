@@ -449,6 +449,18 @@ body[data-status="history"] #answer {
   vertical-align: -3px;
 }
 
+/* Money keeps its coins on one line, each coin tucked against its number like the game's tooltips. */
+.money {
+  white-space: nowrap;
+}
+
+.coin {
+  width: 13px;
+  height: 13px;
+  margin-left: 1px;
+  vertical-align: -2px;
+}
+
 #answer code {
   padding: 1px 3px;
   background: var(--code-bg);
