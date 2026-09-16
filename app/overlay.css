@@ -407,12 +407,42 @@ body[data-status="history"] #answer {
   font-size: 12px;
 }
 
+/*
+ * A soft highlight drifts across the muted text, painted through the glyphs by clipping a gradient to
+ * them. The element shrinks to its text so the sweep is timed to the words, not the row.
+ */
 .progress .activity {
-  flex: 1;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: transparent;
+  background: linear-gradient(100deg, var(--muted) 40%, var(--strong) 50%, var(--muted) 60%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: shine 2.6s ease-in-out infinite;
+}
+
+.progress .elapsed {
+  margin-left: auto;
+}
+
+@keyframes shine {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress .activity {
+    animation: none;
+    background: none;
+    color: var(--muted);
+  }
 }
 
 .progress .elapsed {
