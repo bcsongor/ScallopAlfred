@@ -33,9 +33,9 @@ test("answers render Markdown with external source links and cached icons", { ti
   // Only the hostname, or the item ID, ever reaches a provider: one tooltip per item and no icon for the missing one.
   await until(async () => (await desktop.iconRequests()).length === 5, "Timed out waiting for the icon requests");
   const requests = await desktop.iconRequests();
-  assert.deepEqual(requests.filter(googleFavicons), [
-    "https://www.google.com/s2/favicons?domain=www.wowhead.com&sz=32",
+  assert.deepEqual(requests.filter(googleFavicons).sort(), [
     "https://www.google.com/s2/favicons?domain=worldofwarcraft.blizzard.com&sz=32",
+    "https://www.google.com/s2/favicons?domain=www.wowhead.com&sz=32",
   ]);
   assert.deepEqual(requests.filter(url => !googleFavicons(url)).sort(), [
     "https://nether.wowhead.com/tooltip/item/228721?dataEnv=1&locale=0",

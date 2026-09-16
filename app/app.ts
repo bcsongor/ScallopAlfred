@@ -295,7 +295,8 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
 
 /**
  * Reveals text at a steady pace instead of in the bursts it arrives in. Each tick shows a
- * slice of the backlog, so a large chunk melts in over a few hundred milliseconds.
+ * slice of the backlog, so a large chunk melts in over a few hundred milliseconds. Text that
+ * replaces what was shown is revealed again from its first change.
  */
 function pace(intervalMs: number, reveal: (text: string) => void): { update: (text: string) => void; stop: () => void } {
   let target = "";
@@ -310,10 +311,17 @@ function pace(intervalMs: number, reveal: (text: string) => void): { update: (te
   };
   return {
     update: text => {
+      shown = commonPrefixLength(target.slice(0, shown), text);
       target = text;
-      shown = Math.min(shown, text.length);
       timer ??= setInterval(tick, intervalMs);
     },
     stop,
   };
+}
+
+/** The number of leading characters `a` and `b` share. */
+function commonPrefixLength(a: string, b: string): number {
+  let length = 0;
+  while (length < a.length && a[length] === b[length]) length++;
+  return length;
 }
