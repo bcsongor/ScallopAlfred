@@ -410,7 +410,6 @@ body[data-status="history"] #answer {
   gap: 10px;
   margin-top: 6px;
   color: var(--muted);
-  font-size: 12px;
 }
 
 /*
