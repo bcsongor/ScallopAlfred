@@ -6,8 +6,8 @@ import { watchClipboard, type Clipboard } from "./clipboard.ts";
 import type { Ask, CodexOptions } from "./codex.ts";
 import { createSettingsWriter, loadConfig, type AppearanceChanges, type Config } from "./config.ts";
 import { errorMessage } from "./errors.ts";
-import { createFavicons } from "./favicons.ts";
 import { openHistory, type Thread } from "./history.ts";
+import { createIcons } from "./icons.ts";
 import { renderMarkdown, webUrl } from "./markdown.ts";
 import { createOverlay } from "./overlay.ts";
 import type { WoWRequest } from "./protocol.ts";
@@ -32,7 +32,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   const writeSettings = createSettingsWriter(settingsPath);
   const history = openHistory(join(userData, "threads.sqlite"));
   const ask = createCodex({ codexPath: config.codexPath, model: config.model, workspace });
-  const favicon = createFavicons(join(userData, "favicons"), fetch);
+  const icons = createIcons(join(userData, "favicons"), fetch);
   const overlay = createOverlay(config);
   const quit = new AbortController();
 
@@ -193,7 +193,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     }
   }
 
-  overlay.handle("favicon", favicon);
+  overlay.handle("link-icon", icons);
   overlay.listen("edit-followup", editing => {
     const thread = openThread();
     if (!editing) closeFollowup();

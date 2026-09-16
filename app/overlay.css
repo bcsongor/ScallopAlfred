@@ -86,7 +86,11 @@
   color: var(--heading);
 }
 
-/* Thread titles are white. Quests use WoW's default yellow, and items their quality colour. */
+/*
+ * Thread titles are white. Quests use WoW's default yellow, and items their quality colour, both in
+ * titles and in answer links. Each quality publishes its colour as --quality so rules that outrank
+ * these on specificity can reuse it instead of repeating the palette.
+ */
 #title,
 .thread-title {
   color: var(--strong);
@@ -95,15 +99,15 @@
 [data-type="quest"] {
   color: #ffd100;
 }
-[data-quality="0"] { color: #9d9d9d; }
-[data-quality="1"] { color: #ffffff; }
-[data-quality="2"] { color: #1eff00; }
-[data-quality="3"] { color: #0070dd; }
-[data-quality="4"] { color: #a335ee; }
-[data-quality="5"] { color: #ff8000; }
-[data-quality="6"] { color: #e6cc80; }
+[data-quality="0"] { --quality: #9d9d9d; color: var(--quality); }
+[data-quality="1"] { --quality: #ffffff; color: var(--quality); }
+[data-quality="2"] { --quality: #1eff00; color: var(--quality); }
+[data-quality="3"] { --quality: #0070dd; color: var(--quality); }
+[data-quality="4"] { --quality: #a335ee; color: var(--quality); }
+[data-quality="5"] { --quality: #ff8000; color: var(--quality); }
+[data-quality="6"] { --quality: #e6cc80; color: var(--quality); }
 [data-quality="7"],
-[data-quality="8"] { color: #00ccff; }
+[data-quality="8"] { --quality: #00ccff; color: var(--quality); }
 
 /*
  * FRAME
@@ -428,9 +432,17 @@ body[data-status="history"] #answer {
 
 #answer a:hover {
   color: var(--strong);
+  text-decoration: underline;
 }
 
-.favicon {
+/* Item links keep their quality colour, hovered or not; the underline carries the hover instead. Names
+   are short, so they stay on one line with their icon. */
+#answer a[data-quality] {
+  color: var(--quality);
+  white-space: nowrap;
+}
+
+.link-icon {
   width: 16px;
   height: 16px;
   margin-right: 4px;

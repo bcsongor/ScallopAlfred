@@ -181,18 +181,23 @@ window.addEventListener("DOMContentLoaded", () => {
     return h("section", { className: "archived-threads", ariaLabel: "Archived threads" }, header, ...rows, ...more);
   }
 
-  /** @param {HTMLAnchorElement} link */
-  function addFavicon(link) {
-    invoke("favicon", link.getAttribute("href") ?? "").then(src => {
-      if (src === undefined || !link.isConnected) return;
-      const icon = h("img", { className: "favicon", alt: "", width: 16, height: 16 });
+  /**
+   * Prepends a link's icon: an item's own icon, or the site's favicon. Item links also carry their
+   * quality so CSS can colour them.
+   * @param {HTMLAnchorElement} link
+   */
+  function addLinkIcon(link) {
+    invoke("link-icon", link.getAttribute("href") ?? "").then(result => {
+      if (result === undefined || !link.isConnected) return;
+      const icon = h("img", { className: "link-icon", alt: "", width: 16, height: 16 });
       icon.addEventListener("error", () => icon.remove(), { once: true });
       icon.addEventListener("load", () => {
         if (nearBottom()) answer.scrollTop = answer.scrollHeight;
         markScrollable();
       }, { once: true });
-      icon.src = src;
+      icon.src = result.icon;
       link.prepend(icon);
+      if (result.quality !== undefined) link.dataset.quality = String(result.quality);
     }).catch(() => { /* The link remains usable without its icon. */ });
   }
 
@@ -234,7 +239,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const response = h("div", { className: "response", role: "group", ariaLabel: "Scallop Alfred's reply" });
     if (turn.html !== null) response.innerHTML = turn.html;
     else response.textContent = turn.text;
-    if (turn.status === "answer") response.querySelectorAll("a").forEach(addFavicon);
+    if (turn.status === "answer") response.querySelectorAll("a").forEach(addLinkIcon);
     return h("section", { className: "turn", dataset: { status: turn.status } },
       h("div", { className: "question", role: "group", ariaLabel: "Your question", textContent: turn.question }),
       response,

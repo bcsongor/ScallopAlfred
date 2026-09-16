@@ -1,4 +1,5 @@
 import type { Session } from "../../app/codex.ts";
+import type { LinkIcon } from "../../app/icons.ts";
 import type { WoWRequest } from "../../app/protocol.ts";
 import type { TrayItem } from "../../app/tray.ts";
 
@@ -15,7 +16,7 @@ type Harness = {
   stream?: { update: (text: string) => void; finish: () => void };
   trayItem: (labels: string[]) => TrayItem;
   clickTrayIcon: () => void;
-  createFavicons: () => (target: unknown) => Promise<string | undefined>;
+  createIcons: () => (target: unknown) => Promise<LinkIcon | undefined>;
 };
 
 declare global {

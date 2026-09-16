@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { startApp } from "../../app/app.ts";
 import type { Ask } from "../../app/codex.ts";
-import { createFavicons } from "../../app/favicons.ts";
+import { createIcons } from "../../app/icons.ts";
 import type { SystemTray, TrayItem } from "../../app/tray.ts";
 
 const data = process.env.SCALLOPALFRED_TEST_DATA;
@@ -36,13 +36,27 @@ globalThis.harness = {
     return found;
   },
   clickTrayIcon: () => trayClick(),
-  createFavicons: () => createFavicons(join(data, "favicons"), fetchIcon),
+  createIcons: () => createIcons(join(data, "favicons"), fetchIcon),
 };
 
-// Favicon lookups never reach the network.
+// Icon lookups never reach the network. Wowhead items resolve through the tooltip and icon hosts.
 async function fetchIcon(input: string | URL | Request): Promise<Response> {
   const url = new URL(input instanceof Request ? input.url : input);
   harness.iconRequests.push(url.href);
+  if (url.origin === "https://nether.wowhead.com") {
+    switch (url.pathname) {
+      case "/tooltip/item/228721":
+        return Response.json({ name: "Hearty Feast", quality: 4, icon: "inv_misc_food_legion_feast" });
+      // An icon name that would escape the icon host, so validation must reject it.
+      case "/tooltip/item/5": return Response.json({ name: "Escape", quality: 1, icon: "../../../secret" });
+      default: return new Response(null, { status: 404 });
+    }
+  }
+  if (url.origin === "https://wow.zamimg.com") {
+    return url.pathname === "/images/wow/icons/small/inv_misc_food_legion_feast.jpg"
+      ? new Response(new Uint8Array(scallop))
+      : new Response(null, { status: 404 });
+  }
   if (url.origin !== "https://www.google.com" || url.pathname !== "/s2/favicons") throw new Error("Unexpected icon provider");
   switch (url.searchParams.get("domain")) {
     case "www.wowhead.com": return new Response(new Uint8Array(scallop));

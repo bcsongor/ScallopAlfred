@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Config } from "./config.ts";
 import type { ArchivedThreadSummary, ThreadSummary, Turn, TitleSubject } from "./history.ts";
+import type { LinkIcon } from "./icons.ts";
 import { requestSchema } from "./protocol.ts";
 
 export type OverlayState = {
@@ -43,11 +44,11 @@ export const fromOverlay: { [K in keyof FromOverlay]: z.ZodType<FromOverlay[K]> 
 
 /** Channels where the overlay waits for a result from the main process. */
 export type OverlayRequests = {
-  favicon: { message: string; result: string | undefined };
+  "link-icon": { message: string; result: LinkIcon | undefined };
 };
 
 export const overlayRequests: { [K in keyof OverlayRequests]: z.ZodType<OverlayRequests[K]["message"]> } = {
-  favicon: z.string(),
+  "link-icon": z.string(),
 };
 
 /** Send arguments for a channel: none when it carries no payload. */

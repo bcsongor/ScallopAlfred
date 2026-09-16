@@ -59,7 +59,7 @@ The tray menu copies the answer, retries, cancels, switches between the Original
 | `theme` | `original` | `original` or `wowhead` |
 | `timeoutSeconds` | `180` | 10 to 600 |
 
-The same folder holds `threads.sqlite`, with your threads and the game data sent with them, and a `favicons` cache. Favicons for source links come from Google's favicon service, which only sees the site's hostname.
+The same folder holds `threads.sqlite`, with your threads and the game data sent with them, and a `favicons` cache. Icons for plain source links come from Google's favicon service, which only sees the site's hostname. Item links show the item's icon and quality colour from Wowhead, which only sees the item ID.
 
 Other Codex user settings still apply. See [Codex configuration overrides](DESIGN.md#codex) for the settings the app controls.
 
