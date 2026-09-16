@@ -23,9 +23,49 @@ test("parseRequest ignores unrelated text and rejects malformed or oversized req
     "SCALLOPALFRED:{broken",
     copied({ ...request, player: {} }),
     copied({ ...request, subjects: Array(9).fill(request.subjects[0]) }),
-    `SCALLOPALFRED:${"x".repeat(64_000)}`,
+    `SCALLOPALFRED:${"x".repeat(512_000)}`,
   ]) {
     assert.throws(() => parseRequest(text));
+  }
+});
+
+test("requests above the old 64 KB ceiling still parse", () => {
+  const wordy = { ...request, subjects: [{ ...request.subjects[0], tooltip: Array(80).fill("t".repeat(2000)) }] };
+  const text = copied(wordy);
+  assert.ok(text.length > 64_000);
+  assert.deepEqual(parseRequest(text), wordy);
+});
+
+test("gold topics carry inventory and recipe snapshots to the prompt", () => {
+  const inventory = {
+    capturedAt: 1800000000, moneyCopper: 12500000, bankIncluded: true, warbankIncluded: false,
+    items: [{
+      link: "item:210796", name: "Bismuth", quality: 1, bound: false,
+      count: { bags: 40, bank: 200, warbank: 0 }, auctionCount: 120, mailCount: 5,
+      tsm: { capturedAt: 1800000000, marketCopper: 45000, destroyCopper: 12000, craftingCopper: 38000 },
+    }],
+  };
+  const recipes = {
+    capturedAt: 1800000000, professionName: "Alchemy", skillLineID: 171, skillLevel: 75, maxSkillLevel: 100,
+    entries: [{
+      recipeID: 453344, name: "Algari Healing Potion", skillUps: 1, craftable: true,
+      output: { link: "item:211878", name: "Algari Healing Potion", quality: 2, quantityMin: 1, quantityMax: 2, tsm: { capturedAt: 1800000000, marketCopper: 90000 } },
+      reagents: [{ itemID: 210799, name: "Mycobloom", quantity: 3, marketCopper: 15000 }],
+    }],
+  };
+  const gold: WoWRequest = { ...request, category: "gold", inventory, recipes };
+  const parsed = parseRequest(copied(gold));
+  assert.deepEqual(parsed, gold);
+  assert.ok(parsed);
+  assert.deepEqual(promptRequest(buildPrompt(parsed)), gold);
+
+  const { bankIncluded, ...missingBank } = inventory;
+  for (const invalid of [
+    { ...gold, inventory: { ...inventory, items: Array(601).fill(inventory.items[0]) } },
+    { ...gold, recipes: { ...recipes, entries: [{ ...recipes.entries[0], reagents: Array(13).fill(recipes.entries[0].reagents[0]) }] } },
+    { ...gold, inventory: missingBank },
+  ]) {
+    assert.throws(() => parseRequest(copied(invalid)));
   }
 });
 

@@ -6,6 +6,7 @@ WoW addons can't reach the network or the file system. The clipboard is the one 
 
 - `Core.lua` holds the helpers for reading game values safely. It loads first.
 - `Professions.lua` and `Talents.lua` read profession and talent snapshots.
+- `Inventory.lua` and `Recipes.lua` read inventory and recipe snapshots.
 - `ScallopAlfred.lua` owns the dialog, builds requests and encodes them as JSON.
 - `Bindings.xml` defines the keybind. WoW loads it by file name, and listing it in the TOC would run it through the wrong parser. The binding fires on key release so the keystroke can't land in the question box.
 - `app/main.ts` is the Electron entry point. It creates the real tray and passes it, the clipboard, Codex, `fetch` and the browser opener to `app.ts`.
@@ -29,11 +30,13 @@ Midnight marks some API values as secret. `addon.Public` drops them without look
 
 Subjects come from the hovered tooltip's original hyperlink when there is one, so item variants and link parameters survive. Otherwise the addon falls back to the tooltip's item, spell, quest, currency or achievement ID. With nothing hovered, a targeted NPC replaces the topics with a question about it, as an `npc:<id>` subject with the ID taken from its GUID. Quest log entries and map pins build their tooltips line by line, so for those it reads `questID` from the tooltip's owner. Shift-clicked links arrive through a hook on `ChatFrameUtil.InsertLink` that only acts while the question box has focus. The `/q` slash command, or `/alfred`, builds a follow-up request from the chat line instead, with its links as subjects and no hovered subject.
 
-Scans have fixed caps: 80 tooltip lines, 8 subjects, 256 child skill lines, 128 paths per profession tree, 256 talent nodes and 128 selected talents. Blizzard's [addon policy](https://eu.forums.blizzard.com/en/wow/t/wow-user-interface-add-on-development-policy/1642) forbids hurting performance but publishes no read quota. The caps are our own choice, not an approved allowance.
+Scans have fixed caps: 80 tooltip lines, 8 subjects, 256 child skill lines, 128 paths per profession tree, 256 talent nodes, 128 selected talents, 600 inventory entries after grouping, 200 recipes and 12 reagent slots per recipe. Blizzard's [addon policy](https://eu.forums.blizzard.com/en/wow/t/wow-user-interface-add-on-development-policy/1642) forbids hurting performance but publishes no read quota. The caps are our own choice, not an approved allowance.
 
-Every request carries each profession's skill lines for all expansions, so legacy farming questions see those skills. Profession specialisations only load for the Professions topic. A child skill line must match both the parent profession ID and the expansion-specific name, so an older expansion's tree never stands in for missing current data. Path ranks subtract the unlock tier to match [Blizzard's UI](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_Professions/Blizzard_ProfessionsSpecializationsTemplates.lua).
+Every request carries each profession's skill lines for all expansions, so legacy farming questions see those skills. Profession specialisations only load for the Professions and Make gold topics. A child skill line must match both the parent profession ID and the expansion-specific name, so an older expansion's tree never stands in for missing current data. Path ranks subtract the unlock tier to match [Blizzard's UI](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_Professions/Blizzard_ProfessionsSpecializationsTemplates.lua).
 
-TSM prices come from `TSM_API.GetCustomPriceValue` with `DBMinBuyout`, `DBRegionMarketAvg`, `DBRegionSaleAvg`, `DBRegionSaleRate` and `VendorSell`, keyed by TSM's item string for the original link. Only subjects get prices, not equipped items. See [TSM's price sources](https://support.tradeskillmaster.com/which-price-sources-can-i-use-and-what-do-they-mean).
+Make gold also reads gold on hand and every stack the player can see. Bags come from `C_Container`; bank and Warband bank tabs return no slots while their windows are closed, so the request records whether each was included. Stacks are grouped by item link, with a count per location, a soulbound flag and TSM's auction and mail counts. Recipes come from `C_TradeSkillUI` for the open profession only, learned ones only, with their skill-ups, whether they are craftable now, the output item and the basic reagents. Linked, guild and NPC crafting windows are skipped. No profession window open means no recipes, and the player opens one and asks again. Every read still happens once on submit.
+
+TSM prices come from `TSM_API.GetCustomPriceValue` with `DBMinBuyout`, `DBMarket`, `DBRegionMarketAvg`, `DBRegionSaleAvg`, `DBRegionSaleRate`, `VendorSell`, `Destroy` and `Crafting`, keyed by TSM's item string for the original link. Subjects, inventory stacks and recipe outputs get that set, reagents only market prices, and equipped items none. See [TSM's price sources](https://support.tradeskillmaster.com/which-price-sources-can-i-use-and-what-do-they-mean).
 
 ## Clipboard protocol
 
@@ -55,7 +58,7 @@ A request is one line, `SCALLOPALFRED:` followed by JSON:
 
 `id` is new for every request. `context` names the thread a request started, and the addon makes a fresh one for each question. The addon sends `thread: "new"`, or `thread: "followup"` from `/q`. The app turns a follow-up into `continue` for the thread on screen, with that thread's context, or into `new` when nothing can be continued. Overlay follow-ups reuse the stored request with `thread: "continue"`, a new `id` and the new question. A thread keeps the title of its first request.
 
-The optional `equipped`, `professions`, `talents` and per-subject `tsm` fields are snapshots. Money is per-item copper, and `capturedAt` is the Unix time in seconds when the addon read the data, not when TSM last refreshed. `protocol.ts` defines every field and limit. A request from a mismatched addon fails validation, so update the addon and app together.
+The optional `equipped`, `professions`, `talents`, `inventory`, `recipes` and per-subject `tsm` fields are snapshots, so follow-ups reuse them. `inventory` carries the player's copper and whether the bank and Warband bank were readable; `recipes` carries the open profession and its skill level. Money is in copper, and `capturedAt` is the Unix time in seconds when the addon read the data, not when TSM last refreshed. `protocol.ts` defines every field and limit. A request from a mismatched addon fails validation, so update the addon and app together.
 
 ## Desktop app
 

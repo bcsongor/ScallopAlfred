@@ -32,6 +32,9 @@ local tsmSources = {
     regionSaleAvgCopper = "DBRegionSaleAvg",
     saleRate = "DBRegionSaleRate",
     vendorSellCopper = "VendorSell",
+    marketCopper = "DBMarket",
+    destroyCopper = "Destroy",
+    craftingCopper = "Crafting",
 }
 
 local function plainText(text)
@@ -41,6 +44,9 @@ local function plainText(text)
         :gsub("|T.-|t", ""):gsub("|A.-|a", "")
         :gsub("|H.-|h(.-)|h", "%1"))
 end
+
+-- Inventory.lua and Recipes.lua load first, so they look these two up when they run, not when they load.
+addon.PlainText = plainText
 
 local function readSubject(link, name, tooltip)
     link = Public(link, "string")
@@ -145,6 +151,8 @@ local function tsmPrices(link)
     end
 end
 
+addon.TSMPrices = tsmPrices
+
 local function equippedItems(subjects, fullSet)
     local result, seen = {}, {}
     local function addSlot(slotID)
@@ -208,6 +216,7 @@ local function buildRequest(question, subject, category, thread)
         if linked.type == "item" then linked.tsm = tsmPrices(linked.link) end
     end
     local gear = category == "gear"
+    local gold = category == "gold"
     local specIndex = Public(Read(C_SpecializationInfo.GetSpecialization), "number")
     local specName = specIndex and Public((select(2, C_SpecializationInfo.GetSpecializationInfo(specIndex))), "string")
     -- The equipped average, floored like the character pane shows it.
@@ -223,7 +232,9 @@ local function buildRequest(question, subject, category, thread)
         gameVersion = Public(Read(GetBuildInfo), "string"),
         subjects = subjects,
         equipped = equippedItems(subjects, gear),
-        professions = Read(addon.GetProfessions, category == "professions"),
+        professions = Read(addon.GetProfessions, category == "professions" or gold),
+        inventory = gold and Read(addon.GetInventory) or nil,
+        recipes = gold and Read(addon.GetRecipes) or nil,
         talents = gear and Read(addon.GetTalents) or nil,
     }
 end
@@ -245,8 +256,8 @@ local function defaultQuestion(subject)
 end
 
 -- Subject presets ask about the hovered subject straight away. With nothing hovered, a targeted NPC offers the
--- target preset and otherwise the topics open the editor. Custom opens the editor either way. Text can depend on
--- the subject.
+-- target preset and otherwise the topics open the editor, unless the topic carries its own question. Custom opens
+-- the editor either way. Text can depend on the subject.
 local presets = {
     { kind = "subject", text = defaultQuestion },
     { kind = "subject", text = "Is it an upgrade?", itemOnly = true, category = "gear" },
@@ -256,6 +267,7 @@ local presets = {
     { kind = "topic", text = "Game mechanics", category = "mechanics" },
     { kind = "topic", text = "Professions", category = "professions" },
     { kind = "topic", text = "My gear", category = "gear" },
+    { kind = "topic", text = "Make gold", category = "gold", question = "How should I make gold with what I have?" },
     { kind = "custom", text = "Custom question" },
 }
 
@@ -390,6 +402,8 @@ for index, preset in ipairs(presets) do
             sendQuestion(preset.text, selectedTarget)
         elseif preset.kind == "custom" then
             openEditor(subjectTitle())
+        elseif preset.question then
+            sendQuestion(preset.question, nil, preset.category)
         else
             selectedCategory = preset.category
             openEditor(preset.text)

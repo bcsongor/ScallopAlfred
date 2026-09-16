@@ -43,6 +43,17 @@ function GetBindingKey() return nil end
 function GetBindingAction() return existingBinding or "" end
 function SetBinding(key, action) bound = key .. ":" .. action end
 function GetInventoryItemLink(_, slot) return "item:" .. slot end
+function GetMoney() return money or 0 end
+
+-- Bags are `bags[bagID] = { <slot info>, false, ... }`, where false is an empty slot and no entry means a
+-- container the player can't see, like a closed bank tab.
+C_Container = {
+  GetContainerNumSlots = function(bagID) local bag = bags and bags[bagID]; return bag and #bag or 0 end,
+  GetContainerItemInfo = function(bagID, slot)
+    local bag = bags and bags[bagID]
+    return bag and bag[slot] or nil
+  end,
+}
 
 secret = {}
 function issecretvalue(value) return value == secret end
@@ -67,8 +78,46 @@ C_TooltipInfo = {
     } }
   end,
 }
-Enum = { TooltipDataType = { Quest = 23, Currency = 5, Achievement = 12 } }
-C_TradeSkillUI = { GetAllProfessionTradeSkillLines = function() return {} end }
+Enum = {
+  TooltipDataType = { Quest = 23, Currency = 5, Achievement = 12 },
+  BagIndex = {
+    Backpack = 0, Bag_1 = 1, Bag_2 = 2, Bag_3 = 3, Bag_4 = 4, ReagentBag = 5,
+    CharacterBankTab_1 = 6, CharacterBankTab_2 = 7, CharacterBankTab_3 = 8,
+    CharacterBankTab_4 = 9, CharacterBankTab_5 = 10, CharacterBankTab_6 = 11,
+    AccountBankTab_1 = 13, AccountBankTab_2 = 14, AccountBankTab_3 = 15,
+    AccountBankTab_4 = 16, AccountBankTab_5 = 17,
+  },
+  CraftingReagentType = { Basic = 1, Modifying = 2, Finishing = 3 },
+}
+
+-- No profession window is open until a test sets `tradeSkillReady` and `professionWindow`. Recipes are
+-- `recipes[recipeID] = { name, learned, ..., link, schematic }`, listed in `recipeIDs`.
+C_TradeSkillUI = {
+  GetAllProfessionTradeSkillLines = function() return {} end,
+  IsTradeSkillReady = function() return tradeSkillReady or false end,
+  IsTradeSkillLinked = function() return tradeSkillLinked or false end,
+  IsTradeSkillGuild = function() return tradeSkillGuild or false end,
+  IsNPCCrafting = function() return npcCrafting or false end,
+  GetChildProfessionInfo = function() return professionWindow end,
+  GetAllRecipeIDs = function() return recipeIDs or {} end,
+  GetRecipeInfo = function(id) return recipes and recipes[id] end,
+  GetRecipeItemLink = function(id) return recipes and recipes[id] and recipes[id].link end,
+  GetRecipeSchematic = function(id) return recipes and recipes[id] and recipes[id].schematic end,
+}
+
+-- TSM stays silent until a test sets `tsmData`, with prices keyed by item string and then source.
+TSM_API = {
+  ToItemString = function(link)
+    local id = tostring(link):match("item:(%d+)")
+    return tsmData and id and "i:" .. id or nil
+  end,
+  GetCustomPriceValue = function(source, item)
+    local prices = tsmData and tsmData.prices and tsmData.prices[item]
+    return prices and prices[source]
+  end,
+  GetAuctionQuantity = function(item) return tsmData and tsmData.auctions and tsmData.auctions[item] end,
+  GetMailQuantity = function(item) return tsmData and tsmData.mails and tsmData.mails[item] end,
+}
 C_Spell = { GetSpellLink = function(id) return "|cff71d5ff|Hspell:" .. id .. "|h[Rejuvenation]|h|r" end }
 GameTooltip = {
   IsShown = function() return not tooltipHidden end,
