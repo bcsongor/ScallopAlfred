@@ -87,6 +87,7 @@ Enum = {
     AccountBankTab_1 = 13, AccountBankTab_2 = 14, AccountBankTab_3 = 15,
     AccountBankTab_4 = 16, AccountBankTab_5 = 17,
   },
+  CachedRewardType = { Item = 1, Currency = 2 },
   CraftingReagentType = { Basic = 1, Modifying = 2, Finishing = 3 },
 }
 
@@ -117,6 +118,13 @@ TSM_API = {
   end,
   GetAuctionQuantity = function(item) return tsmData and tsmData.auctions and tsmData.auctions[item] end,
   GetMailQuantity = function(item) return tsmData and tsmData.mails and tsmData.mails[item] end,
+}
+-- The vault offers nothing until a test sets `vaultActivities`, a list of
+-- `{ progress = ..., threshold = ..., rewards = { { itemDBID = ... } or { type = 2, id = <currency> } } }`.
+C_WeeklyRewards = {
+  HasAvailableRewards = function() return vaultActivities ~= nil end,
+  GetActivities = function() return vaultActivities end,
+  GetItemHyperlink = function(id) return "|Hitem:" .. id .. "|h[Vault " .. id .. "]|h" end,
 }
 C_Spell = { GetSpellLink = function(id) return "|cff71d5ff|Hspell:" .. id .. "|h[Rejuvenation]|h|r" end }
 GameTooltip = {

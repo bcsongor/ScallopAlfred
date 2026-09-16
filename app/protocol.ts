@@ -115,7 +115,7 @@ export const requestSchema = z.object({
   context: z.string().min(1).max(128),
   thread: z.enum(["new", "continue", "followup"]),
   question: z.string().trim().min(1).max(2000),
-  category: z.enum(["mechanics", "professions", "gear", "gold"]).optional(),
+  category: z.enum(["mechanics", "professions", "gear", "gold", "vault"]).optional(),
   player: z.object({
     class: z.string().max(64),
     spec: z.string().max(64),
@@ -138,6 +138,8 @@ export const requestSchema = z.object({
       rank: z.number().int().positive(),
     })).max(128),
   }).optional(),
+  // Great Vault rewards on offer this week, items and currencies, from the Great Vault topic only.
+  vault: z.array(subjectSchema).max(12).optional(),
 });
 
 export type WoWRequest = z.infer<typeof requestSchema>;

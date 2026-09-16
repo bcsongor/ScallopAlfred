@@ -177,6 +177,23 @@ local function equippedItems(subjects, fullSet)
     return result
 end
 
+-- Everything the Great Vault offers once it has rolled after the weekly reset. Unlocked slots offer items; the
+-- concession offers items or currencies, such as a Nebulous Voidcore in place of gear.
+local function vaultRewards()
+    local rewards = {}
+    for _, activity in ipairs(Read(C_WeeklyRewards.GetActivities) or {}) do
+        if (Count(activity.progress) or 0) >= (Count(activity.threshold) or math.huge) then
+            for _, reward in ipairs(activity.rewards or {}) do
+                local link = reward.itemDBID and Read(C_WeeklyRewards.GetItemHyperlink, reward.itemDBID)
+                    or reward.type == Enum.CachedRewardType.Currency and Count(reward.id) and "currency:" .. reward.id
+                local option = link and readSubject(link)
+                if option and #rewards < 12 then rewards[#rewards + 1] = option end
+            end
+        end
+    end
+    return rewards
+end
+
 --
 -- REQUEST
 --
@@ -215,7 +232,8 @@ local function buildRequest(question, subject, category, thread)
     for _, linked in ipairs(subjects) do
         if linked.type == "item" then linked.tsm = tsmPrices(linked.link) end
     end
-    local gear = category == "gear"
+    local vault = category == "vault"
+    local gear = category == "gear" or vault
     local gold = category == "gold"
     local specIndex = Public(Read(C_SpecializationInfo.GetSpecialization), "number")
     local specName = specIndex and Public((select(2, C_SpecializationInfo.GetSpecializationInfo(specIndex))), "string")
@@ -236,6 +254,7 @@ local function buildRequest(question, subject, category, thread)
         inventory = gold and Read(addon.GetInventory) or nil,
         recipes = gold and Read(addon.GetRecipes) or nil,
         talents = gear and Read(addon.GetTalents) or nil,
+        vault = vault and vaultRewards() or nil,
     }
 end
 
@@ -257,7 +276,7 @@ end
 
 -- Subject presets ask about the hovered subject straight away. With nothing hovered, a targeted NPC offers the
 -- target preset and otherwise the topics open the editor, unless the topic carries its own question. Custom opens
--- the editor either way. Text can depend on the subject.
+-- the editor either way. Text can depend on the subject, and a topic with `available` only shows when it returns true.
 local presets = {
     { kind = "subject", text = defaultQuestion },
     { kind = "subject", text = "Is it an upgrade?", itemOnly = true, category = "gear" },
@@ -268,6 +287,10 @@ local presets = {
     { kind = "topic", text = "Professions", category = "professions" },
     { kind = "topic", text = "My gear", category = "gear" },
     { kind = "topic", text = "Make gold", category = "gold", question = "How should I make gold with what I have?" },
+    {
+        kind = "topic", text = "Great Vault", category = "vault", question = "Which Great Vault reward should I pick?",
+        available = function() return Read(C_WeeklyRewards.HasAvailableRewards) == true end,
+    },
     { kind = "custom", text = "Custom question" },
 }
 
@@ -283,7 +306,7 @@ end
 local function presetAvailable(preset, subject, target)
     if preset.kind == "custom" then return true end
     if preset.kind == "target" then return subject == nil and target ~= nil end
-    if preset.kind == "topic" then return subject == nil and target == nil end
+    if preset.kind == "topic" then return subject == nil and target == nil and (not preset.available or preset.available()) end
     return subject ~= nil and (not preset.itemOnly or subject.type == "item")
 end
 
