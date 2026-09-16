@@ -119,14 +119,16 @@ window.addEventListener("DOMContentLoaded", () => {
     markScrollable();
   }
 
-  // The follow-up bar and archived section cast their shadows only when content scrolls beneath them.
+  // The follow-up bar and archived section cast their shadows only while content is hidden beneath them.
   function markScrollable() {
     for (const list of [answer, answer.querySelector(".active-threads")]) {
-      list?.toggleAttribute("data-scrollable", list.scrollHeight > list.clientHeight);
+      list?.toggleAttribute("data-more-below", list.scrollHeight - list.scrollTop - list.clientHeight > 1);
     }
   }
-  // Window resizes and the follow-up editor opening or closing change the space available.
+  // Window resizes and the follow-up editor opening or closing change the space available, and scrolling
+  // either list moves what is beneath. Scroll events don't bubble, so they are caught on the way down.
   new ResizeObserver(markScrollable).observe(answer);
+  answer.addEventListener("scroll", markScrollable, { capture: true, passive: true });
 
   /**
    * @param {string} text

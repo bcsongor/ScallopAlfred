@@ -34,7 +34,11 @@ test("streaming renders safe Markdown and preserves the reader's position", { ti
   assert.ok(await page.locator(".fresh").count() > 1, "earlier reveals keep fading across renders");
   const distance = () => page.locator("#answer").evaluate(node => node.scrollHeight - node.scrollTop - node.clientHeight);
   assert.ok(await distance() < 24);
+  // The follow-up bar's shadow appears only while reply text is hidden beneath it.
+  const moreBelow = () => page.locator("#answer").evaluate(node => node.hasAttribute("data-more-below"));
+  assert.equal(await moreBelow(), false);
   await page.locator("#answer").evaluate(node => { node.scrollTop = 0; });
+  await until(moreBelow);
   await update(`${long}\n\nAnother paragraph`);
   await page.getByText("Another paragraph", { exact: true }).waitFor();
   assert.equal(await page.locator("#answer").evaluate(node => node.scrollTop), 0);

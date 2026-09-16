@@ -278,10 +278,12 @@ button:disabled {
   padding-top: 10px;
   position: relative;
   z-index: 1;
+  /* Keeps the shadow above the section only, so it doesn't bleed past the sides. */
+  clip-path: inset(-12px 0 0 0);
 }
 
-/* Mirrors the header: a shadow cast up over threads that scroll beneath the section. */
-.active-threads[data-scrollable] + .archived-threads {
+/* Mirrors the header: a shadow cast up over threads hidden beneath the section. */
+.active-threads[data-more-below] + .archived-threads {
   box-shadow: 0 -4px 8px -2px #0009;
 }
 
@@ -583,10 +585,12 @@ footer {
   flex-shrink: 0;
   position: relative;
   z-index: 1;
+  /* Keeps the shadow above the bar only, so it doesn't bleed past the sides. */
+  clip-path: inset(-12px 0 0 0);
 }
 
-/* Mirrors the header: a shadow cast up over a thread that scrolls beneath the follow-up bar. */
-#answer[data-scrollable] + footer {
+/* Mirrors the header: a shadow cast up over reply text hidden beneath the follow-up bar. */
+#answer[data-more-below] + footer {
   box-shadow: 0 -4px 8px -2px #0009;
 }
 
