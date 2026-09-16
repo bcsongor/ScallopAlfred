@@ -33,7 +33,7 @@ If Alt+Q is already taken, bind **Scallop Alfred: Ask about a tooltip or link** 
 
 ## Using the overlay
 
-Replies appear as Codex writes them. The overlay follows new text while you're at the bottom. Scroll up to keep your place. Cancelling or failing a request replaces the unfinished reply with an error you can retry.
+Replies appear as Codex writes them. A line under the reply shows what Codex is doing, such as the search it is running, and how long it has taken. The overlay follows new text while you're at the bottom. Scroll up to keep your place. Cancelling or failing a request replaces the unfinished reply with an error you can retry.
 
 - **Follow up** continues the thread with the same game data. Ask again from WoW to refresh it. Click the reply, then press Enter to open the editor and Enter again to send.
 - **Double-click the title** to rename the thread. Enter keeps the name and Escape drops it. Leave it empty and Codex names the thread from the conversation.

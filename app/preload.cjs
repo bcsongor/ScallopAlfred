@@ -86,6 +86,9 @@ window.addEventListener("DOMContentLoaded", () => {
   /** The title as it was when editing began, so cancelling can tell nothing changed. */
   /** @type {string | undefined} */
   let editingTitle;
+  /** Ticks the elapsed time under a reply that is still being written. */
+  /** @type {ReturnType<typeof setInterval> | undefined} */
+  let elapsedTimer;
   /** The turn whose reply is streaming, and how much of its text the last render showed. */
   /** @type {string | undefined} */
   let streaming;
@@ -244,15 +247,43 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  /** @param {ToOverlay["thread"]["turns"][number]} turn */
-  function turnSection(turn) {
+  /** @param {number} ms */
+  function formatElapsed(ms) {
+    const seconds = Math.max(0, Math.floor(ms / 1000));
+    return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  }
+
+  /**
+   * Shows what Codex is doing and for how long. The timer restarts on each render, since only the
+   * last turn can be thinking.
+   * @param {import("./ipc.ts").Progress} progress
+   */
+  function progressLine(progress) {
+    const elapsed = h("span", { className: "elapsed" });
+    const tick = () => { elapsed.textContent = formatElapsed(Date.now() - progress.startedAt); };
+    tick();
+    clearInterval(elapsedTimer);
+    elapsedTimer = setInterval(tick, 1000);
+    return h("div", { className: "progress", role: "status" },
+      h("span", { className: "activity", textContent: progress.activity ?? "Thinking…" }),
+      elapsed,
+    );
+  }
+
+  /**
+   * @param {ToOverlay["thread"]["turns"][number]} turn
+   * @param {import("./ipc.ts").Progress} [progress]
+   */
+  function turnSection(turn, progress) {
     const response = h("div", { className: "response", role: "group", ariaLabel: "Scallop Alfred's reply" });
     if (turn.html !== null) response.innerHTML = turn.html;
     else response.textContent = turn.text;
     if (turn.status === "answer") response.querySelectorAll("a").forEach(addLinkIcon);
+    const status = turn.status === "thinking" && progress ? [progressLine(progress)] : [];
     return h("section", { className: "turn", dataset: { status: turn.status } },
       h("div", { className: "question", role: "group", ariaLabel: "Your question", textContent: turn.question }),
       response,
+      ...status,
     );
   }
 
@@ -393,6 +424,7 @@ window.addEventListener("DOMContentLoaded", () => {
     bar.hidden = false;
     latestTurn = undefined;
     threadId = undefined;
+    clearInterval(elapsedTimer);
     answer.role = "region";
     answer.ariaLabel = "Thread history";
 
@@ -412,15 +444,16 @@ window.addEventListener("DOMContentLoaded", () => {
     renderHistory();
   });
 
-  on("thread", ({ id, state, titleSubjects, turns, canFollowup, fontSize }) => {
+  on("thread", ({ id, state, titleSubjects, progress, turns, canFollowup, fontSize }) => {
     const last = turns.at(-1);
     keepScroll(() => {
       setFrame(state.title, titleSubjects, true, state.status, fontSize);
       threadId = id;
       answer.role = "log";
       answer.ariaLabel = "Thread";
+      clearInterval(elapsedTimer);
       const notice = state.notice === undefined ? [] : [h("div", { className: "notice", textContent: state.notice })];
-      answer.replaceChildren(...turns.map(turnSection), ...notice);
+      answer.replaceChildren(...turns.map(turn => turnSection(turn, turn === last ? progress : undefined)), ...notice);
       // A reply that just finished streaming fades in the rest of its text. Anything else counts as shown.
       const response = answer.querySelector(".turn:last-child .response");
       if (response && last && last.id === streaming && last.status === "answer") fadeIn(response);
@@ -429,6 +462,12 @@ window.addEventListener("DOMContentLoaded", () => {
       latestTurn = last?.id;
       followup.hidden = !canFollowup;
     }, latestTurn !== last?.id);
+  });
+
+  on("progress", ({ id, activity }) => {
+    if (id !== streaming) return;
+    const line = answer.querySelector('.turn:last-child[data-status="thinking"] .progress .activity');
+    if (line) line.textContent = activity;
   });
 
   on("reply", ({ id, html }) => {

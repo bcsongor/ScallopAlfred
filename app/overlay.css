@@ -397,9 +397,31 @@ body[data-status="history"] #answer {
   white-space: pre-wrap;
 }
 
-.turn[data-status="thinking"] .response:empty::before {
-  content: "Thinking…";
+/* What Codex is doing and for how long, under a reply that is still being written. */
+.progress {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 6px;
   color: var(--muted);
+  font-size: 12px;
+}
+
+.progress .activity {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.progress .elapsed {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.turn[data-status="thinking"] .response:empty + .progress {
+  margin-top: 0;
 }
 
 /* Streamed text fades in. The duration matches fadeMs in preload.cjs, which resumes it across renders. */

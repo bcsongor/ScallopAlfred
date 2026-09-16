@@ -12,7 +12,13 @@ import type { WoWRequest } from "./protocol.ts";
 export type Session = { context: string; id: string };
 export type Answer = { text: string; session: Session };
 type TurnResult = { text: string; threadId: string };
-export type AskOptions = { signal: AbortSignal; session?: Session; onText?: (text: string) => void };
+export type AskOptions = {
+  signal: AbortSignal;
+  session?: Session;
+  onText?: (text: string) => void;
+  /** Receives a line describing what Codex is doing whenever it changes. */
+  onActivity?: (activity: string) => void;
+};
 export type Ask = (request: WoWRequest, options: AskOptions) => Promise<Answer>;
 export type Conversation = readonly Pick<Turn, "question" | "status" | "text">[];
 /** Names a conversation from its questions and answers. */
@@ -30,6 +36,7 @@ type RunOptions = {
   model?: string;
   /** Receives the answer so far whenever it grows. */
   onText?: (text: string) => void;
+  onActivity?: (activity: string) => void;
 };
 type ThreadSettings = {
   cwd: string;
@@ -53,7 +60,7 @@ const apiKeyVariables = new Set(["OPENAI_API_KEY", "CODEX_API_KEY"]);
 
 export function createCodex({ codexPath, model, workspace }: CodexOptions): Codex {
   return {
-    ask: async (request, { signal, session, onText }) => {
+    ask: async (request, { signal, session, onText, onActivity }) => {
       const { text, threadId } = await runCodex({
         executable: findCodex(codexPath),
         args: codexArguments,
@@ -63,6 +70,7 @@ export function createCodex({ codexPath, model, workspace }: CodexOptions): Code
         model,
         threadId: resumableSession(request, session)?.id,
         onText,
+        onActivity,
       });
       return { text, session: { context: request.context, id: threadId } };
     },
@@ -158,7 +166,7 @@ function codexEnvironment(): NodeJS.ProcessEnv {
 }
 
 /** One App Server per question, so cancelling the question ends the process. */
-export async function runCodex({ executable, args, cwd, prompt, signal, threadId, model, onText }: RunOptions): Promise<TurnResult> {
+export async function runCodex({ executable, args, cwd, prompt, signal, threadId, model, onText, onActivity }: RunOptions): Promise<TurnResult> {
   const child = spawn(executable, args, { cwd, env: codexEnvironment(), windowsHide: true, signal, killSignal: "SIGKILL" });
   const server = connect<ServerRequests>(child);
   try {
@@ -172,6 +180,7 @@ export async function runCodex({ executable, args, cwd, prompt, signal, threadId
     let run: Run = { threadId: thread.id };
     for await (const notification of server.notifications) {
       const next = applyEvent(run, notification);
+      if (next.activity && next.activity !== run.activity) onActivity?.(next.activity);
       if (next.message?.text && next.message.text !== run.message?.text) onText?.(next.message.text);
       run = next;
       if (run.status) break;

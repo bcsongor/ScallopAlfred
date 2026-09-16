@@ -9,9 +9,15 @@ test("streaming renders safe Markdown and preserves the reader's position", { ti
   await desktop.waitForStatus("ready");
   await desktop.copy(request("stream"));
   await desktop.waitForStatus("thinking");
-  assert.equal(await page.locator(".response").evaluate(node => getComputedStyle(node, "::before").content), '"Thinking…"');
+  // A status line shows what Codex is doing and how long it has taken, until the reply finishes.
+  const progress = page.getByRole("status");
+  assert.equal(await progress.locator(".activity").textContent(), "Thinking…");
+  assert.match(await progress.locator(".elapsed").innerText(), /^\d+s$/);
+  await desktop.app.evaluate(() => harness.stream?.activity("Searching the web for “rings”"));
+  await progress.locator(".activity", { hasText: "Searching the web for “rings”" }).waitFor();
   await update("**Par");
   await desktop.waitForAnswer("**Par");
+  assert.equal(await progress.count(), 1);
   assert.equal((await desktop.trayItem("Copy answer")).enabled, false);
   assert.equal(await page.getByRole("button", { name: "Follow up", exact: true }).isVisible(), false);
 
@@ -37,6 +43,7 @@ test("streaming renders safe Markdown and preserves the reader's position", { ti
   await page.locator(".response strong", { hasText: "Done" }).waitFor();
   await desktop.app.evaluate(() => harness.stream?.finish());
   await page.getByRole("button", { name: "Follow up", exact: true }).waitFor({ state: "visible" });
+  assert.equal(await progress.count(), 0);
 });
 
 test("drafts survive navigation and completed answers survive hiding and restart", { timeout: 15000 }, async t => {
@@ -49,9 +56,12 @@ test("drafts survive navigation and completed answers survive hiding and restart
   await page.getByRole("button", { name: "Back to threads" }).click();
   await desktop.waitForStatus("history");
   await update("**Still streaming**");
+  await desktop.app.evaluate(() => harness.stream?.activity("Reading wowhead.com"));
   assert.equal(await page.locator("body").getAttribute("data-status"), "history");
   await page.locator("button.thread").click();
   await desktop.waitForAnswer("Still streaming");
+  // Opening the running thread restores its status line as well as its draft.
+  assert.equal(await page.getByRole("status").locator(".activity").textContent(), "Reading wowhead.com");
   const operations = await desktop.windowOperations(async () => {
     await page.getByRole("button", { name: "Hide", exact: true }).click();
     await update("**Finished answer**");

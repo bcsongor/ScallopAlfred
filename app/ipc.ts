@@ -11,9 +11,15 @@ export type OverlayState = {
   notice?: string;
 };
 
+/** A running reply: when it started and what Codex is doing, for the status line under it. */
+export type Progress = { startedAt: number; activity?: string };
+
 export type ToOverlay = {
   reply: { id: string; html: string };
+  progress: { id: string; activity: string };
   thread: {
+    /** Set while the thread's last turn is thinking. */
+    progress?: Progress;
     /** The thread on screen, which a rename names. Absent on the welcome view. */
     id?: string;
     state: OverlayState;

@@ -68,7 +68,7 @@ async function fetchIcon(input: string | URL | Request): Promise<Response> {
 }
 
 // "fail" fails at once and "wait" takes ten seconds. Follow-ups take longer than new questions.
-const ask: Ask = async (request, { signal, session, onText }) => {
+const ask: Ask = async (request, { signal, session, onText, onActivity }) => {
   harness.codexCalls.push({ request, session });
   if (request.question === "fail") throw new Error("Test failure");
   if (request.question === "stream") {
@@ -78,6 +78,7 @@ const ask: Ask = async (request, { signal, session, onText }) => {
     let text = "";
     harness.stream = {
       update: next => { text = next; onText?.(next); },
+      activity: next => onActivity?.(next),
       finish: () => finished.resolve(),
     };
     await finished.promise.finally(() => signal.removeEventListener("abort", abort));

@@ -63,6 +63,10 @@ async function respond(request: Request): Promise<void> {
         break;
       }
       if (mode !== "silent") {
+        event("item/started", { item: { type: "webSearch", id: "search-1", query: "ring upgrades", action: { type: "search" } } });
+        event("item/started", { item: { type: "reasoning", id: "reasoning-1", summary: [], content: [] } });
+        event("item/reasoning/summaryTextDelta", { itemId: "reasoning-1", summaryIndex: 0, delta: "**Checking" });
+        event("item/reasoning/summaryTextDelta", { itemId: "reasoning-1", summaryIndex: 0, delta: " stats**\n\nComparing the rings." });
         event("item/started", { item: { ...item, id: "commentary-1", phase: "commentary" } });
         event("item/agentMessage/delta", { itemId: "commentary-1", delta: "Searching the web" });
         event("item/completed", { item: { ...item, id: "commentary-1", phase: "commentary", text: "Searching the web" } });

@@ -40,6 +40,20 @@ test("answer text arrives before completion, excluding commentary and unrelated 
   assert.equal(answer.text, "Answer to: Hello");
 });
 
+test("activity follows web searches, reasoning headlines and commentary, but never the answer", async () => {
+  let activities: readonly string[] = [];
+  await run("stream", { onActivity: activity => { activities = [...activities, activity]; } });
+  assert.deepEqual(activities, [
+    "Searching the web for “ring upgrades”",
+    "Checking",
+    "Checking stats",
+    "Searching the web",
+    "Writing the reply",
+    "Searched the web",
+    "Writing the reply",
+  ]);
+});
+
 test("cancellation during streaming stops the unfinished answer", async () => {
   const controller = new AbortController();
   await assert.rejects(run("stream", {
