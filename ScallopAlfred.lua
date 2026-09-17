@@ -277,8 +277,8 @@ end
 -- Subject presets ask about the hovered subject straight away. With nothing hovered, a targeted NPC offers the
 -- target preset and otherwise the topics open the editor, unless the topic carries its own question. Custom opens
 -- the editor either way. Text can depend on the subject. A contextual topic has `available` and only shows when it
--- returns true. Contextual presets are green and sit above the
--- generic topics, which are red. Custom is grey.
+-- returns true. An `always` topic also shows beside a hovered subject or target. Contextual presets are green and sit
+-- above the generic topics, which are red. Custom is grey.
 local presets = {
     { kind = "subject", text = defaultQuestion },
     { kind = "subject", text = "Is it an upgrade?", itemOnly = true, category = "gear" },
@@ -289,9 +289,9 @@ local presets = {
         kind = "topic", text = "Great Vault", category = "vault", question = "Which Great Vault reward should I pick?",
         available = function() return Read(C_WeeklyRewards.HasAvailableRewards) == true end,
     },
-    { kind = "topic", text = "Game mechanics", category = "mechanics" },
-    { kind = "topic", text = "Professions", category = "professions" },
-    { kind = "topic", text = "My gear", category = "gear" },
+    { kind = "topic", text = "Game mechanics", category = "mechanics", always = true },
+    { kind = "topic", text = "Professions", category = "professions", always = true },
+    { kind = "topic", text = "My gear", category = "gear", always = true },
     { kind = "topic", text = "Make gold", category = "gold", question = "How should I make gold with what I have?" },
     { kind = "custom", text = "Custom question" },
 }
@@ -308,7 +308,9 @@ end
 local function presetAvailable(preset, subject, target)
     if preset.kind == "custom" then return true end
     if preset.kind == "target" then return subject == nil and target ~= nil end
-    if preset.kind == "topic" then return subject == nil and target == nil and (not preset.available or preset.available()) end
+    if preset.kind == "topic" then
+        return (preset.always or subject == nil and target == nil) and (not preset.available or preset.available())
+    end
     return subject ~= nil and (not preset.itemOnly or subject.type == "item")
 end
 

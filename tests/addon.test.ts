@@ -603,7 +603,7 @@ test("hovered quests, currencies and achievements retain their ID, name and tool
   }
 });
 
-test("a targeted NPC replaces the topics with a question about it", () => {
+test("a targeted NPC replaces the other topics with a question about it", () => {
   const game = addon();
   game.execute(`
     tooltipHidden = true
@@ -616,9 +616,10 @@ test("a targeted NPC replaces the topics with a question about it", () => {
   const grumbles = { type: "npc", name: "Grumbles", link: "npc:219013", tooltip: ["Grumbles", "Level 80 Elite"] };
   assert.deepEqual(request.subjects, [grumbles]);
   game.execute(`
-    -- The topics make way for it. Custom stays and asks about the target.
+    -- Only Game mechanics, Professions and My gear stay. Custom stays too and asks about the target.
     ScallopAlfred_Ask(); hintText = widgets[2].text
-    assert(not pcall(choose, "Game mechanics"))
+    assert(not pcall(choose, "Make gold"))
+    choose("My gear"); ScallopAlfred_Ask(); choose("Game mechanics"); ScallopAlfred_Ask()
     choose("Custom question")
     focused:SetText("How do I beat it?")
     focused.scripts.OnEnterPressed()
@@ -629,6 +630,7 @@ test("a targeted NPC replaces the topics with a question about it", () => {
     -- A hovered subject takes over the menu.
     tooltipHidden = false; ScallopAlfred_Ask()
     assert(not pcall(choose, "What should I know about my target?"))
+    choose("My gear")
     -- Players and restricted GUIDs are not NPCs.
     tooltipHidden = true
     for _, guid in ipairs({ "Player-1234-0ABCDEF0", secret }) do
