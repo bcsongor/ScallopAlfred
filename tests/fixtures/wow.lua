@@ -20,6 +20,7 @@ function CreateFrame(kind, name, parent)
   if name then _G[name] = frame end
   return frame
 end
+function methods:CreateTexture() return setmetatable({}, metatable) end
 function methods:CreateFontString()
   local widget = setmetatable({}, metatable)
   widgets[#widgets + 1] = widget

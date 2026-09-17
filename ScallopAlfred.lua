@@ -276,21 +276,23 @@ end
 
 -- Subject presets ask about the hovered subject straight away. With nothing hovered, a targeted NPC offers the
 -- target preset and otherwise the topics open the editor, unless the topic carries its own question. Custom opens
--- the editor either way. Text can depend on the subject, and a topic with `available` only shows when it returns true.
+-- the editor either way. Text can depend on the subject. A contextual topic has `available` and only shows when it
+-- returns true. Contextual presets are green and sit above the
+-- generic topics, which are red. Custom is grey.
 local presets = {
     { kind = "subject", text = defaultQuestion },
     { kind = "subject", text = "Is it an upgrade?", itemOnly = true, category = "gear" },
     { kind = "subject", text = "Keep, sell or disenchant?", itemOnly = true },
     { kind = "subject", text = "Where does it drop?", itemOnly = true },
     { kind = "target", text = "What should I know about my target?" },
-    { kind = "topic", text = "Game mechanics", category = "mechanics" },
-    { kind = "topic", text = "Professions", category = "professions" },
-    { kind = "topic", text = "My gear", category = "gear" },
-    { kind = "topic", text = "Make gold", category = "gold", question = "How should I make gold with what I have?" },
     {
         kind = "topic", text = "Great Vault", category = "vault", question = "Which Great Vault reward should I pick?",
         available = function() return Read(C_WeeklyRewards.HasAvailableRewards) == true end,
     },
+    { kind = "topic", text = "Game mechanics", category = "mechanics" },
+    { kind = "topic", text = "Professions", category = "professions" },
+    { kind = "topic", text = "My gear", category = "gear" },
+    { kind = "topic", text = "Make gold", category = "gold", question = "How should I make gold with what I have?" },
     { kind = "custom", text = "Custom question" },
 }
 
@@ -413,10 +415,19 @@ end)
 for index, preset in ipairs(presets) do
     local button = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
     button:SetHeight(28)
-    if preset.kind == "custom" then
+    local contextual = preset.kind == "subject" or preset.kind == "target" or preset.available ~= nil
+    if contextual or preset.kind == "custom" then
         for _, region in ipairs({ button:GetRegions() }) do
             if region:IsObjectType("Texture") then region:SetDesaturated(true) end
         end
+    end
+    -- The button art is too dark for a tint to show, so contextual buttons add green light inside the bevel.
+    if contextual then
+        local glow = button:CreateTexture(nil, "BORDER")
+        glow:SetPoint("TOPLEFT", 3, -3)
+        glow:SetPoint("BOTTOMRIGHT", -3, 3)
+        glow:SetColorTexture(0.05, 0.28, 0.08)
+        glow:SetBlendMode("ADD")
     end
     button:SetScript("OnClick", function()
         if preset.kind == "subject" then
