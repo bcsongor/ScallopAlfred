@@ -39,7 +39,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   let view: View = history.list().length || history.listArchived().length ? { kind: "history" } : { kind: "thread" };
   let theme = config.theme;
   /** The question in flight, the text Codex has produced for it so far and what it is doing now. */
-  let running: { cancel: AbortController; threadId: string; draft: string; startedAt: number; activity?: string } | undefined;
+  let running: { cancel: AbortController; threadId: string; draft: string; activity?: string } | undefined;
   /** The thread a follow-up continues, set only while the editor is open. */
   let followup: Thread | undefined;
   /** Threads Codex is naming, by ID. A newer rename of the same thread cancels the naming. */
@@ -59,7 +59,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
         id: view.notice ? undefined : view.thread?.id,
         state: overlayState(view),
         titleSubjects: view.notice ? undefined : view.thread?.titleSubjects,
-        progress: running && running.threadId === view.thread?.id ? { startedAt: running.startedAt, activity: running.activity } : undefined,
+        progress: running && running.threadId === view.thread?.id ? { activity: running.activity } : undefined,
         turns: (thread?.turns ?? []).map(turn => ({ ...turn, html: turn.status !== "error" && turn.text ? renderMarkdown(turn.text) : null })),
         canFollowup: openThread() !== undefined,
         fontSize: config.fontSize,
@@ -170,7 +170,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     const cancel = new AbortController();
     const timeout = AbortSignal.timeout(config.timeoutSeconds * 1000);
     const signal = AbortSignal.any([cancel.signal, timeout, quit.signal]);
-    running = { cancel, threadId: started.id, draft: "", startedAt: Date.now() };
+    running = { cancel, threadId: started.id, draft: "" };
     show(saved, true);
     const onScreen = (): boolean => view.kind === "thread" && view.thread?.id === started.id && !view.notice;
     // Only the reply on screen is re-rendered, so earlier turns and the tray stay untouched.

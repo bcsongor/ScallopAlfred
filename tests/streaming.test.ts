@@ -9,10 +9,9 @@ test("streaming renders safe Markdown and preserves the reader's position", { ti
   await desktop.waitForStatus("ready");
   await desktop.copy(request("stream"));
   await desktop.waitForStatus("thinking");
-  // A status line shows what Codex is doing and how long it has taken, until the reply finishes.
+  // A status line shows what Codex is doing, until the reply finishes.
   const progress = page.getByRole("status");
   assert.equal(await progress.locator(".activity").textContent(), "Thinking…");
-  assert.match(await progress.locator(".elapsed").innerText(), /^\d+s$/);
   await desktop.app.evaluate(() => harness.stream?.activity("Searching the web for “rings”"));
   await progress.locator(".activity", { hasText: "Searching the web for “rings”" }).waitFor();
   await update("**Par");

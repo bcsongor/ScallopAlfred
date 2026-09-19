@@ -11,8 +11,8 @@ export type OverlayState = {
   notice?: string;
 };
 
-/** A running reply: when it started and what Codex is doing, for the status line under it. */
-export type Progress = { startedAt: number; activity?: string };
+/** A running reply: what Codex is doing, for the status line under it. */
+export type Progress = { activity?: string };
 
 export type ToOverlay = {
   reply: { id: string; html: string };

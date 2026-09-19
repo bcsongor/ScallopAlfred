@@ -431,11 +431,9 @@ body[data-status="history"] #answer {
   white-space: pre-wrap;
 }
 
-/* What Codex is doing and for how long, under a reply that is still being written. */
+/* What Codex is doing, under a reply that is still being written. */
 .progress {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
   margin-top: 6px;
   color: var(--muted);
 }
@@ -457,10 +455,6 @@ body[data-status="history"] #answer {
   animation: shine 2.6s ease-in-out infinite;
 }
 
-.progress .elapsed {
-  margin-left: auto;
-}
-
 @keyframes shine {
   from {
     background-position: 100% 0;
@@ -476,11 +470,6 @@ body[data-status="history"] #answer {
     background: none;
     color: var(--muted);
   }
-}
-
-.progress .elapsed {
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
 }
 
 .turn[data-status="thinking"] .response:empty + .progress {
