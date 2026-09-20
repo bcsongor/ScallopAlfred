@@ -115,7 +115,7 @@ export const requestSchema = z.object({
   context: z.string().min(1).max(128),
   thread: z.enum(["new", "continue", "followup"]),
   question: z.string().trim().min(1).max(2000),
-  category: z.enum(["mechanics", "professions", "gear", "gold", "vault"]).optional(),
+  category: z.enum(["mechanics", "professions", "gear", "gold", "vault", "altar", "codex"]).optional(),
   player: z.object({
     class: z.string().max(64),
     spec: z.string().max(64),
@@ -140,6 +140,39 @@ export const requestSchema = z.object({
   }).optional(),
   // Great Vault rewards on offer this week, items and currencies, from the Great Vault topic only.
   vault: z.array(subjectSchema).max(12).optional(),
+  // The Altar of Corrosion tree, from the Altar of Corrosion topic only.
+  altar: z.object({
+    capturedAt: whole,
+    unspent: whole.optional(),
+    spent: whole.optional(),
+    hasStagedChanges: z.boolean().optional(),
+    nodes: z.array(z.object({
+      id: whole,
+      rank: whole,
+      maxRank: whole.optional(),
+      available: z.boolean().optional(),
+      // Prerequisites met, whether or not the player has points to spend.
+      reachable: z.boolean().optional(),
+      // A choice node's entries are alternatives; a tiered node's are its ranks.
+      choice: z.boolean().optional(),
+      entries: z.array(z.object({
+        name: z.string().max(256),
+        description: z.string().max(1024).optional(),
+        selected: z.boolean().optional(),
+      })).max(8),
+    })).max(64),
+  }).optional(),
+  // The Corrosive Codex as its open window lists it, from the Corrosive Codex topic only.
+  codex: z.object({
+    capturedAt: whole,
+    souls: whole.optional(),
+    powers: z.array(z.object({
+      name: z.string().max(256),
+      description: z.string().max(1024).optional(),
+      active: z.boolean().optional(),
+      locked: z.boolean().optional(),
+    })).max(12),
+  }).optional(),
 });
 
 export type WoWRequest = z.infer<typeof requestSchema>;

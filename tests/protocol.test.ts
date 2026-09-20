@@ -128,3 +128,14 @@ test("TSM snapshots survive validation and reach the prompt with explicit units"
     assert.throws(() => parseRequest(copied(withPrices(invalid))));
   }
 });
+
+test("Altar and Codex snapshots are bounded", () => {
+  const node = { id: 110465, rank: 1, maxRank: 1, entries: [{ name: "Venomous Hunt", selected: true }] };
+  const altar = { capturedAt: 1800000000, unspent: 3, nodes: [node] };
+  assert.deepEqual(parseRequest(copied({ ...request, category: "altar", altar }))?.altar, altar);
+  assert.throws(() => parseRequest(copied({ ...request, altar: { ...altar, nodes: Array(65).fill(node) } })));
+  const power = { name: "Ophidian Maw", active: true };
+  const codex = { capturedAt: 1800000000, souls: 9, powers: [power] };
+  assert.deepEqual(parseRequest(copied({ ...request, category: "codex", codex }))?.codex, codex);
+  assert.throws(() => parseRequest(copied({ ...request, codex: { ...codex, powers: Array(13).fill(power) } })));
+});

@@ -37,12 +37,14 @@ local tsmSources = {
     craftingCopper = "Crafting",
 }
 
+-- WoW's |n escape becomes a real line break in the copy box, which JSON forbids, so it is made a newline here
+-- and escaped with the rest.
 local function plainText(text)
     text = Public(text, "string")
     if not text then return end
     return (text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
         :gsub("|T.-|t", ""):gsub("|A.-|a", "")
-        :gsub("|H.-|h(.-)|h", "%1"))
+        :gsub("|H.-|h(.-)|h", "%1"):gsub("|n", "\n"))
 end
 
 -- Inventory.lua and Recipes.lua load first, so they look these two up when they run, not when they load.
@@ -255,6 +257,8 @@ local function buildRequest(question, subject, category, thread)
         recipes = gold and Read(addon.GetRecipes) or nil,
         talents = gear and Read(addon.GetTalents) or nil,
         vault = vault and vaultRewards() or nil,
+        altar = category == "altar" and Read(addon.GetAltar) or nil,
+        codex = category == "codex" and Read(addon.GetCodex) or nil,
     }
 end
 
@@ -288,6 +292,14 @@ local presets = {
     {
         kind = "topic", text = "Great Vault", category = "vault", question = "Which Great Vault reward should I pick?",
         available = function() return Read(C_WeeklyRewards.HasAvailableRewards) == true end,
+    },
+    {
+        kind = "topic", text = "Altar of Corrosion", category = "altar",
+        question = "What should I unlock next at the Altar of Corrosion?", available = addon.AltarAvailable,
+    },
+    {
+        kind = "topic", text = "Corrosive Codex", category = "codex",
+        question = "Which Corrosive Codex power should I unlock or equip next?", available = addon.CodexAvailable,
     },
     { kind = "topic", text = "Game mechanics", category = "mechanics", always = true },
     { kind = "topic", text = "Professions", category = "professions", always = true },

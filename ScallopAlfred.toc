@@ -9,6 +9,8 @@
 Core.lua
 Professions.lua
 Talents.lua
+Altar.lua
+Codex.lua
 Inventory.lua
 Recipes.lua
 ScallopAlfred.lua
