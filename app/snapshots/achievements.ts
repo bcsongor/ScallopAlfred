@@ -8,6 +8,7 @@ export const achievementSchema = z.object({
   description: longText.optional(),
   points: whole.optional(),
   completed: z.boolean().optional(),
+  earnedByMe: z.boolean().optional(),
   earnedBy: shortText.optional(),
   reward: longText.optional(),
   criteria: z.array(z.object({
@@ -19,4 +20,4 @@ export const achievementSchema = z.object({
   })).max(40),
 });
 
-export const achievementNotes = "An achievement carries its criteria, each completed when done, with quantity against required on the ones that count up. A criterion without those two is a single step, done or not. completed on the achievement itself means any character on the account earned it, and earnedBy names that character, so compare it with the player's name before telling them they have it.";
+export const achievementNotes = "An achievement carries its criteria, each completed when done, with quantity against required on the ones that count up. A criterion without those two is a single step, done or not. completed on the achievement itself means any character on the account earned it, and earnedByMe is true when this character did. earnedBy names the character who earned it, but WoW supplies it only for account-wide achievements, so its absence means nothing.";

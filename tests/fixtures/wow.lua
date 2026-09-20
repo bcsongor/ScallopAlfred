@@ -94,7 +94,8 @@ Enum = {
 
 -- The Achievements window is closed until a test sets `achievementWindow` to the selected ID, or to 0 for a
 -- window with nothing selected. Achievements come from `achievementData`, keyed by ID:
--- `{ name, points, completed, description, reward, criteria = { { name, completed, quantity, required } } }`.
+-- `{ name, points, completed, earnedByMe, earnedBy, description, reward,
+--    criteria = { { name, completed, quantity, required } } }`.
 AchievementFrame = { IsShown = function() return achievementWindow ~= nil end }
 function AchievementFrameAchievements_GetSelectedAchievementId() return achievementWindow or 0 end
 local function achievement(id) return achievementData and achievementData[id] end
@@ -104,7 +105,7 @@ function GetAchievementInfo(id)
   -- id, name, points, completed, month, day, year, description, flags, icon, rewardText, isGuild,
   -- wasEarnedByMe, earnedBy.
   return id, entry.name, entry.points, entry.completed, nil, nil, nil, entry.description, nil, nil,
-    entry.reward, nil, nil, entry.earnedBy
+    entry.reward, nil, entry.earnedByMe, entry.earnedBy
 end
 function GetAchievementNumCriteria(id)
   local entry = achievement(id)

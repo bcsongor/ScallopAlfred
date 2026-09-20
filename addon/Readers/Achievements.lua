@@ -46,8 +46,9 @@ function Achievements.Read(achievementID)
         description = PlainText(info[8]),
         points = Count(info[3]),
         completed = Public(info[4], "boolean") or nil,
+        earnedByMe = Public(info[13], "boolean") or nil,
         reward = reward ~= "" and reward or nil,
-        -- The character who earned it, which is the player's own only when they did.
+        -- WoW names the character only for account-wide achievements, so this is often absent.
         earnedBy = earnedBy ~= "" and earnedBy or nil,
         criteria = criteria(achievementID),
     }
