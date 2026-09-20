@@ -35,8 +35,8 @@ test("requests above the old 64 KB ceiling still parse", () => {
 });
 
 test("the app accepts exactly the categories the addon's topics send", () => {
-  const folder = join(import.meta.dirname, "..", "Addon", "Topics");
-  const sent = readdirSync(folder).flatMap(file => [...read(`Addon/Topics/${file}`).matchAll(/category = "([a-z]+)"/g)].map(match => match[1]));
+  const folder = join(import.meta.dirname, "..", "addon", "Topics");
+  const sent = readdirSync(folder).flatMap(file => [...read(`addon/Topics/${file}`).matchAll(/category = "([a-z]+)"/g)].map(match => match[1]));
   assert.deepEqual(new Set(sent), new Set(categories));
 });
 

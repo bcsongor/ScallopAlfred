@@ -7,27 +7,27 @@
 ## Version: 0.1.0
 
 # Load order is the dependency order: helpers, readers, topics in menu order, then the request and the UI.
-Addon/Core.lua
+addon/Core.lua
 
-Addon/Readers/Subjects.lua
-Addon/Readers/Equipment.lua
-Addon/Readers/Professions.lua
-Addon/Readers/Talents.lua
-Addon/Readers/Inventory.lua
-Addon/Readers/Recipes.lua
-Addon/Readers/TraitTree.lua
-Addon/Readers/PlayerChoice.lua
+addon/Readers/Subjects.lua
+addon/Readers/Equipment.lua
+addon/Readers/Professions.lua
+addon/Readers/Talents.lua
+addon/Readers/Inventory.lua
+addon/Readers/Recipes.lua
+addon/Readers/TraitTree.lua
+addon/Readers/PlayerChoice.lua
 
-Addon/Topics/Hover.lua
-Addon/Topics/Target.lua
-Addon/Topics/GreatVault.lua
-Addon/Topics/AltarOfCorrosion.lua
-Addon/Topics/CorrosiveCodex.lua
-Addon/Topics/Mechanics.lua
-Addon/Topics/Professions.lua
-Addon/Topics/Gear.lua
-Addon/Topics/Gold.lua
+addon/Topics/Hover.lua
+addon/Topics/Target.lua
+addon/Topics/GreatVault.lua
+addon/Topics/AltarOfCorrosion.lua
+addon/Topics/CorrosiveCodex.lua
+addon/Topics/Mechanics.lua
+addon/Topics/Professions.lua
+addon/Topics/Gear.lua
+addon/Topics/Gold.lua
 
-Addon/Request.lua
-Addon/Dialog.lua
-Addon/Main.lua
+addon/Request.lua
+addon/Dialog.lua
+addon/Main.lua
