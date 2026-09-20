@@ -1,6 +1,7 @@
 ## Interface: 120100, 120007, 120001
 ## Title: Scallop Alfred
 ## IconTexture: Interface\Icons\INV_Misc_Shell_03
+## AddonCompartmentFunc: ScallopAlfred_Show
 ## Notes: Alfred knows more about Azeroth than he lets on. Ask quietly.
 ## Category: Scallop
 ## Author: bcsongor

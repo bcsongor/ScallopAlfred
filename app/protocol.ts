@@ -6,6 +6,11 @@ import { categories, topicFields } from "./topics/index.ts";
 
 const requestPrefix = "SCALLOPALFRED:";
 
+/** The addon's minimap compartment entry copies this, followed by a fresh ID, to bring back a hidden overlay. */
+const showPrefix = "SCALLOPALFRED:SHOW";
+
+export const isShowCommand = (text: string): boolean => text.startsWith(showPrefix);
+
 export const requestSchema = z.object({
   id: z.string().min(1).max(128),
   context: z.string().min(1).max(128),
@@ -37,4 +42,13 @@ export function parseRequest(text: string): WoWRequest | undefined {
   } catch {
     throw new Error("Invalid Scallop Alfred request. Reload WoW's UI and restart the desktop app, then copy the question again.");
   }
+}
+
+export type ClipboardMessage = { kind: "show" } | { kind: "ask"; request: WoWRequest };
+
+/** Recognises the show command or a request. Throws for a request that doesn't validate. */
+export function parseClipboard(text: string): ClipboardMessage | undefined {
+  if (isShowCommand(text)) return { kind: "show" };
+  const request = parseRequest(text);
+  return request && { kind: "ask", request };
 }

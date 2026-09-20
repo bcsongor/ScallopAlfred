@@ -58,6 +58,8 @@ export async function launch(t: TestContext, settings?: Partial<Config>) {
     },
     /** Copies a request the way the addon's copy box does. */
     copy: (value: WoWRequest) => session.app.evaluate((_electron, text) => { harness.clipboard = text; }, `SCALLOPALFRED:${JSON.stringify(value)}`),
+    /** Copies the show command the addon's minimap compartment entry offers. */
+    copyShowCommand: () => session.app.evaluate((_electron, text) => { harness.clipboard = text; }, `SCALLOPALFRED:SHOW show-${++sequence}`),
     clipboard: () => session.app.evaluate(() => harness.clipboard),
     codexCalls: (): Promise<CodexCall[]> => session.app.evaluate(() => harness.codexCalls),
     iconRequests: () => session.app.evaluate(() => harness.iconRequests),

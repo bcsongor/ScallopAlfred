@@ -202,7 +202,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   }
 
   /** A follow-up from the game continues the thread on screen, or starts a new one when there isn't one to continue. */
-  function answerCopied(request: WoWRequest): Promise<void> {
+  async function answerCopied(request: WoWRequest): Promise<void> {
     if (request.thread === "followup") {
       const thread = openThread();
       return thread
@@ -218,13 +218,10 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
       paused: () => running !== undefined || followup !== undefined,
       onInvalid: error => showNotice("Couldn't read the request", error),
     });
-    for await (const request of copies) {
-      try {
-        overlay.raise();
-        await answerCopied(request);
-      } catch (error) {
-        showNotice("Couldn't start the question", error);
-      }
+    // The reply runs in the background so a show command still comes through while Codex works.
+    for await (const copied of copies) {
+      overlay.raise();
+      if (copied.kind === "ask") answerCopied(copied.request).catch((error: unknown) => showNotice("Couldn't start the question", error));
     }
   }
 

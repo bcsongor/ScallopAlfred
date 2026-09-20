@@ -1,5 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
-import { parseRequest, type WoWRequest } from "./protocol.ts";
+import { isShowCommand, parseClipboard, type ClipboardMessage } from "./protocol.ts";
 
 export type Clipboard = {
   readText(): Promise<string>;
@@ -8,28 +8,28 @@ export type Clipboard = {
 
 type WatchOptions = {
   signal: AbortSignal;
-  /** While this returns true the clipboard is not read, so copies made meanwhile collapse to the latest. */
+  /** While this returns true requests are left on the clipboard, so copies made meanwhile collapse to the latest. */
   paused: () => boolean;
   onInvalid: (error: Error) => void;
   interval?: number;
 };
 
 /**
- * Yields requests copied after watching starts, ignoring unrelated text. The clipboard is also not read
- * while the caller handles the previous request. Ends when the signal aborts.
+ * Yields messages copied after watching starts, ignoring unrelated text. Requests wait while paused and only
+ * the latest is seen afterwards; the show command comes through straight away. Ends when the signal aborts.
  */
-export async function* watchClipboard(clipboard: Clipboard, { signal, paused, onInvalid, interval = 250 }: WatchOptions): AsyncGenerator<WoWRequest, void> {
+export async function* watchClipboard(clipboard: Clipboard, { signal, paused, onInvalid, interval = 250 }: WatchOptions): AsyncGenerator<ClipboardMessage, void> {
   let previous = await clipboard.readText().catch(() => "");
   try {
     while (true) {
       await delay(interval, undefined, { signal });
-      if (paused()) continue;
       const text = await clipboard.readText().catch(() => previous);
       if (text === previous) continue;
+      if (paused() && !isShowCommand(text)) continue;
       previous = text;
       try {
-        const request = parseRequest(text);
-        if (request) yield request;
+        const message = parseClipboard(text);
+        if (message) yield message;
       } catch (error) {
         onInvalid(error instanceof Error ? error : new Error(String(error)));
       }

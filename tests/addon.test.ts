@@ -417,3 +417,13 @@ test("restricted hover values and combat link insertion are omitted", () => {
   `);
   assert.deepEqual(game.payload().subjects, []);
 });
+
+test("the minimap compartment entry opens the copy box with the show command", () => {
+  assert.match(read("ScallopAlfred.toc"), /^## AddonCompartmentFunc: ScallopAlfred_Show$/m);
+  const game = addon();
+  game.execute('ScallopAlfred_Show("ScallopAlfred", "ScallopAlfredButton"); assert(ScallopAlfredDialog:IsVisible() and focused ~= nil)');
+  const first = game.value("copied") ?? "";
+  assert.match(first, /^SCALLOPALFRED:SHOW \S+$/);
+  game.execute('ScallopAlfred_Show("ScallopAlfred", "ScallopAlfredButton")');
+  assert.notEqual(game.value("copied"), first);
+});

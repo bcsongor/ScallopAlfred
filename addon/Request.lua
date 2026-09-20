@@ -68,3 +68,8 @@ end
 function addon.EncodeRequest(request)
     return "SCALLOPALFRED:" .. json(request)
 end
+
+-- The show command carries a fresh ID so copying it twice in a row is seen twice.
+function addon.EncodeShowCommand()
+    return "SCALLOPALFRED:SHOW " .. nextID()
+end

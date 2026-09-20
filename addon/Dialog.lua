@@ -187,3 +187,8 @@ function ScallopAlfred_Ask()
     dialog:SetHeight(115 + shown * 34)
     dialog:Show()
 end
+
+-- The Scallop Alfred entry in the minimap's addon compartment. The app raises a hidden overlay when this is copied.
+function ScallopAlfred_Show()
+    showCopyBox(addon.EncodeShowCommand())
+end

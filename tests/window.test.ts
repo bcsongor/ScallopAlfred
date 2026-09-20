@@ -66,4 +66,18 @@ test("the overlay stays above the game without taking focus", { timeout: 30000 }
   await desktop.clickTray("Cancel question");
   await desktop.waitForAnswer("Question cancelled. Retry from the tray menu when ready.");
   assert.equal((await desktop.window()).visible, false);
+
+  // The show command from the minimap brings a hidden overlay back, even while a reply is running.
+  await desktop.copyShowCommand();
+  await until(async () => (await desktop.window()).visible);
+  assert.deepEqual(await desktop.window(), shown);
+  await desktop.copy(request("wait"));
+  await desktop.waitForStatus("thinking");
+  await hide.click();
+  await until(async () => !(await desktop.window()).visible);
+  await desktop.copyShowCommand();
+  await until(async () => (await desktop.window()).visible);
+  assert.deepEqual(await desktop.window(), shown);
+  await desktop.clickTray("Cancel question");
+  await desktop.waitForAnswer("Question cancelled. Retry from the tray menu when ready.");
 });

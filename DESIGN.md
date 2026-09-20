@@ -72,11 +72,13 @@ A request is one line, `SCALLOPALFRED:` followed by JSON:
 
 The optional `equipped`, `professions`, `talents`, `inventory`, `recipes` and per-subject `tsm` fields are snapshots, so follow-ups reuse them. `inventory` carries the player's copper and whether the bank and Warband bank were readable; `recipes` carries the open profession and its skill level. Money is in copper, and `capturedAt` is the Unix time in seconds when the addon read the data, not when TSM last refreshed. `protocol.ts` defines every field and limit. A request from a mismatched addon fails validation, so update the addon and app together.
 
+The addon's entry in the minimap's addon compartment, declared with `AddonCompartmentFunc` in the TOC, offers `SCALLOPALFRED:SHOW` followed by a fresh ID for copying, so copying it twice in a row is seen twice. The app raises the overlay when it sees it and starts no question.
+
 ## Desktop app
 
 ### Clipboard polling
 
-The app checks the clipboard every 250 ms. It ignores what was there at launch and anything that doesn't parse as a request. Polling pauses while Codex runs or the follow-up editor is open. When it resumes it only sees the latest clipboard contents, so copies made in between are dropped.
+The app checks the clipboard every 250 ms. It ignores what was there at launch and anything that doesn't parse as a request. While Codex runs or the follow-up editor is open, requests stay on the clipboard unread, so only the latest is seen once polling resumes and copies made in between are dropped. The show command still comes through, so a hidden overlay can be brought back mid-reply.
 
 ### Codex
 
@@ -93,7 +95,7 @@ A follow-up resumes only when its context matches that session. Codex keeps its 
 The window is transparent, frameless, always on top and not focusable, so it never takes the keyboard from WoW. Several quirks of Electron on Windows shape `overlay.ts`:
 
 - Electron's default always-on-top level doesn't always make the window topmost on Windows, so the overlay uses the `"screen-saver"` level. Something outside the app can also clear the flag without Electron emitting an event, which leaves the overlay behind WoW. While the overlay is visible, it checks the flag every second and restores it.
-- New clipboard questions and the tray call `raise`, which also calls `moveTop`. Other updates only show a hidden window and restore the topmost flag, leaving focus and window order alone.
+- New clipboard questions, the show command and the tray call `raise`, which also calls `moveTop`. Other updates only show a hidden window and restore the topmost flag, leaving focus and window order alone.
 - The follow-up editor makes the window focusable and focuses it, and so does a plain click on a reply that can be followed up, so Enter can open the editor. Windows ties taskbar visibility to focusability, so the app reapplies `setSkipTaskbar(true)`. Nothing hands focus back, so the player clicks into WoW. Hiding makes the window non-focusable again.
 - Chromium's window animations are off on Windows because they flash the transparent window.
 - Native resizing is off. The drag handle sends heights to the main process, which clamps them to 320 to 900 pixels and the space below the window.

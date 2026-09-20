@@ -46,7 +46,7 @@ Replies appear as Codex writes them. A line under the reply shows what Codex is 
 - **Follow up** continues the thread with the same game data. Ask again from WoW to refresh it. Click the reply, then press Enter to open the editor and Enter again to send.
 - **Double-click the title** to rename the thread. Enter keeps the name and Escape drops it. Leave it empty and Codex names the thread from the conversation.
 - **←** lists your saved threads. Items in thread titles keep their in-game quality colours. The box icon archives a thread. Archived threads are read-only and collapsed at the bottom. Open the heading to see them five at a time, then use the arrow to unarchive one or the bin to delete it.
-- **Hide** hides the overlay while replies keep running. Click the tray icon to bring it back.
+- **Hide** hides the overlay while replies keep running. Click the tray icon to bring it back, or from the game open the addon compartment on the minimap, click **Scallop Alfred** and copy the command it shows.
 - Drag the bottom edge to change the height.
 
 After typing a follow-up, click back into WoW to give it the keyboard.
