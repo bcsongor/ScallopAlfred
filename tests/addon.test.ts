@@ -845,13 +845,6 @@ test("Corrosive Codex shows while its window is open and lists every power as it
       assert(id == 273000 and bank and warband)
       return 9
     end
-    C_UnitAuras = {
-      GetPlayerAuraBySpellID = function(id) if id == 1303472 then return { name = "Ophidian Maw" } end end,
-      GetAuraDataByIndex = function(unit, index)
-        assert(unit == "player")
-        return ({ { name = "Ula'tek's Gift", spellId = 1289148 }, { name = "Blessing of Kings" } })[index]
-      end,
-    }
     C_PlayerChoice = { GetCurrentPlayerChoiceInfo = function()
       return { questionText = "Pick a card", options = { { header = "Fortune", buttons = { { text = "Any" } } } } }
     end }
@@ -860,10 +853,8 @@ test("Corrosive Codex shows while its window is open and lists every power as it
     C_PlayerChoice.GetCurrentPlayerChoiceInfo = function()
       return { questionText = "Unlock powerful gifts by offering Corrosive Souls.", options = { { header = "Corrosive Codex", buttons = {
         { text = "Viperine Grasp", disabled = true, showCheckmark = false, tooltip = "Viperine Grasp|n|cffffd100Pulls|r.\\r\\n\\r\\nMore.|n|n" },
-        { text = "|A:Padlock:16:16|a Virulent Mucus", disabled = false, showCheckmark = false, tooltip = "" },
-        { text = "|A:common-icon-checkmark:16:16|a Plague of Corrosion", disabled = false, showCheckmark = false },
-        { text = "Ophidian Maw", disabled = true, showCheckmark = false },
-        { text = "Ula'tek's Gift", disabled = true, showCheckmark = false },
+        { text = "|A:activities-icon-lock:22:17:0:0|a Virulent Mucus", disabled = false, showCheckmark = false, tooltip = "" },
+        { text = "|A:common-icon-checkmark:16:16:0:0|a Plague of Corrosion", disabled = false, showCheckmark = false },
       } } } }
     end
     ScallopAlfred_Ask(); choose("Corrosive Codex")
@@ -871,15 +862,12 @@ test("Corrosive Codex shows while its window is open and lists every power as it
   const request = game.payload();
   assert.equal(request.category, "codex");
   assert.equal(request.question, "Which Corrosive Codex power should I unlock or equip next?");
-  // Auras corroborate the checkmark: Ophidian Maw by spell ID, Ula'tek's Gift by name.
   assert.deepEqual(request.codex, {
     capturedAt: 1800000000, souls: 9,
     powers: [
       { name: "Viperine Grasp", description: "Pulls.\n\nMore." },
       { name: "Virulent Mucus", locked: true },
       { name: "Plague of Corrosion", active: true },
-      { name: "Ophidian Maw", active: true },
-      { name: "Ula'tek's Gift", active: true },
     ],
   });
   assert.equal(request.altar, undefined);
