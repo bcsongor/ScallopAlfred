@@ -62,13 +62,11 @@ local function activeNames()
     return active
 end
 
--- The tooltip opens with the power's name and a line break, so everything up to the first ASCII word or
--- punctuation goes; descriptions start with words.
+-- The tooltip repeats the power's name on its first line.
 local function tooltipDescription(name, tooltip)
     local description = addon.PlainText(tooltip)
     if not description then return end
-    description = description:gsub("\r\n", "\n"):gsub("^" .. name:gsub("%p", "%%%0"), ""):gsub("^[^%w%p]+", "")
-    description = strtrim(description)
+    description = strtrim((description:gsub("\r\n", "\n"):gsub("^" .. name:gsub("%p", "%%%0"), "")))
     if description ~= "" and #description <= 1024 then return description end
 end
 
