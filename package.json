@@ -12,7 +12,7 @@
   "scripts": {
     "start": "electron --experimental-strip-types .",
     "check": "tsc --noEmit && tsc --noEmit -p tests",
-    "test": "node --test tests/*.test.ts"
+    "test": "node --test \"tests/**/*.test.ts\""
   },
   "engines": {
     "node": ">=24"

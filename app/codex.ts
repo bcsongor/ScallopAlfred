@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
@@ -7,6 +7,7 @@ import { z } from "zod";
 import { connect, type Connection } from "./codex-connection.ts";
 import { applyEvent, type Run } from "./codex-events.ts";
 import type { Turn } from "./history.ts";
+import { buildPrompt } from "./prompt.ts";
 import type { WoWRequest } from "./protocol.ts";
 
 export type Session = { context: string; id: string };
@@ -55,7 +56,6 @@ export type ServerRequests = {
 
 const threadResult = z.object({ thread: z.object({ id: z.string().min(1) }) });
 const configResult = z.object({ config: z.object({ mcp_servers: z.record(z.string(), z.unknown()).nullish() }) });
-const promptTemplate = readFileSync(join(import.meta.dirname, "prompt.md"), "utf8").trimEnd();
 const apiKeyVariables = new Set(["OPENAI_API_KEY", "CODEX_API_KEY"]);
 
 export function createCodex({ codexPath, model, workspace }: CodexOptions): Codex {
@@ -128,10 +128,6 @@ export const codexArguments: readonly string[] = [
   "-c", "features.remote_plugin=false",
   "-c", "features.hooks=false",
 ];
-
-export function buildPrompt(request: WoWRequest): string {
-  return `${promptTemplate.replace("{{date}}", new Date().toISOString().slice(0, 10))}\n\n${JSON.stringify(request)}`;
-}
 
 const titleInstructions = [
   "Write a title for the conversation below between a World of Warcraft player and an assistant.",

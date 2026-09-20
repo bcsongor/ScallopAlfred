@@ -1,16 +1,13 @@
 import assert from "node:assert/strict";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
-import { buildPrompt, codexArguments, resumableSession } from "../app/codex.ts";
-import { parseRequest, type WoWRequest } from "../app/protocol.ts";
-
-const request: WoWRequest = {
-  id: "copy-1", context: "item-1", thread: "new", question: "What's this for?",
-  player: { class: "Druid", spec: "Restoration", level: 90, itemLevel: 310 }, gameVersion: "12.1.0",
-  subjects: [{ type: "item", name: 'Ring "of" stars', link: "item:123", tooltip: ["Line one\nLine two"] }],
-  equipped: [],
-};
-const copied = (value: unknown): string => `SCALLOPALFRED:${JSON.stringify(value)}`;
-const promptRequest = (prompt: string): unknown => JSON.parse(prompt.slice(prompt.lastIndexOf("\n{") + 1));
+import { codexArguments, resumableSession } from "../app/codex.ts";
+import { buildPrompt } from "../app/prompt.ts";
+import { parseRequest } from "../app/protocol.ts";
+import { categories } from "../app/topics/index.ts";
+import { read } from "./fixtures/addon.ts";
+import { baseRequest as request, copied, promptRequest } from "./fixtures/protocol.ts";
 
 test("parseRequest ignores unrelated text and rejects malformed or oversized requests", () => {
   assert.equal(parseRequest("ordinary clipboard text"), undefined);
@@ -19,6 +16,7 @@ test("parseRequest ignores unrelated text and rejects malformed or oversized req
   const epic = { ...request, subjects: [{ ...request.subjects[0], quality: 4 }] };
   assert.deepEqual(parseRequest(copied(epic)), epic);
   assert.throws(() => parseRequest(copied({ ...request, subjects: [{ ...request.subjects[0], quality: 9 }] })));
+  assert.throws(() => parseRequest(copied({ ...request, category: "invalid" })));
   for (const text of [
     "SCALLOPALFRED:{broken",
     copied({ ...request, player: {} }),
@@ -36,37 +34,10 @@ test("requests above the old 64 KB ceiling still parse", () => {
   assert.deepEqual(parseRequest(text), wordy);
 });
 
-test("gold topics carry inventory and recipe snapshots to the prompt", () => {
-  const inventory = {
-    capturedAt: 1800000000, moneyCopper: 12500000, bankIncluded: true, warbankIncluded: false,
-    items: [{
-      link: "item:210796", name: "Bismuth", quality: 1, bound: false,
-      count: { bags: 40, bank: 200, warbank: 0 }, auctionCount: 120, mailCount: 5,
-      tsm: { capturedAt: 1800000000, marketCopper: 45000, destroyCopper: 12000, craftingCopper: 38000 },
-    }],
-  };
-  const recipes = {
-    capturedAt: 1800000000, professionName: "Alchemy", skillLineID: 171, skillLevel: 75, maxSkillLevel: 100,
-    entries: [{
-      recipeID: 453344, name: "Algari Healing Potion", skillUps: 1, craftable: true,
-      output: { link: "item:211878", name: "Algari Healing Potion", quality: 2, quantityMin: 1, quantityMax: 2, tsm: { capturedAt: 1800000000, marketCopper: 90000 } },
-      reagents: [{ itemID: 210799, name: "Mycobloom", quantity: 3, marketCopper: 15000 }],
-    }],
-  };
-  const gold: WoWRequest = { ...request, category: "gold", inventory, recipes };
-  const parsed = parseRequest(copied(gold));
-  assert.deepEqual(parsed, gold);
-  assert.ok(parsed);
-  assert.deepEqual(promptRequest(buildPrompt(parsed)), gold);
-
-  const { bankIncluded, ...missingBank } = inventory;
-  for (const invalid of [
-    { ...gold, inventory: { ...inventory, items: Array(601).fill(inventory.items[0]) } },
-    { ...gold, recipes: { ...recipes, entries: [{ ...recipes.entries[0], reagents: Array(13).fill(recipes.entries[0].reagents[0]) }] } },
-    { ...gold, inventory: missingBank },
-  ]) {
-    assert.throws(() => parseRequest(copied(invalid)));
-  }
+test("the app accepts exactly the categories the addon's topics send", () => {
+  const folder = join(import.meta.dirname, "..", "Addon", "Topics");
+  const sent = readdirSync(folder).flatMap(file => [...read(`Addon/Topics/${file}`).matchAll(/category = "([a-z]+)"/g)].map(match => match[1]));
+  assert.deepEqual(new Set(sent), new Set(categories));
 });
 
 test("resume is restricted to the same thread context", () => {
@@ -83,34 +54,6 @@ test("runs keep the read-only sandbox, disabled tools and explicit model setting
   }
 });
 
-test("profession snapshots stay optional and bounded", () => {
-  const profession = {
-    name: "Alchemy", skillLineID: 171, skillLevel: 75, maxSkillLevel: 100,
-    expansions: [{ skillLineID: 2906, name: "Midnight Alchemy", expansionName: "Midnight", skillLevel: 75, maxSkillLevel: 100 }],
-    specialization: { skillLineID: 2906, unspentKnowledge: 0, paths: [] },
-  };
-  const parse = (entries: unknown[]) => parseRequest(copied({ ...request, professions: { capturedAt: 1800000000, entries } }));
-  assert.deepEqual(parse([profession])?.professions?.entries, [profession]);
-  assert.throws(() => parse(Array(6).fill(profession)));
-  assert.throws(() => parse([{ ...profession, skillLevel: -1 }]));
-  assert.throws(() => parse([{ ...profession, expansions: Array(33).fill(profession.expansions[0]) }]));
-  assert.throws(() => parse([{ ...profession, specialization: { ...profession.specialization, unspentKnowledge: "unknown" } }]));
-});
-
-test("gear topics retain bounded slot and talent data", () => {
-  const gear: WoWRequest = {
-    ...request, category: "gear", equipped: [{ ...request.subjects[0], type: "item", slot: 11 }],
-    talents: { capturedAt: 1800000000, selected: [{ spellID: 774, name: "Rejuvenation", rank: 1 }] },
-  };
-  const parsed = parseRequest(copied(gear));
-  assert.deepEqual(parsed, gear);
-  assert.ok(parsed);
-  assert.deepEqual(promptRequest(buildPrompt(parsed)), gear);
-  assert.throws(() => parseRequest(copied({ ...gear, category: "invalid" })));
-  assert.throws(() => parseRequest(copied({ ...gear, equipped: [{ ...gear.equipped?.[0], slot: 20 }] })));
-  assert.throws(() => parseRequest(copied({ ...gear, talents: { ...gear.talents, selected: Array(129).fill(gear.talents?.selected[0]) } })));
-});
-
 test("TSM snapshots survive validation and reach the prompt with explicit units", () => {
   const tsm = {
     capturedAt: 1800000000, minBuyoutCopper: 120000, regionMarketAvgCopper: 150000,
@@ -124,18 +67,8 @@ test("TSM snapshots survive validation and reach the prompt with explicit units"
   assert.deepEqual(promptRequest(prompt), parsed);
   assert.match(prompt, /10,000 copper = 1 gold/);
   assert.match(prompt, /not a live quote/);
+  assert.doesNotMatch(prompt, /\{\{/);
   for (const invalid of [{ ...tsm, saleRate: 2 }, { ...tsm, minBuyoutCopper: -1 }, { ...tsm, capturedAt: "today" }]) {
     assert.throws(() => parseRequest(copied(withPrices(invalid))));
   }
-});
-
-test("Altar and Codex snapshots are bounded", () => {
-  const node = { id: 110465, rank: 1, maxRank: 1, entries: [{ name: "Venomous Hunt", selected: true }] };
-  const altar = { capturedAt: 1800000000, unspent: 3, nodes: [node] };
-  assert.deepEqual(parseRequest(copied({ ...request, category: "altar", altar }))?.altar, altar);
-  assert.throws(() => parseRequest(copied({ ...request, altar: { ...altar, nodes: Array(65).fill(node) } })));
-  const power = { name: "Ophidian Maw", active: true };
-  const codex = { capturedAt: 1800000000, souls: 9, powers: [power] };
-  assert.deepEqual(parseRequest(copied({ ...request, category: "codex", codex }))?.codex, codex);
-  assert.throws(() => parseRequest(copied({ ...request, codex: { ...codex, powers: Array(13).fill(power) } })));
 });

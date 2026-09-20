@@ -19,7 +19,8 @@ The addon lives under `Addon/`, and its TOC lists the files in dependency order.
 - `app/overlay.ts` owns the window: focus, raising and resizing.
 - `app/ipc.ts` types every message between the main process and the overlay, and validates the ones coming from the overlay.
 - `app/preload.cjs` renders `overlay.html`, which `overlay.css` styles.
-- `app/protocol.ts` validates clipboard requests. `codex.ts` runs Codex with `prompt.md` and names threads, `history.ts` stores threads, `icons.ts` resolves link icons, `config.ts` loads and saves settings and `markdown.ts` renders answers.
+- `app/snapshots/` mirrors the addon's readers: one module per data shape with its schema and the prompt notes that explain its fields. `app/topics/` mirrors the addon's topics: one module per button with its category, the request fields it adds and its prompt paragraph, listed in `index.ts` in menu order.
+- `app/protocol.ts` validates clipboard requests, composing the request schema and the category list from the topics. `prompt.ts` builds the prompt from `prompt.md`, the general rules, plus every snapshot's notes and topic's paragraph. `codex.ts` runs Codex and names threads, `history.ts` stores threads, `icons.ts` resolves link icons, `config.ts` loads and saves settings and `markdown.ts` renders answers.
 - `app/codex-events.ts` validates App Server notifications and updates the active answer with a pure reducer.
 - `app/codex-connection.ts` routes RPC responses and notifications, and owns process cleanup.
 
