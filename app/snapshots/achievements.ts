@@ -18,4 +18,4 @@ export const achievementSchema = z.object({
   })).max(40),
 });
 
-export const achievementNotes = "An achievement carries its criteria, each completed when done, with quantity against required on the ones that count up. A criterion without those two is a single step, done or not. completed on the achievement itself means any character on the account earned it.";
+export const achievementNotes = "An achievement carries its criteria, each completed when done, with quantity against required on the ones that count up. A criterion without those two is a single step, done or not. completed on the achievement itself means any character on the account earned it, so say when the player's own character still has it to do.";

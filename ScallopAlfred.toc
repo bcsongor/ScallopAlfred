@@ -22,7 +22,7 @@ addon/Readers/PlayerChoice.lua
 addon/Topics/Hover.lua
 addon/Topics/Target.lua
 addon/Topics/GreatVault.lua
-addon/Topics/Achievements.lua
+addon/Topics/SelectedAchievement.lua
 addon/Topics/AltarOfCorrosion.lua
 addon/Topics/CorrosiveCodex.lua
 addon/Topics/Mechanics.lua

@@ -4,12 +4,12 @@ local Public, Count, Read, PlainText = addon.Public, addon.Count, addon.Read, ad
 local Achievements = {}
 addon.Achievements = Achievements
 
--- The IDs WoW shows in the objective tracker. Tracking moved to C_ContentTracking, which handles mounts and
--- appearances too, so the type has to come from the enum rather than a number of our own.
-function Achievements.Tracked()
-    local kind = Enum.ContentTrackingType and Count(Enum.ContentTrackingType.Achievement)
-    if not kind then return {} end
-    return Read(function() return C_ContentTracking.GetTrackedIDs(kind) end) or {}
+-- The Achievements window keeps its selection in a local upvalue but exposes it through this global. The
+-- window loads on demand, so neither it nor the function exists until the player has opened it once.
+function Achievements.Selected()
+    if Read(function() return AchievementFrame:IsShown() end) ~= true then return end
+    local id = Count(Read(function() return AchievementFrameAchievements_GetSelectedAchievementId() end))
+    if id and id > 0 then return id end
 end
 
 -- A criterion is either a checklist line or a bar counting up to a total.

@@ -19,7 +19,7 @@ You need [Node.js](https://nodejs.org) 24 or later and [Codex CLI](https://devel
 Press Alt+Q outside combat.
 
 - Hover an item, spell, currency, achievement or quest link first to get presets for it, plus **Custom question**. Quests also work from the quest log and map, but not from the objective tracker.
-- Without a tooltip, choose **Game mechanics**, **Professions**, **My gear** or **Custom question**, then type your question, or **Make gold** to copy a request straight away. **Great Vault** appears while this week's vault has rewards waiting and copies one too, **Tracked achievements** while you're tracking any achievement, **Altar of Corrosion** while the Altar's talent window is open, and **Corrosive Codex** while the Codex is open. With an NPC targeted, the menu shows its name and offers **What should I know about my target?** instead of the other topics. **Game mechanics**, **Professions** and **My gear** stay in every menu, and ask about the hovered subject or target too. A custom question then asks about it too. Where WoW hides the target, as in delves, the dialog says so and you can ask by name.
+- Without a tooltip, choose **Game mechanics**, **Professions**, **My gear** or **Custom question**, then type your question, or **Make gold** to copy a request straight away. **Great Vault** appears while this week's vault has rewards waiting and copies one too, **Selected achievement** while one is clicked in the Achievements window, **Altar of Corrosion** while the Altar's talent window is open, and **Corrosive Codex** while the Codex is open. With an NPC targeted, the menu shows its name and offers **What should I know about my target?** instead of the other topics. **Game mechanics**, **Professions** and **My gear** stay in every menu, and ask about the hovered subject or target too. A custom question then asks about it too. Where WoW hides the target, as in delves, the dialog says so and you can ask by name.
 
 Shift-click links into the question box to ask about up to eight things at once. Press Enter, then Ctrl+C (Cmd+C on macOS) to copy the request. The box closes when you let go of the keys.
 
@@ -27,7 +27,7 @@ Every request includes your class, spec, level, equipped item level, profession 
 
 **Great Vault** asks which vault reward to pick. It adds every option on offer, including the Nebulous Voidcore and Tokens of Merit, your equipped items and your active talents. The option only shows once the vault has rolled after the weekly reset and until you claim a reward.
 
-**Tracked achievements** asks how to finish what you're working on. It adds every achievement in your objective tracker with its criteria and how far along each one is. Track an achievement from the Achievements window first.
+**Selected achievement** asks how to earn the achievement you clicked. It adds its criteria and how far along each one is. Open the Achievements window and click one first.
 
 **Altar of Corrosion** asks what to buy next at the Altar. It adds every talent in the Altar's tree with what you own and what's next in line, and your unspent Spirit Corrosion. Open the Altar's talent window first.
 

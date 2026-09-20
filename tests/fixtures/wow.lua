@@ -89,13 +89,14 @@ Enum = {
     AccountBankTab_4 = 16, AccountBankTab_5 = 17,
   },
   CachedRewardType = { Item = 1, Currency = 2 },
-  ContentTrackingType = { Appearance = 0, Mount = 1, Achievement = 2 },
   CraftingReagentType = { Basic = 1, Modifying = 2, Finishing = 3 },
 }
 
--- Nothing is tracked until a test sets `trackedAchievements` to IDs described by `achievementData`,
--- `achievementData[id] = { name, points, completed, description, reward, criteria = { { name, completed, quantity, required } } }`.
-C_ContentTracking = { GetTrackedIDs = function() return trackedAchievements or {} end }
+-- The Achievements window is closed until a test sets `achievementWindow` to the selected ID, or to 0 for a
+-- window with nothing selected. Achievements come from `achievementData`, keyed by ID:
+-- `{ name, points, completed, description, reward, criteria = { { name, completed, quantity, required } } }`.
+AchievementFrame = { IsShown = function() return achievementWindow ~= nil end }
+function AchievementFrameAchievements_GetSelectedAchievementId() return achievementWindow or 0 end
 local function achievement(id) return achievementData and achievementData[id] end
 function GetAchievementInfo(id)
   local entry = achievement(id)
