@@ -13,7 +13,7 @@ test("Selected achievement shows while one is picked in the window and sends its
     achievementData = {
       [1234] = {
         name = "|cffffffffGlory of the Raider|r", points = 25, description = "Complete the raid feats.",
-        reward = "Reward: Drake", criteria = {
+        reward = "Reward: Drake", earnedBy = "Aeloria", criteria = {
           { name = "Share the Love", completed = true },
           { name = "Dwarfageddon", quantity = 3, required = 10 },
           -- A single-step criterion keeps no counts, and an unreadable one is dropped.
@@ -34,7 +34,7 @@ test("Selected achievement shows while one is picked in the window and sends its
   assert.equal(parsed.question, "How do I earn the achievement I've selected?");
   assert.deepEqual(parsed.achievement, {
     id: 1234, name: "Glory of the Raider", points: 25, description: "Complete the raid feats.",
-    reward: "Reward: Drake",
+    reward: "Reward: Drake", earnedBy: "Aeloria",
     criteria: [
       { name: "Share the Love", completed: true },
       { name: "Dwarfageddon", quantity: 3, required: 10 },

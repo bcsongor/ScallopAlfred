@@ -23,7 +23,7 @@ Press Alt+Q outside combat.
 
 Shift-click links into the question box to ask about up to eight things at once. Press Enter, then Ctrl+C (Cmd+C on macOS) to copy the request. The box closes when you let go of the keys.
 
-Every request includes your class, spec, level, equipped item level, profession skills for every expansion and the equipment slots that matter for the question. **My gear** and **Is it an upgrade?** add all your equipped items and active talents. **Professions** adds your specialisation points. If they're missing, open that profession's Specializations tab and ask again. With TradeSkillMaster installed, items also carry TSM's cached prices.
+Every request includes your character name, class, spec, level, equipped item level, profession skills for every expansion and the equipment slots that matter for the question. **My gear** and **Is it an upgrade?** add all your equipped items and active talents. **Professions** adds your specialisation points. If they're missing, open that profession's Specializations tab and ask again. With TradeSkillMaster installed, items also carry TSM's cached prices.
 
 **Great Vault** asks which vault reward to pick. It adds every option on offer, including the Nebulous Voidcore and Tokens of Merit, your equipped items and your active talents. The option only shows once the vault has rolled after the weekly reset and until you claim a reward.
 

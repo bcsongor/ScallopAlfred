@@ -39,6 +39,7 @@ function Achievements.Read(achievementID)
     local name = info and PlainText(info[2])
     if not name then return end
     local reward = PlainText(info[11])
+    local earnedBy = PlainText(info[14])
     return {
         id = achievementID,
         name = name,
@@ -46,6 +47,8 @@ function Achievements.Read(achievementID)
         points = Count(info[3]),
         completed = Public(info[4], "boolean") or nil,
         reward = reward ~= "" and reward or nil,
+        -- The character who earned it, which is the player's own only when they did.
+        earnedBy = earnedBy ~= "" and earnedBy or nil,
         criteria = criteria(achievementID),
     }
 end

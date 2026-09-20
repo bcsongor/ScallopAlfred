@@ -13,6 +13,7 @@ export const requestSchema = z.object({
   question: z.string().trim().min(1).max(2000),
   category: z.enum(categories).optional(),
   player: z.object({
+    name: z.string().max(64).optional(),
     class: z.string().max(64),
     spec: z.string().max(64),
     level: z.number().int().min(1).max(1000),

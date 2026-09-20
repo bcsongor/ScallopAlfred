@@ -48,6 +48,7 @@ function addon.BuildRequest(question, subject, category, thread)
     local request = {
         id = nextID(), context = nextID(), thread = thread, question = question, category = category,
         player = {
+            name = Public(Read(UnitName, "player"), "string"),
             class = Public(Read(UnitClass, "player"), "string"),
             spec = specName or "Unselected",
             level = Public(Read(UnitLevel, "player"), "number"),

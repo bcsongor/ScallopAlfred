@@ -14,6 +14,7 @@ test("addon exports valid JSON, both ring slots, and no restricted tooltip value
   assert.equal(request.subjects[0].name, 'Ring "of" stars');
   assert.equal(request.subjects[0].type, "item");
   assert.equal(request.subjects[0].quality, 4);
+  assert.equal(request.player.name, "Aeloria");
   assert.equal(request.player.spec, "Restoration");
   assert.equal(request.player.itemLevel, 310);
   assert.equal(request.subjects[0].tooltip.length, 3);
@@ -22,9 +23,10 @@ test("addon exports valid JSON, both ring slots, and no restricted tooltip value
   assert.deepEqual(request.equipped?.map(item => item.link), ["item:11", "item:12"]);
 });
 
-test("secret profession skill values and item levels are omitted", () => {
+test("secret character names, profession skills and item levels are omitted", () => {
   const game = addon();
   game.execute(`
+    playerName = secret
     function GetAverageItemLevel() return 312.6, secret, 300 end
     function GetProfessions() return nil, 2 end
     function GetProfessionInfo() return "Mining", nil, secret, 100, nil, nil, 186, 0, nil, nil, "Midnight Mining" end
@@ -33,6 +35,7 @@ test("secret profession skill values and item levels are omitted", () => {
   assert.equal(game.payload().professions?.entries[0].skillLevel, undefined);
   assert.equal(game.payload().professions?.entries[0].maxSkillLevel, 100);
   assert.equal(game.payload().player.itemLevel, undefined);
+  assert.equal(game.payload().player.name, undefined);
 });
 
 test("copy shortcuts close only the JSON box after either key is released", () => {

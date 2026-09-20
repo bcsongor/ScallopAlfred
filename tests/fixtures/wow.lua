@@ -101,7 +101,10 @@ local function achievement(id) return achievementData and achievementData[id] en
 function GetAchievementInfo(id)
   local entry = achievement(id)
   if not entry then return end
-  return id, entry.name, entry.points, entry.completed, nil, nil, nil, entry.description, nil, nil, entry.reward
+  -- id, name, points, completed, month, day, year, description, flags, icon, rewardText, isGuild,
+  -- wasEarnedByMe, earnedBy.
+  return id, entry.name, entry.points, entry.completed, nil, nil, nil, entry.description, nil, nil,
+    entry.reward, nil, nil, entry.earnedBy
 end
 function GetAchievementNumCriteria(id)
   local entry = achievement(id)
@@ -159,7 +162,10 @@ GameTooltip = {
   GetOwner = function() return tooltipOwner end,
 }
 function UnitGUID(unit) if unit == "target" then return targetGUID end end
-function UnitName(unit) if unit == "target" then return targetName end end
+function UnitName(unit)
+  if unit == "target" then return targetName end
+  if unit == "player" then return playerName == nil and "Aeloria" or playerName end
+end
 C_TooltipInfo.GetUnit = function() return { lines = { { leftText = targetName }, { leftText = "Level 80 Elite" } } } end
 C_QuestLog = { GetTitleForQuestID = function(id) return "Quest " .. id end }
 ChatFrameUtil = { InsertLink = function() end }
