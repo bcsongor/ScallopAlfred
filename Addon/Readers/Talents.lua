@@ -1,8 +1,11 @@
 local _, addon = ...
 local Public, Read = addon.Public, addon.Read
 
+local Talents = {}
+addon.Talents = Talents
+
 -- Read only the active player build; never inspect another unit or change a loadout.
-function addon.GetTalents()
+function Talents.Read()
     local configID = Public(Read(C_ClassTalents.GetActiveConfigID), "number")
     if not configID or configID <= 0 then return end
     local config = Read(C_Traits.GetConfigInfo, configID)

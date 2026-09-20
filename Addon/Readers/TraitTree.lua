@@ -1,15 +1,17 @@
 local _, addon = ...
-local Public, Count, Read = addon.Public, addon.Count, addon.Read
+local Public, Count, Read, PlainText = addon.Public, addon.Count, addon.Read, addon.PlainText
 
--- The Altar of Corrosion is a generic trait tree, like Skyriding. Blizzard's Blizzard_GenericTraitUtil.lua maps
--- this tree ID to its layout. C_Traits exposes it with the same calls the class talents use.
-local ALTAR_TREE = 1191
 -- Selection nodes offer a choice; tiered nodes list one entry per rank instead.
 local SELECTION = Enum.TraitNodeType and Enum.TraitNodeType.Selection or 2
 
--- True while Blizzard's generic trait window shows the Altar's tree. The frame exists only after its addon loads.
-function addon.AltarAvailable()
-    return Read(function() return GenericTraitFrame:IsShown() and GenericTraitFrame:GetTalentTreeID() == ALTAR_TREE end) == true
+-- Blizzard's generic trait window drives Skyriding, the Altar of Corrosion and other systems from one frame.
+-- Blizzard_GenericTraitUtil.lua maps each tree ID to its layout, and C_Traits exposes every tree the same way.
+local TraitTree = {}
+addon.TraitTree = TraitTree
+
+-- True while the generic trait window shows the tree. The frame exists only after its addon loads.
+function TraitTree.IsOpen(treeID)
+    return Read(function() return GenericTraitFrame:IsShown() and GenericTraitFrame:GetTalentTreeID() == treeID end) == true
 end
 
 local function entryInfo(configID, entryID, selected)
@@ -21,8 +23,8 @@ local function entryInfo(configID, entryID, selected)
     if spellID == 0 then spellID = nil end
     local name = Public(definition.overrideName, "string") or spellID and Public(Read(C_Spell.GetSpellName, spellID), "string")
     if not name then return end
-    local description = addon.PlainText(definition.overrideDescription)
-        or spellID and addon.PlainText(Read(C_Spell.GetSpellDescription, spellID))
+    local description = PlainText(definition.overrideDescription)
+        or spellID and PlainText(Read(C_Spell.GetSpellDescription, spellID))
     if description then description = description:gsub("\r\n", "\n") end
     if description and (description == "" or #description > 1024) then description = nil end
     -- Spell text is fetched from the server on demand, so an uncached spell reads as empty until the next copy.
@@ -30,11 +32,11 @@ local function entryInfo(configID, entryID, selected)
     return { name = name, description = description, selected = selected or nil }
 end
 
--- Every visible talent in the Altar's tree, bought or not, since the question is what to buy next.
-function addon.GetAltar()
-    local configID = Count(Read(function() return C_Traits.GetConfigIDByTreeID(ALTAR_TREE) end))
+-- Every visible node in the tree, bought or not, since the question is what to buy next.
+function TraitTree.Read(treeID)
+    local configID = Count(Read(function() return C_Traits.GetConfigIDByTreeID(treeID) end))
     if not configID or configID <= 0 then return end
-    local currency = Read(C_Traits.GetTreeCurrencyInfo, configID, ALTAR_TREE, false)
+    local currency = Read(C_Traits.GetTreeCurrencyInfo, configID, treeID, false)
     local points = currency and currency[1]
     local result = {
         capturedAt = GetServerTime(),
@@ -43,7 +45,7 @@ function addon.GetAltar()
         hasStagedChanges = Public(Read(C_Traits.ConfigHasStagedChanges, configID), "boolean"),
         nodes = {},
     }
-    for _, nodeID in ipairs(Read(C_Traits.GetTreeNodes, ALTAR_TREE) or {}) do
+    for _, nodeID in ipairs(Read(C_Traits.GetTreeNodes, treeID) or {}) do
         local node = #result.nodes < 64 and Count(nodeID) and Read(C_Traits.GetNodeInfo, configID, nodeID)
         if node and Public(node.isVisible, "boolean") ~= false then
             local rank = Count(node.activeRank) or 0

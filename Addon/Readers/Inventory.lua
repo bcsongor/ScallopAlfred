@@ -1,5 +1,6 @@
 local _, addon = ...
-local Public, Count, Read = addon.Public, addon.Count, addon.Read
+local Public, Count, Read, PlainText = addon.Public, addon.Count, addon.Read, addon.PlainText
+local Subjects = addon.Subjects
 
 local function bagID(name, fallback)
     local indices = Enum and Public(Enum.BagIndex, "table")
@@ -21,7 +22,7 @@ local function containers()
 end
 
 local function newEntry(key, link)
-    local name = addon.PlainText(link:match("|h%[(.-)%]|h")) or Public(Read(C_Item.GetItemInfo, key), "string")
+    local name = PlainText(link:match("|h%[(.-)%]|h")) or Public(Read(C_Item.GetItemInfo, key), "string")
     local entry = {
         link = key, name = name or key,
         quality = Count(Read(function() return (select(3, C_Item.GetItemInfo(key))) end)),
@@ -32,13 +33,16 @@ local function newEntry(key, link)
         entry.auctionCount = Count(Read(TSM_API.GetAuctionQuantity, item))
         entry.mailCount = Count(Read(TSM_API.GetMailQuantity, item))
     end
-    entry.tsm = addon.TSMPrices(key)
+    entry.tsm = Subjects.Prices(key)
     return entry
 end
 
+local Inventory = {}
+addon.Inventory = Inventory
+
 -- One pass over every readable container. Bank and Warband tabs report no slots while their windows are
 -- closed, so the snapshot records which of them the player could actually see. No tooltips: stacks are many.
-function addon.GetInventory()
+function Inventory.Read()
     if type(C_Container) ~= "table" then return end
     local snapshot = {
         capturedAt = GetServerTime(),

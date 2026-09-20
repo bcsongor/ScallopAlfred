@@ -1,0 +1,3 @@
+local _, addon = ...
+
+addon.AddTopic({ text = "Game mechanics", category = "mechanics", always = true })

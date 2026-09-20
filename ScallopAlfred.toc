@@ -6,11 +6,28 @@
 ## Author: bcsongor
 ## Version: 0.1.0
 
-Core.lua
-Professions.lua
-Talents.lua
-Altar.lua
-Codex.lua
-Inventory.lua
-Recipes.lua
-ScallopAlfred.lua
+# Load order is the dependency order: helpers, readers, topics in menu order, then the request and the UI.
+Addon/Core.lua
+
+Addon/Readers/Subjects.lua
+Addon/Readers/Equipment.lua
+Addon/Readers/Professions.lua
+Addon/Readers/Talents.lua
+Addon/Readers/Inventory.lua
+Addon/Readers/Recipes.lua
+Addon/Readers/TraitTree.lua
+Addon/Readers/PlayerChoice.lua
+
+Addon/Topics/Hover.lua
+Addon/Topics/Target.lua
+Addon/Topics/GreatVault.lua
+Addon/Topics/AltarOfCorrosion.lua
+Addon/Topics/CorrosiveCodex.lua
+Addon/Topics/Mechanics.lua
+Addon/Topics/Professions.lua
+Addon/Topics/Gear.lua
+Addon/Topics/Gold.lua
+
+Addon/Request.lua
+Addon/Dialog.lua
+Addon/Main.lua

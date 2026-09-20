@@ -1,5 +1,9 @@
 local _, addon = ...
 local Public, Count, Read = addon.Public, addon.Count, addon.Read
+local PlainText, Subjects = addon.PlainText, addon.Subjects
+
+local Recipes = {}
+addon.Recipes = Recipes
 
 local function basicReagentType()
     local types = Enum and Public(Enum.CraftingReagentType, "table")
@@ -35,11 +39,11 @@ local function recipeOutput(recipeID)
     local link = Public(Read(C_TradeSkillUI.GetRecipeItemLink, recipeID), "string")
     if not link then return end
     local key = link:match("|H(.-)|h") or link
-    local name = addon.PlainText(link:match("|h%[(.-)%]|h")) or Public(Read(C_Item.GetItemInfo, key), "string")
+    local name = PlainText(link:match("|h%[(.-)%]|h")) or Public(Read(C_Item.GetItemInfo, key), "string")
     return {
         link = key, name = name or key,
         quality = Count(Read(function() return (select(3, C_Item.GetItemInfo(key))) end)),
-        tsm = addon.TSMPrices(key),
+        tsm = Subjects.Prices(key),
     }
 end
 
@@ -62,7 +66,7 @@ local function addReagents(entry, schematic)
     end
 end
 
-function addon.GetRecipes()
+function Recipes.Read()
     local snapshot = openProfession()
     if not snapshot then return end
     for _, id in ipairs(Public(Read(C_TradeSkillUI.GetAllRecipeIDs), "table") or {}) do

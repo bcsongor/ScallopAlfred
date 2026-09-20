@@ -1,6 +1,9 @@
 local _, addon = ...
 local Public, Count, Read = addon.Public, addon.Count, addon.Read
 
+local Professions = {}
+addon.Professions = Professions
+
 -- Profession data can be unavailable until its window has been opened, so every read is optional.
 local function specialization(skillLineID)
     local configID = Count(Read(C_ProfSpecs.GetConfigIDForSkillLine, skillLineID))
@@ -45,7 +48,8 @@ local function specialization(skillLineID)
     return result
 end
 
-function addon.GetProfessions(includeSpecializations)
+-- Every profession's skills, and its specialisation tree when `includeSpecializations` is set.
+function Professions.Read(includeSpecializations)
     local lines = Read(C_TradeSkillUI.GetAllProfessionTradeSkillLines) or {}
     local entries = {}
     local infoBySkillLine = {}
@@ -86,4 +90,9 @@ function addon.GetProfessions(includeSpecializations)
         end
     end
     return { capturedAt = GetServerTime(), entries = entries }
+end
+
+-- The same snapshot with every specialisation tree, for topics that advise on knowledge points.
+function Professions.ReadDetailed()
+    return Professions.Read(true)
 end

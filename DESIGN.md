@@ -4,10 +4,13 @@ WoW addons can't reach the network or the file system. The clipboard is the one 
 
 ## Files
 
-- `Core.lua` holds the helpers for reading game values safely. It loads first.
-- `Professions.lua` and `Talents.lua` read profession and talent snapshots.
-- `Inventory.lua` and `Recipes.lua` read inventory and recipe snapshots.
-- `ScallopAlfred.lua` owns the dialog, builds requests and encodes them as JSON.
+The addon lives under `Addon/`, and its TOC lists the files in dependency order. Two kinds of module exist: readers and topics.
+
+- `Addon/Core.lua` holds the helpers for reading game values safely, plus the topic list. It loads first.
+- `Addon/Readers/` answers "what does the game say". Each reader returns plain tables or nil and knows nothing about topics: `Subjects` for anything the player can ask about, `Equipment`, `Professions`, `Talents`, `Inventory`, `Recipes`, and two thin wrappers over frames Blizzard reuses across systems, `TraitTree` for the generic trait window and `PlayerChoice` for the player choice window.
+- `Addon/Topics/` answers "when do we ask and what do we send". Each file registers one button with `addon.AddTopic`: its text, category, optional question, an optional `available` check that also makes it green, and a `snapshot` mapping request fields to readers. Files load in menu order, contextual topics first. Adding a system is one topic file and a TOC line; retiring it is deleting both.
+- `Addon/Request.lua` builds the request: the player, subjects, the chosen topic's snapshot, and the profession skills and comparison slots every question carries. It also encodes the JSON.
+- `Addon/Dialog.lua` owns the menu, the editor and the copy box, and `Addon/Main.lua` the slash command and keybinding.
 - `Bindings.xml` defines the keybind. WoW loads it by file name, and listing it in the TOC would run it through the wrong parser. The binding fires on key release so the keystroke can't land in the question box.
 - `app/main.ts` is the Electron entry point. It creates the real tray and passes it, the clipboard, Codex, `fetch` and the browser opener to `app.ts`.
 - `app/app.ts` wires the modules together and owns the app's state: what the overlay shows, the running request and the follow-up editor. The clipboard, tray, Codex, network and browser arrive as ports, so tests run the real app with fakes. Electron's own APIs are imported directly.
