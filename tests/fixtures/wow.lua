@@ -89,8 +89,29 @@ Enum = {
     AccountBankTab_4 = 16, AccountBankTab_5 = 17,
   },
   CachedRewardType = { Item = 1, Currency = 2 },
+  ContentTrackingType = { Appearance = 0, Mount = 1, Achievement = 2 },
   CraftingReagentType = { Basic = 1, Modifying = 2, Finishing = 3 },
 }
+
+-- Nothing is tracked until a test sets `trackedAchievements` to IDs described by `achievementData`,
+-- `achievementData[id] = { name, points, completed, description, reward, criteria = { { name, completed, quantity, required } } }`.
+C_ContentTracking = { GetTrackedIDs = function() return trackedAchievements or {} end }
+local function achievement(id) return achievementData and achievementData[id] end
+function GetAchievementInfo(id)
+  local entry = achievement(id)
+  if not entry then return end
+  return id, entry.name, entry.points, entry.completed, nil, nil, nil, entry.description, nil, nil, entry.reward
+end
+function GetAchievementNumCriteria(id)
+  local entry = achievement(id)
+  return entry and entry.criteria and #entry.criteria or 0
+end
+function GetAchievementCriteriaInfo(id, index)
+  local entry = achievement(id)
+  local criterion = entry and entry.criteria and entry.criteria[index]
+  if not criterion then return end
+  return criterion.name, nil, criterion.completed, criterion.quantity, criterion.required
+end
 
 -- No profession window is open until a test sets `tradeSkillReady` and `professionWindow`. Recipes are
 -- `recipes[recipeID] = { name, learned, ..., link, schematic }`, listed in `recipeIDs`.

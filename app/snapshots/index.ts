@@ -1,3 +1,4 @@
+import { achievementNotes } from "./achievements.ts";
 import { equipmentNotes } from "./equipment.ts";
 import { inventoryNotes } from "./inventory.ts";
 import { playerChoiceNotes } from "./player-choice.ts";
@@ -17,4 +18,5 @@ export const snapshotNotes = [
   recipesNotes,
   traitTreeNotes,
   playerChoiceNotes,
+  achievementNotes,
 ];

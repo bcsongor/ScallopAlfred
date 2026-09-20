@@ -1,3 +1,4 @@
+import { achievements } from "./achievements.ts";
 import { altarOfCorrosion } from "./altar-of-corrosion.ts";
 import { corrosiveCodex } from "./corrosive-codex.ts";
 import { gear } from "./gear.ts";
@@ -7,7 +8,7 @@ import { mechanics } from "./mechanics.ts";
 import { professions } from "./professions.ts";
 import type { Topic } from "./topic.ts";
 
-const all = [mechanics, professions, gear, gold, greatVault, altarOfCorrosion, corrosiveCodex] as const;
+const all = [mechanics, professions, gear, gold, greatVault, achievements, altarOfCorrosion, corrosiveCodex] as const;
 
 /** Every topic the addon can send, in menu order. */
 export const topics: readonly Topic[] = all;
@@ -19,6 +20,7 @@ export const topicFields = {
   ...gear.fields,
   ...gold.fields,
   ...greatVault.fields,
+  ...achievements.fields,
   ...altarOfCorrosion.fields,
   ...corrosiveCodex.fields,
 };
