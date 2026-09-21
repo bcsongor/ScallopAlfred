@@ -72,12 +72,22 @@ window.addEventListener("DOMContentLoaded", () => {
   const form = element("followup-form", HTMLFormElement);
   const question = element("question", HTMLTextAreaElement);
   const sendFollowup = element("send-followup", HTMLButtonElement);
-  const resize = element("resize-height", HTMLElement);
+  const resizeHeight = element("resize-height", HTMLElement);
+  const resizeWidth = element("resize-width", HTMLElement);
+  const tabAsk = element("tab-ask", HTMLButtonElement);
+  const tabBrowse = element("tab-browse", HTMLButtonElement);
+  const browse = element("browse", HTMLElement);
+  const browseView = element("browse-view", HTMLElement);
+  const address = element("browse-url", HTMLInputElement);
+  const browseBack = element("browse-back", HTMLButtonElement);
+  const browseForward = element("browse-forward", HTMLButtonElement);
+  const browseReload = element("browse-reload", HTMLButtonElement);
   const archiveIcon = element("archive-icon", HTMLTemplateElement);
   const deleteIcon = element("delete-icon", HTMLTemplateElement);
   const unarchiveIcon = element("unarchive-icon", HTMLTemplateElement);
 
-  /** @type {{ y: number, height: number, next: number } | undefined} */
+  /** A drag in progress on one edge: where it started, the size then, and the size now. */
+  /** @type {{ start: number, from: number, next: number } | undefined} */
   let resizing;
   /** @type {string | undefined} */
   let latestTurn;
@@ -358,23 +368,65 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  resize.addEventListener("pointerdown", event => {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    resizing = { y: event.screenY, height: window.innerHeight, next: window.innerHeight };
-    resize.setPointerCapture(event.pointerId);
+  /**
+   * Wires one edge handle to one dimension. `measure` reads the pointer along the axis the handle
+   * moves in, and its sign follows the edge: the bottom edge grows downwards, the left edge grows
+   * leftwards, so each handle pushes the edge it sits on.
+   * @param {HTMLElement} handle
+   * @param {(event: PointerEvent) => number} measure
+   * @param {() => number} size
+   * @param {(value: number, finished: boolean) => void} post
+   */
+  function edgeHandle(handle, measure, size, post) {
+    handle.addEventListener("pointerdown", event => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      resizing = { start: measure(event), from: size(), next: size() };
+      handle.setPointerCapture(event.pointerId);
+    });
+    handle.addEventListener("pointermove", event => {
+      if (!resizing) return;
+      resizing.next = resizing.from + measure(event) - resizing.start;
+      post(resizing.next, false);
+    });
+    handle.addEventListener("lostpointercapture", () => {
+      if (!resizing) return;
+      const value = resizing.next;
+      resizing = undefined;
+      post(value, true);
+    });
+  }
+
+  edgeHandle(resizeHeight, event => event.screenY, () => window.innerHeight,
+    (height, finished) => send("resize-height", { height, finished }));
+  edgeHandle(resizeWidth, event => -event.screenX, () => window.innerWidth,
+    (width, finished) => send("resize-width", { width, finished }));
+
+  tabAsk.addEventListener("click", () => send("select-tab", "ask"));
+  tabBrowse.addEventListener("click", () => send("select-tab", "browse"));
+
+  // The web view is a native child of the window, so the main process needs this box in window coordinates.
+  function reportBrowseBounds() {
+    if (browse.hidden) return;
+    const { x, y, width, height } = browseView.getBoundingClientRect();
+    send("browse-bounds", { x, y, width, height });
+  }
+  new ResizeObserver(reportBrowseBounds).observe(browseView);
+
+  address.addEventListener("keydown", event => {
+    if (event.isComposing) return;
+    if (event.key === "Enter") {
+      event.preventDefault();
+      send("browse-navigate", address.value);
+      address.blur();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      address.blur();
+    }
   });
-  resize.addEventListener("pointermove", event => {
-    if (!resizing) return;
-    resizing.next = resizing.height + event.screenY - resizing.y;
-    send("resize-height", { height: resizing.next, finished: false });
-  });
-  resize.addEventListener("lostpointercapture", () => {
-    if (!resizing) return;
-    const height = resizing.next;
-    resizing = undefined;
-    send("resize-height", { height, finished: true });
-  });
+  browseBack.addEventListener("click", () => send("browse-back"));
+  browseForward.addEventListener("click", () => send("browse-forward"));
+  browseReload.addEventListener("click", () => send("browse-reload"));
 
   answer.addEventListener("click", event => {
     const target = event.target instanceof Element ? event.target : undefined;
@@ -409,6 +461,22 @@ window.addEventListener("DOMContentLoaded", () => {
 
   on("theme", theme => {
     document.documentElement.dataset.theme = theme;
+  });
+
+  on("tab", tab => {
+    const browsing = tab === "browse";
+    document.body.dataset.tab = tab;
+    browse.hidden = !browsing;
+    tabAsk.ariaSelected = String(!browsing);
+    tabBrowse.ariaSelected = String(browsing);
+    if (browsing) reportBrowseBounds();
+  });
+
+  on("browse", ({ url, canGoBack, canGoForward }) => {
+    // Whatever the player is typing outranks the address the page reports.
+    if (document.activeElement !== address) address.value = url;
+    browseBack.disabled = !canGoBack;
+    browseForward.disabled = !canGoForward;
   });
 
   on("followup-editor", editing => {

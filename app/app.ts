@@ -8,6 +8,7 @@ import { createSettingsWriter, loadConfig, type AppearanceChanges, type Config }
 import { errorMessage } from "./errors.ts";
 import { openHistory, type Thread } from "./history.ts";
 import { createIcons } from "./icons.ts";
+import type { Tab } from "./ipc.ts";
 import { renderMarkdown, webUrl } from "./markdown.ts";
 import { createOverlay } from "./overlay.ts";
 import type { WoWRequest } from "./protocol.ts";
@@ -33,7 +34,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   const history = openHistory(join(userData, "threads.sqlite"));
   const codex = createCodex({ codexPath: config.codexPath, model: config.model, workspace });
   const icons = createIcons(join(userData, "favicons"), fetch);
-  const overlay = createOverlay(config);
+  const overlay = createOverlay(config, state => overlay.send("browse", state));
   const quit = new AbortController();
 
   let view: View = history.list().length || history.listArchived().length ? { kind: "history" } : { kind: "thread" };
@@ -44,6 +45,9 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   let followup: Thread | undefined;
   /** Threads Codex is naming, by ID. A newer rename of the same thread cancels the naming. */
   const naming = new Map<string, AbortController>();
+  /** The pane on screen, and the page the browse tab reopens at. */
+  let tab: Tab = "ask";
+  let lastBrowsed = config.browseUrl;
 
   const openThread = (): Thread | undefined => continuableThread(view, running !== undefined);
 
@@ -88,6 +92,39 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   }
 
   const closeFollowup = (): void => editFollowup(undefined);
+
+  /** Records the page on screen so the browse tab returns to it, including after a restart. */
+  function rememberBrowsed(): void {
+    const url = overlay.browse.url();
+    if (!url || url === lastBrowsed) return;
+    lastBrowsed = url;
+    saveSettings({ browseUrl: url });
+  }
+
+  /**
+   * Switches pane. A web page needs the keyboard for its own fields and the address bar, so the
+   * overlay takes focus while the browse tab is open and gives it back to the game on the way out.
+   */
+  function selectTab(next: Tab): void {
+    if (tab === next) return;
+    tab = next;
+    overlay.send("tab", tab);
+    if (tab === "browse") {
+      closeFollowup();
+      overlay.browse.show(lastBrowsed);
+      overlay.focus();
+    } else {
+      rememberBrowsed();
+      overlay.browse.hide();
+      overlay.releaseFocus();
+    }
+  }
+
+  /** Raises the overlay, taking the keyboard back when the browse tab is the one returning. */
+  function raiseOverlay(): void {
+    overlay.raise();
+    if (tab === "browse") overlay.focus();
+  }
 
   function saveThread(thread: Thread, failure: string): ThreadView {
     try {
@@ -147,7 +184,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
         canCancel: running !== undefined,
       },
       {
-        show: overlay.raise,
+        show: raiseOverlay,
         setTheme,
         copyAnswer: () => { if (reply !== undefined) void clipboard.writeText(reply); },
         retry: () => { if (thread) void answer(thread.request, thread); },
@@ -220,13 +257,17 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     });
     // The reply runs in the background so a show command still comes through while Codex works.
     for await (const copied of copies) {
-      overlay.raise();
+      // A question's answer is about to arrive, so its own pane comes to the front. The show
+      // command only asks for the overlay back, so it leaves the browse tab where it was.
+      if (copied.kind === "ask") selectTab("ask");
+      raiseOverlay();
       if (copied.kind === "ask") answerCopied(copied.request).catch((error: unknown) => showNotice("Couldn't start the question", error));
     }
   }
 
   overlay.handle("link-icon", icons);
   overlay.listen("edit-followup", editing => {
+    if (tab === "browse") return;
     const thread = openThread();
     if (!editing) closeFollowup();
     else if (thread) editFollowup(thread);
@@ -277,14 +318,27 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     const applied = overlay.setHeight(height);
     if (finished) saveSettings({ height: applied });
   });
+  // Widening moves the left edge, so the position is saved with the width.
+  overlay.listen("resize-width", ({ width, finished }) => {
+    const applied = overlay.setWidth(width);
+    if (finished) saveSettings(applied);
+  });
+  overlay.listen("select-tab", selectTab);
+  overlay.listen("browse-bounds", bounds => overlay.browse.setBounds(bounds));
+  overlay.listen("browse-navigate", target => overlay.browse.navigate(target));
+  overlay.listen("browse-back", overlay.browse.back);
+  overlay.listen("browse-forward", overlay.browse.forward);
+  overlay.listen("browse-reload", overlay.browse.reload);
   overlay.listen("open-link", target => {
     const url = webUrl(target);
     if (url) openExternal(url).catch((error: unknown) => showNotice("Couldn't open the link", error));
   });
 
-  tray.onClick(overlay.raise);
-  app.on("second-instance", overlay.raise);
+  tray.onClick(raiseOverlay);
+  app.on("second-instance", raiseOverlay);
   app.on("before-quit", () => {
+    rememberBrowsed();
+    overlay.browse.destroy();
     quit.abort("Scallop Alfred closed.");
     tray.destroy();
   });
@@ -292,6 +346,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   refreshMenu();
   await overlay.load();
   overlay.send("theme", theme);
+  overlay.send("tab", tab);
   if (process.platform === "darwin") app.dock?.hide();
   render(true);
   answerCopiedRequests().catch((error: unknown) => showNotice("Stopped watching the clipboard", error));

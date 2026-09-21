@@ -1,13 +1,15 @@
 import { BrowserWindow, screen } from "electron";
 import { join } from "node:path";
-import { heightRange, type Config } from "./config.ts";
+import { createBrowse, type BrowseState } from "./browse.ts";
+import { heightRange, widthRange, type Config } from "./config.ts";
 import { fromOverlay, overlayRequests, type FromOverlay, type OverlayRequests, type ToOverlay } from "./ipc.ts";
 
 export const iconPath = join(import.meta.dirname, "..", "assets", "scallop.jpg");
 
 /** Creates the always-on-top overlay window. It never takes focus from the game on its own. */
-export function createOverlay(config: Config) {
+export function createOverlay(config: Config, onBrowseState: (state: BrowseState) => void) {
   const window = createWindow(config);
+  const browse = createBrowse(window, onBrowseState);
   let dismissed = false;
 
   function keepOnTop(): void {
@@ -42,6 +44,7 @@ export function createOverlay(config: Config) {
   return {
     listen,
     handle,
+    browse,
     load: () => window.loadFile(join(import.meta.dirname, "overlay.html")),
     send<K extends keyof ToOverlay>(channel: K, message: ToOverlay[K]): void {
       window.webContents.send(channel, message);
@@ -75,6 +78,11 @@ export function createOverlay(config: Config) {
       window.setSkipTaskbar(true);
       window.focus();
     },
+    /** Gives the keyboard up again without hiding, so the overlay stops competing with the game. */
+    releaseFocus(): void {
+      window.setFocusable(false);
+      window.setSkipTaskbar(true);
+    },
     /** Returns the height after clamping it to the settings range and the space below the window. */
     setHeight(height: number): number {
       const bounds = window.getBounds();
@@ -83,6 +91,19 @@ export function createOverlay(config: Config) {
       // setSize can retain the previous minimum height on a non-resizable window.
       window.setBounds({ ...bounds, height: next });
       return next;
+    },
+    /**
+     * Returns the width and the position after clamping the width to the settings range and the
+     * space left of the window. The window grows leftwards, keeping its right edge where it is, so
+     * widening never pushes the overlay across the game's minimap.
+     */
+    setWidth(width: number): { width: number; x: number } {
+      const bounds = window.getBounds();
+      const area = screen.getDisplayMatching(bounds).workArea;
+      const right = bounds.x + bounds.width;
+      const next = Math.min(Math.max(widthRange.min, Math.round(width)), widthRange.max, right - area.x);
+      window.setBounds({ ...bounds, x: right - next, width: next });
+      return { width: next, x: right - next };
     },
   };
 }

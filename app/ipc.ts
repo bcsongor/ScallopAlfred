@@ -1,8 +1,12 @@
 import { z } from "zod";
+import type { BrowseState } from "./browse.ts";
 import type { Config } from "./config.ts";
 import type { ArchivedThreadSummary, ThreadSummary, Turn, TitleSubject } from "./history.ts";
 import type { LinkIcon } from "./icons.ts";
 import { requestSchema } from "./protocol.ts";
+
+/** The overlay shows one of two panes: the threads it answers in, or the browse tab. */
+export type Tab = "ask" | "browse";
 
 export type OverlayState = {
   status: "ready" | Turn["status"];
@@ -31,6 +35,8 @@ export type ToOverlay = {
   history: { threads: ThreadSummary[]; archived: ArchivedThreadSummary[]; fontSize: number };
   theme: Config["theme"];
   "followup-editor": boolean;
+  tab: Tab;
+  browse: BrowseState;
 };
 
 const messages = {
@@ -46,7 +52,15 @@ const messages = {
   /** An empty title asks Codex to name the thread from its conversation. */
   "rename-thread": z.object({ id: z.string(), title: z.string().trim().max(200) }),
   "resize-height": z.object({ height: z.number(), finished: z.boolean() }),
+  "resize-width": z.object({ width: z.number(), finished: z.boolean() }),
   "open-link": z.string(),
+  "select-tab": z.enum(["ask", "browse"]),
+  /** The overlay page owns the layout, so it reports where the browse pane sits in the window. */
+  "browse-bounds": z.object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() }),
+  "browse-navigate": z.string().max(2048),
+  "browse-back": z.undefined(),
+  "browse-forward": z.undefined(),
+  "browse-reload": z.undefined(),
 };
 
 export type FromOverlay = { [K in keyof typeof messages]: z.output<(typeof messages)[K]> };

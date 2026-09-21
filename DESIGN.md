@@ -10,13 +10,13 @@ The addon lives under `addon/`, and its TOC lists the files in dependency order.
 - `addon/Readers/` answers "what does the game say". Each reader returns plain tables or nil and knows nothing about topics: `Subjects` for anything the player can ask about, `Equipment`, `Professions`, `Talents`, `Achievements`, `Inventory`, `Recipes`, and two thin wrappers over frames Blizzard reuses across systems, `TraitTree` for the generic trait window and `PlayerChoice` for the player choice window.
 - `addon/Topics/` answers "when do we ask and what do we send". Each file registers one button with `addon.AddTopic`: its text, category, optional question, an optional `available` check that also makes it green, and a `snapshot` mapping request fields to readers. Files load in menu order, contextual topics first. Adding a system is one topic file and a TOC line; retiring it is deleting both.
 - `addon/Request.lua` builds the request: the player, subjects, the chosen topic's snapshot, and the profession skills and comparison slots every question carries. It also encodes the JSON.
-- `addon/Dialog.lua` owns the menu, the editor and the copy box, and `addon/Main.lua` the slash command and keybinding.
+- `addon/Dialog.lua` owns the menu, the editor and the copy box, `addon/Minimap.lua` the minimap button, and `addon/Main.lua` the slash command, the keybinding and the login handler.
 - `Bindings.xml` defines the keybind. WoW loads it by file name, and listing it in the TOC would run it through the wrong parser. The binding fires on key release so the keystroke can't land in the question box.
 - `app/main.ts` is the Electron entry point. It creates the real tray and passes it, the clipboard, Codex, `fetch` and the browser opener to `app.ts`.
 - `app/app.ts` wires the modules together and owns the app's state: what the overlay shows, the running request and the follow-up editor. The clipboard, tray, Codex, network and browser arrive as ports, so tests run the real app with fakes. Electron's own APIs are imported directly.
 - `app/threads.ts` holds the pure thread logic: starting and finishing turns, and what the overlay shows for a view.
 - `app/clipboard.ts` watches the clipboard for requests, and `app/tray.ts` builds the tray menu from the app's state.
-- `app/overlay.ts` owns the window: focus, raising and resizing.
+- `app/overlay.ts` owns the window: focus, raising and resizing. `app/browse.ts` owns the browse tab's web view, and `app/address.ts` holds the pure address-bar parsing.
 - `app/ipc.ts` types every message between the main process and the overlay, and validates the ones coming from the overlay.
 - `app/preload.cjs` renders `overlay.html`, which `overlay.css` styles.
 - `app/snapshots/` mirrors the addon's readers: one module per data shape with its schema and the prompt notes that explain its fields. `app/topics/` mirrors the addon's topics: one module per button with its category, the request fields it adds and its prompt paragraph, listed in `index.ts` in menu order.
@@ -29,6 +29,8 @@ Electron runs the TypeScript directly with `--experimental-strip-types`. There i
 ## Addon
 
 The addon reads game data only when the player submits a question outside combat. It uses no timers, frame polling, inspect requests, auction scans or addon messages.
+
+The minimap button is the addon's own 31 pixel frame on the minimap rather than a LibDBIcon button, since the addon ships no libraries. Its position is one angle in degrees anticlockwise from the minimap's right edge, kept in the `ScallopAlfredDB` saved variable and restored on login, which is the only state the addon stores. Dragging runs an `OnUpdate` that converts the cursor's screen pixels to the minimap's own units by its effective scale, and the radius comes from the minimap's current width so a resized minimap keeps the button on the ring.
 
 Midnight marks some API values as secret. `addon.Public` drops them without looking inside, and `addon.Read` also treats a failing API call as missing data. Missing data never blocks a question and is never retried. A secret target GUID hides the NPC preset and adds a menu hint to type the creature's name in a custom question.
 
@@ -72,7 +74,7 @@ A request is one line, `SCALLOPALFRED:` followed by JSON:
 
 The optional `equipped`, `professions`, `talents`, `inventory`, `recipes` and per-subject `tsm` fields are snapshots, so follow-ups reuse them. `inventory` carries the player's copper and whether the bank and Warband bank were readable; `recipes` carries the open profession and its skill level. Money is in copper, and `capturedAt` is the Unix time in seconds when the addon read the data, not when TSM last refreshed. `protocol.ts` defines every field and limit. A request from a mismatched addon fails validation, so update the addon and app together.
 
-The addon's entry in the minimap's addon compartment, declared with `AddonCompartmentFunc` in the TOC, offers `SCALLOPALFRED:SHOW` followed by a fresh ID for copying, so copying it twice in a row is seen twice. The app raises the overlay when it sees it and starts no question.
+The minimap button copies `SCALLOPALFRED:SHOW` followed by a fresh ID, so copying it twice in a row is seen twice. The app raises the overlay when it sees it and starts no question.
 
 ## Desktop app
 
@@ -98,11 +100,28 @@ The window is transparent, frameless, always on top and not focusable, so it nev
 - New clipboard questions, the show command and the tray call `raise`, which also calls `moveTop`. Other updates only show a hidden window and restore the topmost flag, leaving focus and window order alone.
 - The follow-up editor makes the window focusable and focuses it, and so does a plain click on a reply that can be followed up, so Enter can open the editor. Windows ties taskbar visibility to focusability, so the app reapplies `setSkipTaskbar(true)`. Nothing hands focus back, so the player clicks into WoW. Hiding makes the window non-focusable again.
 - Chromium's window animations are off on Windows because they flash the transparent window.
-- Native resizing is off. The drag handle sends heights to the main process, which clamps them to 320 to 900 pixels and the space below the window.
+- Native resizing is off. Each dimension has its own edge handle, so neither drag can change the other: the bottom one sends heights and the left one widths. The main process clamps them to 320 to 900 pixels tall and 280 to 1600 wide, and to the space below and left of the window. Height grows downwards from a fixed top edge. Width grows leftwards from a fixed right edge, so widening never pushes the overlay across the game's minimap, which is why the width is saved with the `x` it implies.
+- The browse tab holds the keyboard for as long as it is open, since a web page needs it for its own fields. Switching back to Ask hands it to the game again.
+
+### Browse tab
+
+The overlay has two panes. Ask holds the threads; Browse is an ordinary browser for reading Wowhead, X or anything else without leaving the game. It is a `WebContentsView` layered over the overlay page, created the first time the tab is opened, so an overlay that only answers questions never pays for it. The page measures the box the view should cover and reports it over `browse-bounds`, which keeps the layout in CSS where the rest of it lives.
+
+The view runs in its own `persist:browse` session, so logins survive a restart. It reports Chrome's reduced Android user agent, built from the Chromium version Electron ships, and overrides the `Sec-CH-UA-Mobile` and `Sec-CH-UA-Platform` client hints to match, because Chromium keeps sending desktop ones and sites trust those over the user agent string. The pane is about as wide as a phone, so a mobile layout is the one that fits, and it names no Electron, which some sites refuse. Pages are asked for their dark theme over the devtools protocol, because `nativeTheme.themeSource` does not reach a renderer's `prefers-color-scheme`, with `Sec-CH-Prefers-Color-Scheme` alongside the other hints for pages that pick their theme on the server. They also get no scrollbar, which would cost real width in a pane this narrow: the protocol hides the ones inside a page, and the root scroller, the one actually on show, is hidden through the CSSOM as well, because that command is the unreliable half of the pair. Pages still scroll with the wheel. None of it is worth failing over, so it all gives up quietly. The view paints black until a page loads, so nothing flashes white over the overlay.
+
+It is sandboxed and context-isolated with no preload and no Node integration, and its session denies every permission request, so nothing can ask for the camera, microphone, location or notifications. There is one pane, so a link that asks for its own window loads in place instead. `address.ts` only ever returns an http(s) URL, adding `https` to a bare hostname, so the pane cannot be pointed at the local disk or a script.
+
+`fullscreen.ts` stands in for the Fullscreen API. An embedded view never answers `requestFullscreen`: it neither resolves nor rejects, and `enter-html-full-screen` never fires, so a player's fullscreen button looks dead. The stand-in moves the element into a pane-sized host appended to the body and reports the state a player expects, putting the element back in the gap it came from on the way out. Moving it is the point: styling it `fixed` where it sits is anchored by any ancestor with a transform or paint containment, and clearing those collapses a feed that positions its items with transforms. Its styles go through style properties, because the strict `style-src` these sites send blocks an injected `<style>`.
+
+Escape is the way out. The stand-in covers every name a player might call and reports the legacy `fullscreen` and `webkitIsFullScreen` flags a control reads to decide whether to minimise, but a player's own minimise button can still do nothing. Chromium's built-in video controls take an internal path rather than any of these, which is the likeliest reason and is unconfirmed: diagnosing it needs devtools on the pane, which the app does not expose.
+
+All of the above is applied per document, from both `dom-ready` and `did-finish-load`, because a devtools command sent before the target has a document is dropped. Applying twice is harmless.
+
+The last page is saved to `browseUrl` in the settings when the tab closes and on quit, so the tab reopens where it was left. A question arriving from the clipboard switches back to Ask, so an answer is never hidden behind a web page.
 
 ### Rendering
 
-The page runs no scripts of its own (`script-src 'none'`). The sandboxed, context-isolated preload renders it. markdown-it turns answers into HTML in the main process with raw HTML and images disabled and only HTTP(S) links allowed. A core rule then replaces money written as `1,234g 56s 7c` in text with coin icons from `assets`; gold is required so seconds such as `2s` stay text. Clicking a link opens it in the default browser after a second URL check. The overlay never navigates.
+The Ask pane runs no scripts of its own (`script-src 'none'`); that policy covers the overlay page, not the browse tab's view, which is ordinary web content isolated by its own session and sandbox. The sandboxed, context-isolated preload renders it. markdown-it turns answers into HTML in the main process with raw HTML and images disabled and only HTTP(S) links allowed. A core rule then replaces money written as `1,234g 56s 7c` in text with coin icons from `assets`; gold is required so seconds such as `2s` stay text. Clicking a link opens it in the default browser after a second URL check. The overlay never navigates.
 
 Partial answers stay in memory. Codex sends text in bursts, so the app reveals it at a steady pace: every 30 ms it renders a slightly longer prefix of the draft as Markdown and sends only the active reply to the overlay. Earlier turns stay in place. Each update replaces the reply's HTML, so the overlay remembers where the last few updates began and wraps that text in spans whose fade-in resumes where the previous render left it. The final render fades in whatever the pacing had not shown yet. The animation is off under `prefers-reduced-motion`. Updates follow the bottom of the reply only while the reader is there. A status line under a thinking reply shows the latest activity, or "Thinking…" before there is one. Opening a running thread restores its current draft and status line, and streaming never raises a hidden window. Failures replace the draft with an error. Link icons load after the answer finishes.
 
@@ -120,7 +139,7 @@ Archiving sets `archived_at`. Archived threads are read-only, can't be found by 
 
 ### Settings
 
-Settings live in Electron's user data folder, not the addon folder, which may sit under Program Files. Theme and height changes write `settings.json` through one queue, so saving both at once can't lose either. Other settings apply on restart.
+Settings live in Electron's user data folder, not the addon folder, which may sit under Program Files. Theme, size and browsed-page changes write `settings.json` through one queue, so saving several at once can't lose any. Other settings apply on restart.
 
 ## Limits
 

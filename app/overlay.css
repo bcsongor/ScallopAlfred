@@ -158,13 +158,20 @@ header {
   flex-shrink: 0;
 }
 
+/* Matching the brand's height keeps the row on whole pixels, so the controls line up. */
+#hide {
+  height: 26px;
+  padding: 0 9px;
+}
+
 .brand {
   display: flex;
   align-items: center;
   gap: 8px;
   font: 400 20px/1.3 "Arial Narrow", "Roboto Condensed", Arial, sans-serif;
   white-space: nowrap;
-  flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 button {
@@ -672,4 +679,118 @@ footer:has(#followup[hidden]):has(#followup-form[hidden]) {
 
 #resize-height:hover::after {
   background: var(--text);
+}
+
+/* Width has its own handle on the left edge, because the window widens that way. It stops short
+   of the bottom so the two grips never overlap. */
+#resize-width {
+  position: fixed;
+  top: 4px;
+  bottom: 14px;
+  left: 4px;
+  width: 10px;
+  display: flex;
+  align-items: center;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+#resize-width::after {
+  content: "";
+  width: 2px;
+  height: 32px;
+  margin: 0 auto;
+  background: var(--border);
+  border-radius: 1px;
+}
+
+#resize-width:hover::after {
+  background: var(--text);
+}
+
+/*
+ * TABS AND BROWSING
+ */
+
+.tabs {
+  display: flex;
+  flex-shrink: 0;
+  height: 26px;
+  margin-left: auto;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+/* The type matches Hide's, so the two controls read as the same size. The padding is tighter to
+   pay for it, because the header has no slack at the narrowest window. */
+.tabs button {
+  padding: 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.tabs button + button {
+  border-left: 1px solid var(--border);
+}
+
+.tabs button[aria-selected="true"] {
+  background: var(--button-hover);
+  color: var(--text);
+}
+
+/* Browsing replaces the thread, its heading and the follow-up bar. */
+body[data-tab="browse"] :is(.thread-heading, #answer, footer) {
+  display: none;
+}
+
+/* Without the thread heading below it, the header needs its own room under the buttons. */
+body[data-tab="browse"] .overlay-heading {
+  padding-bottom: 8px;
+}
+
+#browse {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding-top: 8px;
+}
+
+/* The buttons stretch to the address bar, so the whole row is one height. */
+.browse-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 28px;
+}
+
+.browse-bar button {
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+#browse-url {
+  flex: 1;
+  min-width: 0;
+  padding: 0 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 3px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+/* The native web view covers this box, which only shows through before the first page loads. */
+#browse-view {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--input-bg);
 }

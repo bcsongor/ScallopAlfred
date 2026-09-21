@@ -2,22 +2,26 @@ import { readFile, writeFile } from "node:fs/promises";
 import { z } from "zod";
 
 export const heightRange = { min: 320, max: 900 } as const;
+// Wide enough to browse a site comfortably, since the same window now holds the browse tab.
+export const widthRange = { min: 280, max: 1600 } as const;
 
 const configSchema = z.object({
   codexPath: z.string().default(""),
   model: z.string().default("gpt-6-astra"),
-  width: z.number().int().min(280).max(800).default(380),
+  width: z.number().int().min(widthRange.min).max(widthRange.max).default(380),
   height: z.number().int().min(heightRange.min).max(heightRange.max).default(640),
   x: z.number().int().nullable().default(null),
   y: z.number().int().nullable().default(null),
   fontSize: z.number().int().min(12).max(28).default(14),
   theme: z.enum(["original", "wowhead"]).default("original"),
   timeoutSeconds: z.number().int().min(10).max(600).default(180),
+  /** Where the browse tab opens. It records the last page so the tab returns there. */
+  browseUrl: z.string().default("https://x.com"),
 });
 
 export type Config = z.infer<typeof configSchema>;
 
-export type AppearanceChanges = Partial<Pick<Config, "height" | "theme">>;
+export type AppearanceChanges = Partial<Pick<Config, "width" | "height" | "x" | "theme" | "browseUrl">>;
 
 /** Returns a writer that saves changes one at a time, so saving the theme and height together keeps both. */
 export function createSettingsWriter(path: string): (changes: AppearanceChanges) => Promise<void> {

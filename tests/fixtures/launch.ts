@@ -58,9 +58,28 @@ export async function launch(t: TestContext, settings?: Partial<Config>) {
     },
     /** Copies a request the way the addon's copy box does. */
     copy: (value: WoWRequest) => session.app.evaluate((_electron, text) => { harness.clipboard = text; }, `SCALLOPALFRED:${JSON.stringify(value)}`),
-    /** Copies the show command the addon's minimap compartment entry offers. */
+    /** Copies the show command the addon's minimap button offers. */
     copyShowCommand: () => session.app.evaluate((_electron, text) => { harness.clipboard = text; }, `SCALLOPALFRED:SHOW show-${++sequence}`),
     clipboard: () => session.app.evaluate(() => harness.clipboard),
+    /** The browse tab's web view: whether it exists, whether it is on the window, and its page. */
+    browse: () => session.app.evaluate(({ BrowserWindow, webContents }) => {
+      const window = BrowserWindow.getAllWindows()[0];
+      const contents = webContents.getAllWebContents().find(each => each.id !== window.webContents.id);
+      const [child] = window.contentView.children;
+      return {
+        exists: contents !== undefined,
+        attached: child !== undefined,
+        url: contents?.getURL() ?? "",
+        title: contents?.getTitle() ?? "",
+        bounds: child?.getBounds(),
+      };
+    }),
+    /** Runs a script inside the browsed page, the way a click on it would. */
+    inBrowsedPage: (script: string) => session.app.evaluate(({ BrowserWindow, webContents }, source) => {
+      const window = BrowserWindow.getAllWindows()[0];
+      const contents = webContents.getAllWebContents().find(each => each.id !== window.webContents.id);
+      return contents?.executeJavaScript(source, true);
+    }, script),
     codexCalls: (): Promise<CodexCall[]> => session.app.evaluate(() => harness.codexCalls),
     iconRequests: () => session.app.evaluate(() => harness.iconRequests),
     openedUrls: () => session.app.evaluate(() => harness.openedUrls),

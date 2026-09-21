@@ -46,8 +46,9 @@ Replies appear as Codex writes them. A line under the reply shows what Codex is 
 - **Follow up** continues the thread with the same game data. Ask again from WoW to refresh it. Click the reply, then press Enter to open the editor and Enter again to send.
 - **Double-click the title** to rename the thread. Enter keeps the name and Escape drops it. Leave it empty and Codex names the thread from the conversation.
 - **←** lists your saved threads. Items in thread titles keep their in-game quality colours. The box icon archives a thread. Archived threads are read-only and collapsed at the bottom. Open the heading to see them five at a time, then use the arrow to unarchive one or the bin to delete it.
-- **Hide** hides the overlay while replies keep running. Click the tray icon to bring it back, or from the game open the addon compartment on the minimap, click **Scallop Alfred** and copy the command it shows.
-- Drag the bottom edge to change the height.
+- **Hide** hides the overlay while replies keep running. Click the tray icon to bring it back, or without leaving the game click Alfred's minimap button and press Ctrl+C. Drag that button to move it around the minimap.
+- **Browse** switches the overlay to a browser with an address bar, for reading Wowhead, X or anything else without leaving the game. It keeps you signed in between sessions, and asks sites for their mobile layout in dark with no scrollbar, since the pane is about as wide as a phone. Scroll with the wheel. A video's fullscreen button fills the browse pane; press Escape to come back, because the player's own minimise button doesn't respond. Browsing takes the keyboard, so press **Ask** to hand it straight back to WoW, or click into the game. A new question from WoW switches back to Ask on its own, so an answer never hides behind a page.
+- Drag the grip on the bottom edge to change the height, or the one on the left edge to change the width. It widens to the left, so the right edge stays where you put it.
 
 After typing a follow-up, click back into WoW to give it the keyboard.
 
@@ -61,11 +62,12 @@ The tray menu copies the answer, retries, cancels, switches between the Original
 | --- | --- | --- |
 | `model` | `gpt-6-astra` | Leave empty for the Codex CLI default |
 | `codexPath` | empty | Set it if Codex isn't found. On Windows, point at `codex.exe`, not a `.cmd` or `.ps1` shim |
-| `width` | `380` | 280 to 800 pixels |
+| `width` | `380` | 280 to 1600 pixels |
 | `height` | `640` | 320 to 900 pixels |
-| `x`, `y` | `null` | Window position. `null` puts it near the top right, clear of the minimap and quest tracker |
+| `x`, `y` | `null` | Window position. `null` puts it near the top right, clear of the minimap and quest tracker. Changing the width updates `x`, since the window widens to the left |
 | `fontSize` | `14` | 12 to 28 pixels |
 | `theme` | `original` | `original` or `wowhead` |
+| `browseUrl` | `https://x.com` | Where the Browse tab opens. The app rewrites it to the last page you visited |
 | `timeoutSeconds` | `180` | 10 to 600 |
 
 The same folder holds `threads.sqlite`, with your threads and the game data sent with them, and a `favicons` cache. Icons for plain source links come from Google's favicon service, which only sees the site's hostname. Item links show the item's icon and quality colour from Wowhead, which only sees the item ID.
