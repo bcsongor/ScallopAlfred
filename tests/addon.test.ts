@@ -418,12 +418,44 @@ test("restricted hover values and combat link insertion are omitted", () => {
   assert.deepEqual(game.payload().subjects, []);
 });
 
-test("the minimap compartment entry opens the copy box with the show command", () => {
-  assert.match(read("ScallopAlfred.toc"), /^## AddonCompartmentFunc: ScallopAlfred_Show$/m);
+test("the minimap button copies a fresh show command", () => {
   const game = addon();
-  game.execute('ScallopAlfred_Show("ScallopAlfred", "ScallopAlfredButton"); assert(ScallopAlfredDialog:IsVisible() and focused ~= nil)');
-  const first = game.value("copied") ?? "";
-  assert.match(first, /^SCALLOPALFRED:SHOW \S+$/);
-  game.execute('ScallopAlfred_Show("ScallopAlfred", "ScallopAlfredButton")');
-  assert.notEqual(game.value("copied"), first);
+  game.execute("ScallopAlfredMinimapButton.scripts.OnClick(); assert(ScallopAlfredDialog:IsVisible() and focused ~= nil)");
+  const clicked = game.value("copied") ?? "";
+  assert.match(clicked, /^SCALLOPALFRED:SHOW \S+$/);
+  // The app ignores clipboard text it has already seen, so each copy needs its own ID.
+  game.execute("ScallopAlfredMinimapButton.scripts.OnClick()");
+  assert.match(game.value("copied") ?? "", /^SCALLOPALFRED:SHOW \S+$/);
+  assert.notEqual(game.value("copied"), clicked);
+});
+
+test("the minimap button is dragged around the ring and keeps its angle", () => {
+  assert.match(read("ScallopAlfred.toc"), /^## SavedVariables: ScallopAlfredDB$/m);
+  const game = addon();
+  // The default angle puts the button at the bottom left of a minimap centred at (400, 500).
+  game.execute("frames[#frames].scripts.OnEvent(); offset = ScallopAlfredMinimapButton.point");
+  const placed = { x: game.number("offset[4]"), y: game.number("offset[5]") };
+  assert.ok(placed.x < 0 && placed.y < 0, `default angle is not bottom left: ${placed.x}, ${placed.y}`);
+  assert.equal(Math.round(Math.hypot(placed.x, placed.y)), 75);
+
+  // Dragging to the right of the minimap's centre moves the button there and saves the angle.
+  const button = "ScallopAlfredMinimapButton";
+  game.execute(`
+    ${button}.scripts.OnDragStart(${button})
+    cursorX, cursorY = 500, 500
+    ${button}.scripts.OnUpdate(${button})
+    ${button}.scripts.OnDragStop(${button})
+    assert(${button}.scripts.OnUpdate == nil, "the button keeps following the cursor after the drag")
+    angle = ScallopAlfredDB.minimapAngle
+    offset = ${button}.point
+  `);
+  assert.equal(game.number("angle"), 0);
+  assert.equal(Math.round(game.number("offset[4]")), 75);
+  assert.equal(Math.round(game.number("offset[5]")), 0);
+
+  // A later session restores the saved angle instead of the default.
+  const next = addon();
+  next.execute("ScallopAlfredDB = { minimapAngle = 90 }; frames[#frames].scripts.OnEvent(); offset = ScallopAlfredMinimapButton.point");
+  assert.equal(Math.round(next.number("offset[4]")), 0);
+  assert.equal(Math.round(next.number("offset[5]")), 75);
 });

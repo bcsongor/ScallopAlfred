@@ -22,5 +22,6 @@ events:SetScript("OnEvent", function()
     if not GetBindingKey("SCALLOPALFRED_ASK") and GetBindingAction("ALT-Q") == "" then
         SetBinding("ALT-Q", "SCALLOPALFRED_ASK")
     end
+    addon.RestoreMinimapButton()
     Notify("Press Alt+Q to ask a question, or type /q in chat to follow up. Change the keybind in Options > Keybindings.")
 end)

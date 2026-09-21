@@ -34,6 +34,13 @@ export function addon() {
   return {
     execute,
     value,
+    /** The result of a Lua expression, such as a field of a table, as a number. */
+    number(expression: string): number {
+      execute(`scallopTestValue = ${expression}`);
+      const result = value("scallopTestValue");
+      assert.ok(result !== null, `${expression} is nil`);
+      return Number(result);
+    },
     /** The last request the addon copied, validated by the app's schema. */
     payload(): WoWRequest {
       const request = parseRequest(value("copied") ?? "");

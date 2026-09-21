@@ -1,5 +1,8 @@
 -- Stand-ins for the WoW APIs the addon uses. Tests change these globals to set up each scenario.
 
+-- WoW runs Lua 5.1, which has math.atan2; the test interpreter is 5.3, where math.atan takes both arguments.
+math.atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
+
 UIParent = {}; UISpecialFrames = {}; widgets = {}; frames = {}
 local methods = {}
 function methods:SetText(value) self.text = value; if self.kind == "EditBox" then copied = value end end
@@ -11,6 +14,7 @@ function methods:Hide() self.hidden = true; if self.scripts and self.scripts.OnH
 function methods:IsVisible() return not self.hidden and (not self.parent or not self.parent.hidden) end
 function methods:Insert(value) self:SetText((self.text or "") .. value) end
 function methods:SetScript(event, callback) self.scripts[event] = callback end
+function methods:SetPoint(...) self.point = { ... } end
 function methods:GetText() return self.text end
 local metatable = { __index = function(_, key) return methods[key] or function() end end }
 function CreateFrame(kind, name, parent)
@@ -26,6 +30,14 @@ function methods:CreateFontString()
   widgets[#widgets + 1] = widget
   return widget
 end
+
+-- A 140 pixel minimap centred at (400, 500), with the cursor wherever a test puts it.
+Minimap = setmetatable({
+  GetWidth = function() return 140 end,
+  GetCenter = function() return 400, 500 end,
+  GetEffectiveScale = function() return 1 end,
+}, metatable)
+function GetCursorPosition() return cursorX or 0, cursorY or 0 end
 
 function print(value) notice = value end
 function strtrim(value) return value:match("^%s*(.-)%s*$") end
@@ -151,14 +163,14 @@ C_WeeklyRewards = {
   GetItemHyperlink = function(id) return "|Hitem:" .. id .. "|h[Vault " .. id .. "]|h" end,
 }
 C_Spell = { GetSpellLink = function(id) return "|cff71d5ff|Hspell:" .. id .. "|h[Rejuvenation]|h|r" end }
-GameTooltip = {
+GameTooltip = setmetatable({
   IsShown = function() return not tooltipHidden end,
   GetItem = function() if not noItem then return 'Ring "of" stars', "item:123" end end,
   GetSpell = function() return "Rejuvenation", spellID end,
   GetPrimaryTooltipInfo = function() return tooltipInfo end,
   GetTooltipData = function() return tooltipData end,
   GetOwner = function() return tooltipOwner end,
-}
+}, metatable)
 function UnitGUID(unit) if unit == "target" then return targetGUID end end
 function UnitName(unit)
   if unit == "target" then return targetName end

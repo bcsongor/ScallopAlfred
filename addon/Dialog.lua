@@ -188,7 +188,7 @@ function ScallopAlfred_Ask()
     dialog:Show()
 end
 
--- The Scallop Alfred entry in the minimap's addon compartment. The app raises a hidden overlay when this is copied.
-function ScallopAlfred_Show()
+-- Copying the show command brings a hidden overlay back. The minimap button is its only caller.
+function addon.ShowOverlay()
     showCopyBox(addon.EncodeShowCommand())
 end

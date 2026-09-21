@@ -6,7 +6,7 @@ import { categories, topicFields } from "./topics/index.ts";
 
 const requestPrefix = "SCALLOPALFRED:";
 
-/** The addon's minimap compartment entry copies this, followed by a fresh ID, to bring back a hidden overlay. */
+/** The addon's minimap button copies this, followed by a fresh ID, to bring back a hidden overlay. */
 const showPrefix = "SCALLOPALFRED:SHOW";
 
 export const isShowCommand = (text: string): boolean => text.startsWith(showPrefix);

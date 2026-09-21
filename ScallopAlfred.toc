@@ -1,13 +1,14 @@
 ## Interface: 120100, 120007, 120001
 ## Title: Scallop Alfred
 ## IconTexture: Interface\Icons\INV_Misc_Shell_03
-## AddonCompartmentFunc: ScallopAlfred_Show
 ## Notes: Alfred knows more about Azeroth than he lets on. Ask quietly.
 ## Category: Scallop
 ## Author: bcsongor
 ## Version: 0.1.0
+## SavedVariables: ScallopAlfredDB
 
 # Load order is the dependency order: helpers, readers, topics in menu order, then the request and the UI.
+# Minimap.lua loads before Main.lua, which restores the button's saved position on login.
 addon/Core.lua
 
 addon/Readers/Subjects.lua
@@ -33,4 +34,5 @@ addon/Topics/Gold.lua
 
 addon/Request.lua
 addon/Dialog.lua
+addon/Minimap.lua
 addon/Main.lua
