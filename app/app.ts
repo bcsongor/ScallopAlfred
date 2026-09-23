@@ -323,6 +323,10 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     const applied = overlay.setWidth(width);
     if (finished) saveSettings(applied);
   });
+  overlay.listen("move-overlay", ({ x, y, finished }) => {
+    const applied = overlay.moveTo(x, y);
+    if (finished) saveSettings(applied);
+  });
   overlay.listen("select-tab", selectTab);
   overlay.listen("browse-bounds", bounds => overlay.browse.setBounds(bounds));
   overlay.listen("browse-navigate", target => overlay.browse.navigate(target));

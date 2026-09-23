@@ -53,6 +53,8 @@ const messages = {
   "rename-thread": z.object({ id: z.string(), title: z.string().trim().max(200) }),
   "resize-height": z.object({ height: z.number(), finished: z.boolean() }),
   "resize-width": z.object({ width: z.number(), finished: z.boolean() }),
+  /** Where the overlay's top-left corner should go, in screen coordinates. */
+  "move-overlay": z.object({ x: z.number(), y: z.number(), finished: z.boolean() }),
   "open-link": z.string(),
   "select-tab": z.enum(["ask", "browse"]),
   /** The overlay page owns the layout, so it reports where the browse pane sits in the window. */

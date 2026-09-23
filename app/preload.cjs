@@ -4,6 +4,7 @@ const { ipcRenderer } = require("electron");
 /** @typedef {import("./ipc.ts").FromOverlay} FromOverlay */
 /** @typedef {import("./ipc.ts").OverlayRequests} OverlayRequests */
 /** @typedef {import("./history.ts").TitleSubject} TitleSubject */
+/** @typedef {{ x: number, y: number }} Point */
 
 /** @type {<K extends keyof FromOverlay>(channel: K, ...message: import("./ipc.ts").MessageArgs<FromOverlay, K>) => void} */
 const send = (channel, ...message) => ipcRenderer.send(channel, ...message);
@@ -72,6 +73,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const form = element("followup-form", HTMLFormElement);
   const question = element("question", HTMLTextAreaElement);
   const sendFollowup = element("send-followup", HTMLButtonElement);
+  const header = element("header", HTMLElement);
   const resizeHeight = element("resize-height", HTMLElement);
   const resizeWidth = element("resize-width", HTMLElement);
   const tabAsk = element("tab-ask", HTMLButtonElement);
@@ -89,6 +91,9 @@ window.addEventListener("DOMContentLoaded", () => {
   /** A drag in progress on one edge: where it started, the size then, and the size now. */
   /** @type {{ start: number, from: number, next: number } | undefined} */
   let resizing;
+  /** A header drag in progress: where the pointer and the window were when it started. */
+  /** @type {{ start: Point, from: Point, next: Point } | undefined} */
+  let moving;
   /** @type {string | undefined} */
   let latestTurn;
   /** The thread on screen and its title, which double-clicking the title edits. */
@@ -401,6 +406,26 @@ window.addEventListener("DOMContentLoaded", () => {
     (height, finished) => send("resize-height", { height, finished }));
   edgeHandle(resizeWidth, event => -event.screenX, () => window.innerWidth,
     (width, finished) => send("resize-width", { width, finished }));
+
+  // Dragging the header moves the window. Its buttons still click, so only the rest of it grabs.
+  header.addEventListener("pointerdown", event => {
+    if (event.button !== 0 || (event.target instanceof Element && event.target.closest("button"))) return;
+    event.preventDefault();
+    const from = { x: window.screenX, y: window.screenY };
+    moving = { start: { x: event.screenX, y: event.screenY }, from, next: from };
+    header.setPointerCapture(event.pointerId);
+  });
+  header.addEventListener("pointermove", event => {
+    if (!moving) return;
+    moving.next = { x: moving.from.x + event.screenX - moving.start.x, y: moving.from.y + event.screenY - moving.start.y };
+    send("move-overlay", { ...moving.next, finished: false });
+  });
+  header.addEventListener("lostpointercapture", () => {
+    if (!moving) return;
+    const position = moving.next;
+    moving = undefined;
+    send("move-overlay", { ...position, finished: true });
+  });
 
   tabAsk.addEventListener("click", () => send("select-tab", "ask"));
   tabBrowse.addEventListener("click", () => send("select-tab", "browse"));

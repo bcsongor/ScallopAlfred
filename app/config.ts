@@ -21,7 +21,7 @@ const configSchema = z.object({
 
 export type Config = z.infer<typeof configSchema>;
 
-export type AppearanceChanges = Partial<Pick<Config, "width" | "height" | "x" | "theme" | "browseUrl">>;
+export type AppearanceChanges = Partial<Pick<Config, "width" | "height" | "x" | "y" | "theme" | "browseUrl">>;
 
 /** Returns a writer that saves changes one at a time, so saving the theme and height together keeps both. */
 export function createSettingsWriter(path: string): (changes: AppearanceChanges) => Promise<void> {

@@ -156,6 +156,8 @@ header {
   gap: 10px;
   font-size: 13px;
   flex-shrink: 0;
+  /* Dragging the header moves the window. */
+  cursor: move;
 }
 
 /* Matching the brand's height keeps the row on whole pixels, so the controls line up. */

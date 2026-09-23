@@ -105,6 +105,17 @@ export function createOverlay(config: Config, onBrowseState: (state: BrowseState
       window.setBounds({ ...bounds, x: right - next, width: next });
       return { width: next, x: right - next };
     },
+    /** Returns the position after clamping it so the whole window stays on the display it lands on. */
+    moveTo(x: number, y: number): { x: number; y: number } {
+      const bounds = window.getBounds();
+      const area = screen.getDisplayMatching({ ...bounds, x: Math.round(x), y: Math.round(y) }).workArea;
+      const next = {
+        x: Math.max(area.x, Math.min(Math.round(x), area.x + area.width - bounds.width)),
+        y: Math.max(area.y, Math.min(Math.round(y), area.y + area.height - bounds.height)),
+      };
+      window.setBounds({ ...bounds, ...next });
+      return next;
+    },
   };
 }
 

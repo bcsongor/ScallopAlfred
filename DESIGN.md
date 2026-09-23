@@ -101,6 +101,7 @@ The window is transparent, frameless, always on top and not focusable, so it nev
 - The follow-up editor makes the window focusable and focuses it, and so does a plain click on a reply that can be followed up, so Enter can open the editor. Windows ties taskbar visibility to focusability, so the app reapplies `setSkipTaskbar(true)`. Nothing hands focus back, so the player clicks into WoW. Hiding makes the window non-focusable again.
 - Chromium's window animations are off on Windows because they flash the transparent window.
 - Native resizing is off. Each dimension has its own edge handle, so neither drag can change the other: the bottom one sends heights and the left one widths. The main process clamps them to 320 to 1600 pixels tall and 280 to 1600 wide, and to the space below and left of the window. Height grows downwards from a fixed top edge. Width grows leftwards from a fixed right edge, so widening never pushes the overlay across the game's minimap, which is why the width is saved with the `x` it implies.
+- Dragging the header, outside its buttons, moves the window the same way: the page sends where the top-left corner should go, and the main process keeps the whole window on the display it lands on and saves `x` and `y` when the drag ends.
 - The browse tab holds the keyboard for as long as it is open, since a web page needs it for its own fields. Switching back to Ask hands it to the game again.
 
 ### Browse tab
