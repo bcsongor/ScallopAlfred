@@ -102,6 +102,7 @@ The window is transparent, frameless, always on top and not focusable, so it nev
 - Chromium's window animations are off on Windows because they flash the transparent window.
 - Native resizing is off. Each dimension has its own edge handle, so neither drag can change the other: the bottom one sends heights and the left one widths. The main process clamps them to 320 to 1600 pixels tall and 280 to 1600 wide, and to the space below and left of the window. Height grows downwards from a fixed top edge. Width grows leftwards from a fixed right edge, so widening never pushes the overlay across the game's minimap, which is why the width is saved with the `x` it implies.
 - Dragging the header, outside its buttons, moves the window the same way: the page sends where the top-left corner should go, and the main process keeps the whole window on the display it lands on and saves `x` and `y` when the drag ends.
+- The Fade box in the header fades the overlay to 60% while the pointer is elsewhere. It uses the window's opacity rather than CSS, because the browse tab's view is a native child the page can't style, and the main process watches the pointer every 25 ms while fading is on, because the page stops seeing the pointer once it moves onto that view.
 - The browse tab holds the keyboard for as long as it is open, since a web page needs it for its own fields. Switching back to Ask hands it to the game again.
 
 ### Browse tab
@@ -140,7 +141,7 @@ Archiving sets `archived_at`. Archived threads are read-only, can't be found by 
 
 ### Settings
 
-Settings live in Electron's user data folder, not the addon folder, which may sit under Program Files. Theme, size and browsed-page changes write `settings.json` through one queue, so saving several at once can't lose any. Other settings apply on restart.
+Settings live in Electron's user data folder, not the addon folder, which may sit under Program Files. Theme, size, position, fade and browsed-page changes write `settings.json` through one queue, so saving several at once can't lose any. Other settings apply on restart.
 
 ## Limits
 

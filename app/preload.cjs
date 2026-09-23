@@ -76,6 +76,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const header = element("header", HTMLElement);
   const resizeHeight = element("resize-height", HTMLElement);
   const resizeWidth = element("resize-width", HTMLElement);
+  const fade = element("fade", HTMLInputElement);
   const tabAsk = element("tab-ask", HTMLButtonElement);
   const tabBrowse = element("tab-browse", HTMLButtonElement);
   const browse = element("browse", HTMLElement);
@@ -407,9 +408,9 @@ window.addEventListener("DOMContentLoaded", () => {
   edgeHandle(resizeWidth, event => -event.screenX, () => window.innerWidth,
     (width, finished) => send("resize-width", { width, finished }));
 
-  // Dragging the header moves the window. Its buttons still click, so only the rest of it grabs.
+  // Dragging the header moves the window. Its controls still click, so only the rest of it grabs.
   header.addEventListener("pointerdown", event => {
-    if (event.button !== 0 || (event.target instanceof Element && event.target.closest("button"))) return;
+    if (event.button !== 0 || (event.target instanceof Element && event.target.closest("button, label"))) return;
     event.preventDefault();
     const from = { x: window.screenX, y: window.screenY };
     moving = { start: { x: event.screenX, y: event.screenY }, from, next: from };
@@ -429,6 +430,7 @@ window.addEventListener("DOMContentLoaded", () => {
     send("move-overlay", { ...position, finished: true });
   });
 
+  fade.addEventListener("change", () => send("set-fade", fade.checked));
   tabAsk.addEventListener("click", () => send("select-tab", "ask"));
   tabBrowse.addEventListener("click", () => send("select-tab", "browse"));
 
@@ -488,6 +490,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
   on("theme", theme => {
     document.documentElement.dataset.theme = theme;
+  });
+
+  on("fade", enabled => {
+    fade.checked = enabled;
   });
 
   on("tab", tab => {

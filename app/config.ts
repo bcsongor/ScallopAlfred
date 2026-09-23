@@ -14,6 +14,8 @@ const configSchema = z.object({
   y: z.number().int().nullable().default(null),
   fontSize: z.number().int().min(12).max(28).default(14),
   theme: z.enum(["original", "wowhead"]).default("original"),
+  /** Fades the overlay while the pointer is elsewhere, so the game shows through. */
+  fade: z.boolean().default(false),
   timeoutSeconds: z.number().int().min(10).max(600).default(180),
   /** Where the browse tab opens. It records the last page so the tab returns there. */
   browseUrl: z.string().default("https://x.com"),
@@ -21,7 +23,7 @@ const configSchema = z.object({
 
 export type Config = z.infer<typeof configSchema>;
 
-export type AppearanceChanges = Partial<Pick<Config, "width" | "height" | "x" | "y" | "theme" | "browseUrl">>;
+export type AppearanceChanges = Partial<Pick<Config, "width" | "height" | "x" | "y" | "theme" | "fade" | "browseUrl">>;
 
 /** Returns a writer that saves changes one at a time, so saving the theme and height together keeps both. */
 export function createSettingsWriter(path: string): (changes: AppearanceChanges) => Promise<void> {

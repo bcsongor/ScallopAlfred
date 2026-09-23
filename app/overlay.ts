@@ -39,7 +39,18 @@ export function createOverlay(config: Config, onBrowseState: (state: BrowseState
   const topmostCheck = setInterval(() => {
     if (window.isVisible()) keepOnTop();
   }, 1000);
-  window.on("closed", () => clearInterval(topmostCheck));
+  let fadeCheck: ReturnType<typeof setInterval> | undefined;
+  let opacity = 1;
+  window.on("closed", () => {
+    clearInterval(topmostCheck);
+    clearInterval(fadeCheck);
+  });
+
+  function pointerInside(): boolean {
+    const pointer = screen.getCursorScreenPoint();
+    const bounds = window.getBounds();
+    return pointer.x >= bounds.x && pointer.x < bounds.x + bounds.width && pointer.y >= bounds.y && pointer.y < bounds.y + bounds.height;
+  }
 
   return {
     listen,
@@ -105,6 +116,25 @@ export function createOverlay(config: Config, onBrowseState: (state: BrowseState
       window.setBounds({ ...bounds, x: right - next, width: next });
       return { width: next, x: right - next };
     },
+    /**
+     * Fades the whole window, the browse tab's view included, while the pointer is elsewhere.
+     * The page loses track of the pointer once it moves onto that view, so the main process
+     * watches the pointer itself, and only while fading is on.
+     */
+    setFade(enabled: boolean): void {
+      clearInterval(fadeCheck);
+      fadeCheck = undefined;
+      opacity = 1;
+      window.setOpacity(opacity);
+      if (!enabled) return;
+      fadeCheck = setInterval(() => {
+        if (!window.isVisible()) return;
+        const target = pointerInside() ? 1 : fadedOpacity;
+        if (opacity === target) return;
+        opacity = opacity < target ? Math.min(target, opacity + fadeStep) : Math.max(target, opacity - fadeStep);
+        window.setOpacity(opacity);
+      }, fadeTickMs);
+    },
     /** Returns the position after clamping it so the whole window stays on the display it lands on. */
     moveTo(x: number, y: number): { x: number; y: number } {
       const bounds = window.getBounds();
@@ -123,6 +153,12 @@ export function createOverlay(config: Config, onBrowseState: (state: BrowseState
 function setTopmost(window: BrowserWindow): void {
   window.setAlwaysOnTop(true, "screen-saver");
 }
+
+// How far the overlay fades while the pointer is elsewhere, and how much each tick moves it, so it
+// eases in and out over 50 ms.
+const fadedOpacity = 0.6;
+const fadeStep = 0.2;
+const fadeTickMs = 25;
 
 // Keeps the default position clear of WoW's minimap and objective tracker in the top-right corner.
 const rightEdgeClearance = 420;

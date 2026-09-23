@@ -34,6 +34,7 @@ export type ToOverlay = {
   };
   history: { threads: ThreadSummary[]; archived: ArchivedThreadSummary[]; fontSize: number };
   theme: Config["theme"];
+  fade: boolean;
   "followup-editor": boolean;
   tab: Tab;
   browse: BrowseState;
@@ -57,6 +58,7 @@ const messages = {
   "move-overlay": z.object({ x: z.number(), y: z.number(), finished: z.boolean() }),
   "open-link": z.string(),
   "select-tab": z.enum(["ask", "browse"]),
+  "set-fade": z.boolean(),
   /** The overlay page owns the layout, so it reports where the browse pane sits in the window. */
   "browse-bounds": z.object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() }),
   "browse-navigate": z.string().max(2048),

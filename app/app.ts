@@ -328,6 +328,10 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     if (finished) saveSettings(applied);
   });
   overlay.listen("select-tab", selectTab);
+  overlay.listen("set-fade", fade => {
+    overlay.setFade(fade);
+    saveSettings({ fade });
+  });
   overlay.listen("browse-bounds", bounds => overlay.browse.setBounds(bounds));
   overlay.listen("browse-navigate", target => overlay.browse.navigate(target));
   overlay.listen("browse-back", overlay.browse.back);
@@ -350,6 +354,8 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   refreshMenu();
   await overlay.load();
   overlay.send("theme", theme);
+  overlay.send("fade", config.fade);
+  overlay.setFade(config.fade);
   overlay.send("tab", tab);
   if (process.platform === "darwin") app.dock?.hide();
   render(true);

@@ -176,14 +176,50 @@ header[data-moving] {
   padding: 0 9px;
 }
 
+.fade-toggle {
+  display: flex;
+  flex-shrink: 0;
+  margin-left: auto;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.fade-toggle:hover {
+  color: var(--text);
+}
+
+.fade-toggle input {
+  margin: 0;
+  accent-color: var(--muted);
+  cursor: pointer;
+}
+
+/* Whatever doesn't fit beside the controls wraps onto a second line the fixed height clips, so the
+   name drops out whole, then the logo. The empty first item lets the logo wrap too. */
 .brand {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  height: 26px;
   font: 400 20px/1.3 "Arial Narrow", "Roboto Condensed", Arial, sans-serif;
   white-space: nowrap;
   min-width: 0;
   overflow: hidden;
+}
+
+.brand::before {
+  content: "";
+  height: 100%;
+}
+
+.brand img {
+  flex-shrink: 0;
+}
+
+.brand span {
+  margin-left: 8px;
 }
 
 button {
@@ -729,7 +765,6 @@ footer:has(#followup[hidden]):has(#followup-form[hidden]) {
   display: flex;
   flex-shrink: 0;
   height: 26px;
-  margin-left: auto;
   border: 1px solid var(--border);
   border-radius: 3px;
   overflow: hidden;
