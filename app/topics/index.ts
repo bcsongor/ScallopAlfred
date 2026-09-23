@@ -8,21 +8,14 @@ import { professions } from "./professions.ts";
 import { selectedAchievement } from "./selected-achievement.ts";
 import type { Topic } from "./topic.ts";
 
+/** Every topic the addon can send. Adding one here is all the request schema and prompt need. */
 const all = [mechanics, professions, gear, gold, greatVault, selectedAchievement, altarOfCorrosion, corrosiveCodex] as const;
 
-/** Every topic the addon can send, in menu order. */
-export const topics: readonly Topic[] = all;
+type UnionToIntersection<U> = (U extends unknown ? (union: U) => void : never) extends (intersection: infer I) => void ? I : never;
 
 export const categories = all.map(topic => topic.category);
 
-/** The request fields topics add, spread by name so the request type keeps each field's shape. */
-export const topicFields = {
-  ...gear.fields,
-  ...gold.fields,
-  ...greatVault.fields,
-  ...selectedAchievement.fields,
-  ...altarOfCorrosion.fields,
-  ...corrosiveCodex.fields,
-};
+/** The request fields topics add, merged so the request type keeps each field's shape. */
+export const topicFields = Object.assign({}, ...all.map(topic => topic.fields)) as UnionToIntersection<(typeof all)[number]["fields"]>;
 
-export const topicPrompts = topics.flatMap(topic => topic.prompt ?? []);
+export const topicPrompts = (all satisfies readonly Topic[]).flatMap((topic: Topic) => topic.prompt ?? []);
