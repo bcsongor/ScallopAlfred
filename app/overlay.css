@@ -789,32 +789,30 @@ footer:has(#followup[hidden]):has(#followup-form[hidden]) {
   color: var(--text);
 }
 
-/* Browsing replaces the thread, its heading and the follow-up bar. */
-body[data-tab="browse"] :is(.thread-heading, #answer, footer) {
+/* Browsing replaces the thread, its heading and the follow-up bar, and the address bar takes the
+   heading's place under the tabs. */
+body[data-tab="browse"] :is(.thread-heading, #answer, footer),
+body:not([data-tab="browse"]) .browse-bar {
   display: none;
-}
-
-/* Without the thread heading below it, the header needs its own room under the buttons. */
-body[data-tab="browse"] .overlay-heading {
-  padding-bottom: 8px;
 }
 
 #browse {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
   min-height: 0;
-  padding-top: 8px;
+  padding-top: 10px;
 }
 
-/* The buttons stretch to the address bar, so the whole row is one height. */
+/* The buttons stretch to the address bar, so the whole row is one height. Its margins match the
+   thread heading's, so switching tabs doesn't move the header's edge. */
 .browse-bar {
   display: flex;
   align-items: stretch;
   gap: 4px;
   flex-shrink: 0;
   height: 28px;
+  margin: 14px 0 10px;
 }
 
 .browse-bar button {

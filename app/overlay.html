@@ -12,15 +12,15 @@
     <div class="overlay-heading">
       <header id="header"><span class="brand"><img src="../assets/scallop.jpg" width="24" height="24" alt=""><span>Scallop Alfred</span></span><label class="fade-toggle" title="Fade the overlay while the pointer is elsewhere"><input id="fade" type="checkbox">Fade</label><div class="tabs" role="tablist" aria-label="Overlay tabs"><button id="tab-ask" type="button" role="tab" aria-selected="true">Ask</button><button id="tab-browse" type="button" role="tab" aria-selected="false">Browse</button></div><button id="hide" type="button" title="Hide overlay">Hide</button></header>
       <div class="thread-heading"><button id="back" type="button" aria-label="Back to threads" title="All threads">←</button><h1 id="title">Ask about World of Warcraft</h1><input id="title-editor" type="text" aria-label="Thread title" placeholder="Leave empty to let Codex name it" maxlength="200" hidden></div>
-    </div>
-    <div id="answer" role="log" aria-label="Thread">Press Alt+Q in WoW to ask a question. Hover a tooltip first or Shift-click a link into the question box, then copy the request.</div>
-    <div id="browse" hidden>
       <div class="browse-bar">
         <button id="browse-back" type="button" title="Back" aria-label="Back" disabled>←</button>
         <button id="browse-forward" type="button" title="Forward" aria-label="Forward" disabled>→</button>
         <button id="browse-reload" type="button" title="Reload" aria-label="Reload">⟳</button>
         <input id="browse-url" type="text" aria-label="Address" placeholder="Enter a web address" spellcheck="false" autocomplete="off" maxlength="2048">
       </div>
+    </div>
+    <div id="answer" role="log" aria-label="Thread">Press Alt+Q in WoW to ask a question. Hover a tooltip first or Shift-click a link into the question box, then copy the request.</div>
+    <div id="browse" hidden>
       <!-- The web view is a native child of the window, layered over this box. -->
       <div id="browse-view"></div>
     </div>
