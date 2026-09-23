@@ -52,7 +52,6 @@ const schema = `
     request TEXT NOT NULL CHECK (json_type(request) = 'object'),
     context TEXT NOT NULL AS (request ->> '$.context')
   ) STRICT;
-  CREATE INDEX IF NOT EXISTS threads_context ON threads(context);
 
   CREATE TABLE IF NOT EXISTS turns (
     thread_id TEXT NOT NULL REFERENCES threads(id),
@@ -108,8 +107,6 @@ export function openHistory(path: string) {
   const threadColumns = `id, title, title_subjects AS titleSubjects, updated_at AS updatedAt, archived_at AS archivedAt,
     session_id AS sessionId, context, request`;
   const selectThread = db.prepare(`SELECT ${threadColumns} FROM threads WHERE id = ? AND deleted_at IS NULL`);
-  const selectContext = db.prepare(`SELECT ${threadColumns} FROM threads
-    WHERE context = ? AND archived_at IS NULL AND deleted_at IS NULL ORDER BY updated_at DESC, seq DESC LIMIT 1`);
   const selectTurns = db.prepare("SELECT request_id AS id, question, status, text FROM turns WHERE thread_id = ? ORDER BY position");
   const summaries = db.prepare(`SELECT id, title, title_subjects AS titleSubjects, updated_at AS updatedAt,
     (SELECT question FROM turns WHERE thread_id = threads.id AND position = 0) AS question
@@ -161,7 +158,6 @@ export function openHistory(path: string) {
     /** Renames an unarchived thread and drops its title subjects, since the new title is plain text. */
     rename: (id: string, title: string): Thread | undefined => rename.run(title, id).changes > 0 ? read(selectThread.get(id)) : undefined,
     get: (id: string): Thread | undefined => read(selectThread.get(id)),
-    findContext: (context: string): Thread | undefined => read(selectContext.get(context)),
     list: (): ThreadSummary[] => summaries.all().map(row => summarySchema.parse({ ...row, titleSubjects: json(row.titleSubjects) })),
     listArchived: (): ArchivedThreadSummary[] => archivedSummaries.all().map(row => archivedSummarySchema.parse(row)),
     close: () => db.close(),

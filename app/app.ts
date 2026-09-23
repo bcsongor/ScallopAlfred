@@ -240,13 +240,10 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
 
   /** A follow-up from the game continues the thread on screen, or starts a new one when there isn't one to continue. */
   async function answerCopied(request: WoWRequest): Promise<void> {
-    if (request.thread === "followup") {
-      const thread = openThread();
-      return thread
-        ? answer({ ...request, thread: "continue", context: thread.request.context }, thread)
-        : answer({ ...request, thread: "new" });
-    }
-    return answer(request, request.thread === "continue" ? history.findContext(request.context) : undefined);
+    const thread = request.thread === "followup" ? openThread() : undefined;
+    return thread
+      ? answer({ ...request, thread: "continue", context: thread.request.context }, thread)
+      : answer({ ...request, thread: "new" });
   }
 
   async function answerCopiedRequests(): Promise<void> {

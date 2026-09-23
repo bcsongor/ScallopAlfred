@@ -72,7 +72,7 @@ test("threads can be browsed, archived and continued after a restart", { timeout
   assert.equal(await desktop.page.locator(".turn").count(), 2);
   assert.deepEqual((await desktop.codexCalls()).at(-1)?.session, { context: "first", id: "session-first" });
 
-  // A reply can finish while its thread is archived, and the archived thread cannot be continued.
+  // A reply can finish while its thread is archived, and the archived thread cannot be followed up.
   const subject = { type: "item", name: "Archived while answering", link: "item:123", tooltip: [] };
   await desktop.copy(request("wait", { context: "archived", subjects: [subject] }));
   await desktop.waitForStatus("thinking");
@@ -84,9 +84,6 @@ test("threads can be browsed, archived and continued after a restart", { timeout
   await desktop.clickTray("Cancel question");
   await desktop.waitForAnswer("Question cancelled. Retry from the tray menu when ready.");
   assert.equal(await desktop.page.locator("#followup").isVisible(), false);
-  await desktop.copy(request("After archiving", { context: "archived", thread: "continue" }));
-  await desktop.waitForAnswer("Answer: After archiving");
-  assert.equal(await desktop.page.locator(".turn").count(), 1);
 
   // Startup opens the history even when every thread is archived.
   await back().click();
@@ -104,15 +101,15 @@ test("threads can be browsed, archived and continued after a restart", { timeout
   await desktop.restart();
   await desktop.waitForStatus("history");
   assert.equal(await desktop.page.locator(".thread").count(), 0);
-  assert.equal(await archivedHeader().textContent(), "Archived (9)");
+  assert.equal(await archivedHeader().textContent(), "Archived (8)");
 
   // Opening the section shows five threads at a time. Collapsing it starts over.
   const more = () => desktop.page.getByRole("button", { name: /^Show \d+ more$/ });
   await archivedHeader().click();
   assert.equal(await desktop.page.locator(".archived-thread").count(), 5);
-  assert.equal(await more().textContent(), "Show 4 more");
+  assert.equal(await more().textContent(), "Show 3 more");
   await more().click();
-  assert.equal(await desktop.page.locator(".archived-thread").count(), 9);
+  assert.equal(await desktop.page.locator(".archived-thread").count(), 8);
   assert.equal(await more().count(), 0);
   await archivedHeader().click();
   assert.equal(await desktop.page.locator(".archived-thread").count(), 0);
@@ -122,18 +119,18 @@ test("threads can be browsed, archived and continued after a restart", { timeout
   // Deleting an archived thread removes it from the list, and it stays gone after a restart.
   await desktop.page.getByRole("button", { name: "Delete thread: Extra thread 2", exact: true }).click();
   await desktop.page.getByRole("button", { name: "Delete thread: Extra thread 2", exact: true }).waitFor({ state: "detached" });
-  assert.equal(await archivedHeader().textContent(), "Archived (8)");
+  assert.equal(await archivedHeader().textContent(), "Archived (7)");
   assert.equal(await desktop.page.locator(".archived-thread").filter({ hasText: "Extra thread 2" }).count(), 0);
 
   // Unarchiving puts a thread back in the list, where it can be followed up again.
   await desktop.page.getByRole("button", { name: "Unarchive thread: Extra thread 1", exact: true }).click();
   await thread("Extra thread 1").waitFor();
-  assert.equal(await archivedHeader().textContent(), "Archived (7)");
+  assert.equal(await archivedHeader().textContent(), "Archived (6)");
   await thread("Extra thread 1").click();
   await desktop.waitForAnswer("Answer: Extra thread 1");
   assert.equal(await desktop.page.locator("#followup").isVisible(), true);
   await desktop.restart();
   await desktop.waitForStatus("history");
   assert.deepEqual(await titles(), ["Extra thread 1"]);
-  assert.equal(await archivedHeader().textContent(), "Archived (7)");
+  assert.equal(await archivedHeader().textContent(), "Archived (6)");
 });

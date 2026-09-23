@@ -63,13 +63,11 @@ test("deleting hides an archived thread from every query but keeps its rows", ()
     history.archive(sample.id);
     assert.equal(history.unarchive(sample.id), true);
     assert.equal(history.list().length, 1);
-    assert.equal(history.findContext(sample.request.context)?.id, sample.id);
     history.archive(sample.id);
     assert.equal(history.delete(sample.id), true);
     assert.equal(history.delete(sample.id), false);
     assert.equal(history.unarchive(sample.id), false, "deleted threads stay deleted");
     assert.equal(history.get(sample.id), undefined);
-    assert.equal(history.findContext(sample.request.context), undefined);
     assert.deepEqual(history.list(), []);
     assert.deepEqual(history.listArchived(), []);
     // A reply finishing after deletion saves without resurrecting the thread.
@@ -125,13 +123,12 @@ test("history persists sessions, replaces retries and recovers interrupted repli
     assert.deepEqual(recovered.session, thread.session);
     history.save({ ...recovered, turns: [{ ...recovered.turns[0], status: "answer", text: "**Keep it**" }] });
     assert.equal(history.get(thread.id)?.turns.length, 1);
-    assert.equal(history.findContext("context")?.turns[0].text, "**Keep it**");
+    assert.equal(history.get(thread.id)?.turns[0].text, "**Keep it**");
     assert.equal(history.list().length, 1);
     assert.equal(history.list()[0].question, request.question);
     assert.deepEqual(history.list()[0].titleSubjects, [{ name: "Ore", type: "item", quality: 2 }]);
     history.save({ ...recovered, id: "plain", titleSubjects: [] });
     assert.deepEqual(history.list().find(summary => summary.id === "plain")?.titleSubjects, []);
-    assert.equal(history.findContext("missing"), undefined);
   } finally {
     history.close();
   }
@@ -157,7 +154,6 @@ test("archives retain messages through reply saves and restart, and list newest 
     assert.ok(archivedAt);
     assert.deepEqual(history.list(), []);
     assert.deepEqual(history.listArchived(), [{ id: thread.id, title: thread.title }]);
-    assert.equal(history.findContext(request.context), undefined);
 
     const finished: Thread = { ...thread, turns: [{ ...thread.turns[0], text: "The reply finished after archiving." }] };
     assert.equal(history.save(finished).archivedAt, archivedAt);
@@ -166,7 +162,6 @@ test("archives retain messages through reply saves and restart, and list newest 
     history = openHistory(path);
     assert.deepEqual(history.list(), []);
     assert.equal(history.get(thread.id)?.archivedAt, archivedAt);
-    assert.equal(history.findContext(request.context), undefined);
     const stored = history.get(thread.id);
     assert.equal(stored?.turns[0].text, "The reply finished after archiving.");
     assert.equal(stored?.turns[1].status, "error");
