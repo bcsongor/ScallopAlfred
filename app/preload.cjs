@@ -414,6 +414,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const from = { x: window.screenX, y: window.screenY };
     moving = { start: { x: event.screenX, y: event.screenY }, from, next: from };
     header.setPointerCapture(event.pointerId);
+    header.toggleAttribute("data-moving", true);
   });
   header.addEventListener("pointermove", event => {
     if (!moving) return;
@@ -424,6 +425,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!moving) return;
     const position = moving.next;
     moving = undefined;
+    header.toggleAttribute("data-moving", false);
     send("move-overlay", { ...position, finished: true });
   });
 

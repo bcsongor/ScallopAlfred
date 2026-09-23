@@ -163,7 +163,11 @@ header {
   font-size: 13px;
   flex-shrink: 0;
   /* Dragging the header moves the window. */
-  cursor: move;
+  cursor: grab;
+}
+
+header[data-moving] {
+  cursor: grabbing;
 }
 
 /* Matching the brand's height keeps the row on whole pixels, so the controls line up. */
