@@ -39,19 +39,38 @@ function Subjects.Prices(link)
     end
 end
 
+-- Splits a full hyperlink into its link data and the name between its brackets. Bare link data passes through.
+local function parse(link)
+    return link:match("|H(.-)|h") or link, PlainText(link:match("|h%[(.-)%]|h"))
+end
+
+-- The item's name and quality, which stay nil until the client has cached the item.
+local function itemInfo(link)
+    local ok, name, _, quality = pcall(C_Item.GetItemInfo, link)
+    if ok then return PlainText(name), Count(quality) end
+end
+
+-- An item as inventory stacks and recipe outputs list it: its link data, name, quality and TSM prices.
+function Subjects.Item(link)
+    local key, name = parse(link)
+    local itemName, quality = itemInfo(key)
+    return { link = key, name = name or itemName or key, quality = quality, tsm = Subjects.Prices(key) }
+end
+
 function Subjects.Read(link, name, tooltip)
     link = Public(link, "string")
     if not link then return end
-    name = PlainText(name) or PlainText(link:match("|h%[(.-)%]|h"))
-    link = link:match("|H(.-)|h") or link
+    local linkName
+    link, linkName = parse(link)
+    name = PlainText(name) or linkName
     local kind = link:match("^(%a[%w_]*):")
     if not kind then return end
     tooltip = tooltip or Read(C_TooltipInfo.GetHyperlink, link)
     local quality
     if kind == "item" then
-        local itemName, _, itemQuality = C_Item.GetItemInfo(link)
-        name = name or PlainText(itemName)
-        quality = Count(itemQuality)
+        local itemName
+        itemName, quality = itemInfo(link)
+        name = name or itemName
     end
     if not name and tooltip and tooltip.lines and tooltip.lines[1] then name = PlainText(tooltip.lines[1].leftText) end
     local subject = { type = kind, name = name or link, link = link, quality = quality, tooltip = {} }
@@ -98,10 +117,10 @@ function Subjects.Hovered()
 end
 
 -- The player's target, when it's an NPC. NPC GUIDs look like Creature-0-server-instance-zone-npcID-spawn.
--- Some content, such as delves, hides the target's identity; the notice tells the player to ask by name.
+-- Returns nil and true when content such as delves hides the target's identity.
 function Subjects.Target()
     local guid = UnitGUID("target")
-    if issecretvalue(guid) then return nil, "WoW hides this target here. Use Custom question and type its name." end
+    if issecretvalue(guid) then return nil, true end
     guid = Public(guid, "string")
     local guidType, npcID = (guid or ""):match("^(%a+)%-%d+%-%d+%-%d+%-%d+%-(%d+)%-")
     if guidType ~= "Creature" and guidType ~= "Vehicle" then return end
@@ -115,13 +134,11 @@ function Subjects.Linked(question, hovered)
         subjects[1] = hovered
         seen[hovered.link] = true
     end
-    for link, name in question:gmatch("|H(.-)|h(.-)|h") do
-        if not seen[link] then
-            local subject = Subjects.Read(link, (name:gsub("^%[(.*)%]$", "%1")))
-            if subject then
-                subjects[#subjects + 1] = subject
-                seen[link] = true
-            end
+    for link in question:gmatch("|H.-|h.-|h") do
+        local subject = Subjects.Read(link)
+        if subject and not seen[subject.link] then
+            subjects[#subjects + 1] = subject
+            seen[subject.link] = true
         end
     end
     for _, subject in ipairs(subjects) do

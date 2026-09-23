@@ -173,12 +173,14 @@ test("a general question needs no hovered item, and combat leaves the payload un
   assert.match(game.value("notice") ?? "", /after combat/);
 });
 
-test("the default keybind never replaces an existing binding", () => {
+test("the default keybind never replaces an existing binding, and login names the bound key", () => {
   const game = addon();
   game.execute('existingBinding = "OTHER_ACTION"; frames[#frames].scripts.OnEvent()');
   assert.equal(game.value("bound"), null);
+  assert.match(game.value("notice") ?? "", /Bind a key/);
   game.execute('existingBinding = ""; frames[#frames].scripts.OnEvent()');
   assert.equal(game.value("bound"), "ALT-Q:SCALLOPALFRED_ASK");
+  assert.match(game.value("notice") ?? "", /Press Alt-Q/);
 });
 
 test("the ask binding opens the topic menu on key release, then an empty editor", () => {

@@ -1,5 +1,5 @@
 local _, addon = ...
-local ShowOverlay = addon.ShowOverlay
+local ShowCopyBox, EncodeShowCommand = addon.ShowCopyBox, addon.EncodeShowCommand
 
 -- A minimap button that brings the desktop overlay back. Clicking it opens the copy box with the show
 -- command, which the app raises the overlay for. Drag the button around the ring; its angle is saved.
@@ -44,11 +44,11 @@ end
 button:SetScript("OnDragStart", function(self) self:SetScript("OnUpdate", follow) end)
 button:SetScript("OnDragStop", function(self)
     self:SetScript("OnUpdate", nil)
-    -- Saved variables only exist after login, so the angle is stored once the drag ends.
+    -- The saved variable is nil until the addon first stores something.
     ScallopAlfredDB = ScallopAlfredDB or {}
     ScallopAlfredDB.minimapAngle = angle
 end)
-button:SetScript("OnClick", ShowOverlay)
+button:SetScript("OnClick", function() ShowCopyBox(EncodeShowCommand()) end)
 button:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:AddLine("Scallop Alfred")

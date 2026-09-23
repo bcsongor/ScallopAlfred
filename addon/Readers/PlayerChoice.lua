@@ -2,7 +2,7 @@ local _, addon = ...
 local Public, Read, PlainText = addon.Public, addon.Read, addon.PlainText
 
 -- Blizzard's player choice window drives Torghast powers, Cyphers, the Corrosive Codex and other systems from
--- one frame. Each option's buttons carry their state as an atlas in the button text.
+-- one frame.
 local PlayerChoice = {}
 addon.PlayerChoice = PlayerChoice
 
@@ -14,17 +14,26 @@ local function description(name, tooltip)
     if text ~= "" and #text <= 1024 then return text end
 end
 
+-- The server marks a button's state with an atlas before its name, common-icon-checkmark on the active option
+-- and activities-icon-lock on a locked one, while the button's own flags stay false.
 local function button(info)
     local text = Public(info.text, "string")
     local name = text and strtrim(PlainText(text))
     if not name or name == "" then return end
-    return { name = name, icon = text:match("|A:([^:|]+)"), description = description(name, info.tooltip) }
+    local icon = text:match("|A:([^:|]+)")
+    local active = icon ~= nil and icon:find("check", 1, true) ~= nil
+    return {
+        name = name,
+        description = description(name, info.tooltip),
+        active = active or nil,
+        locked = icon ~= nil and not active or nil,
+    }
 end
 
--- The open choice's option whose question or header contains `title`, with its buttons reduced to a name,
--- the atlas shown before it and the tooltip's description.
-function PlayerChoice.Current(title)
-    local choice = Read(function() return C_PlayerChoice.GetCurrentPlayerChoiceInfo() end)
+-- The buttons of the open choice's option whose question or header contains `title`, or nil when no such
+-- option is open.
+function PlayerChoice.Buttons(title)
+    local choice = Read(C_PlayerChoice.GetCurrentPlayerChoiceInfo)
     if not choice then return end
     local question = Public(choice.questionText, "string") or ""
     for _, option in ipairs(choice.options or {}) do
@@ -34,7 +43,7 @@ function PlayerChoice.Current(title)
                 local entry = button(info)
                 if entry then buttons[#buttons + 1] = entry end
             end
-            return { buttons = buttons }
+            return buttons
         end
     end
 end

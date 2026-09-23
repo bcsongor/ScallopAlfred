@@ -96,7 +96,7 @@ local function openEditor(title)
     edit:SetText("")
 end
 
-local function showCopyBox(text)
+function addon.ShowCopyBox(text)
     mode = "copy"
     showEditor("Copy this request to the desktop app", "Press " .. (IsMacClient() and "Cmd+C" or "Ctrl+C") .. " to copy and close.")
     edit:SetMaxLetters(0)
@@ -111,7 +111,7 @@ function addon.SendQuestion(question, subject, category, thread)
     if question == "" then return end
     local request, problem = addon.BuildRequest(question, subject, category, thread or "new")
     if not request then Notify(problem); return end
-    showCopyBox(addon.EncodeRequest(request))
+    addon.ShowCopyBox(addon.EncodeRequest(request))
 end
 
 edit:SetScript("OnEnterPressed", function()
@@ -163,12 +163,16 @@ function ScallopAlfred_Ask()
     if InCombatLockdown() then Notify("Ask again after combat."); return end
     selectedSubject = Subjects.Hovered()
     selectedTarget = nil
-    local targetNotice
-    if not selectedSubject then selectedTarget, targetNotice = Subjects.Target() end
+    local targetHidden
+    if not selectedSubject then selectedTarget, targetHidden = Subjects.Target() end
     selectedCategory = nil
     mode = "menu"
     label:SetText(subjectTitle())
-    hint:SetText(targetNotice or ((selectedSubject or selectedTarget) and "Choose a question, then copy the request." or "Choose a topic or ask your own question."))
+    if targetHidden then
+        hint:SetText("WoW hides this target here. Use Custom question and type its name.")
+    else
+        hint:SetText((selectedSubject or selectedTarget) and "Choose a question, then copy the request." or "Choose a topic or ask your own question.")
+    end
     edit:Hide()
     edit:ClearFocus()
     local shown = 0
@@ -186,9 +190,4 @@ function ScallopAlfred_Ask()
     end
     dialog:SetHeight(115 + shown * 34)
     dialog:Show()
-end
-
--- Copying the show command brings a hidden overlay back. The minimap button is its only caller.
-function addon.ShowOverlay()
-    showCopyBox(addon.EncodeShowCommand())
 end

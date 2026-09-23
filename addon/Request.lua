@@ -60,7 +60,7 @@ function addon.BuildRequest(question, subject, category, thread)
     -- Each reader runs on its own, so one failing snapshot never blocks the question.
     for field, read in pairs(snapshotFor(category)) do request[field] = Read(read) end
     -- Every question carries profession skills and the slots its subjects could replace, unless the topic sent more.
-    request.equipped = request.equipped or Equipment.ForSubjects(subjects)
+    request.equipped = request.equipped or Read(Equipment.ForSubjects, subjects)
     request.professions = request.professions or Read(Professions.Read)
     return request
 end

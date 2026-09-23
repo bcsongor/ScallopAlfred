@@ -8,7 +8,7 @@ addon.Achievements = Achievements
 -- window loads on demand, so neither it nor the function exists until the player has opened it once.
 function Achievements.Selected()
     if Read(function() return AchievementFrame:IsShown() end) ~= true then return end
-    local id = Count(Read(function() return AchievementFrameAchievements_GetSelectedAchievementId() end))
+    local id = Count(Read(AchievementFrameAchievements_GetSelectedAchievementId))
     if id and id > 0 then return id end
 end
 

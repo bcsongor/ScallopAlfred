@@ -1,9 +1,6 @@
 local _, addon = ...
 local Public, Count, Read, PlainText = addon.Public, addon.Count, addon.Read, addon.PlainText
 
--- Selection nodes offer a choice; tiered nodes list one entry per rank instead.
-local SELECTION = Enum.TraitNodeType and Enum.TraitNodeType.Selection or 2
-
 -- Blizzard's generic trait window drives Skyriding, the Altar of Corrosion and other systems from one frame.
 -- Blizzard_GenericTraitUtil.lua maps each tree ID to its layout, and C_Traits exposes every tree the same way.
 local TraitTree = {}
@@ -14,14 +11,20 @@ function TraitTree.IsOpen(treeID)
     return Read(function() return GenericTraitFrame:IsShown() and GenericTraitFrame:GetTalentTreeID() == treeID end) == true
 end
 
-local function entryInfo(configID, entryID, selected)
-    local entry = Read(function() return C_Traits.GetEntryInfo(configID, entryID) end)
+-- The name C_Traits shows for an entry from GetEntryInfo: its definition's override, else its spell's name.
+-- Also returns the spell and the definition behind it.
+function TraitTree.EntryName(entry)
     local definitionID = entry and Count(entry.definitionID)
     local definition = definitionID and Read(C_Traits.GetDefinitionInfo, definitionID)
     if not definition then return end
     local spellID = Count(definition.spellID)
     if spellID == 0 then spellID = nil end
     local name = Public(definition.overrideName, "string") or spellID and Public(Read(C_Spell.GetSpellName, spellID), "string")
+    return name, spellID, definition
+end
+
+local function entryInfo(configID, entryID, selected)
+    local name, spellID, definition = TraitTree.EntryName(Read(C_Traits.GetEntryInfo, configID, entryID))
     if not name then return end
     local description = PlainText(definition.overrideDescription)
         or spellID and PlainText(Read(C_Spell.GetSpellDescription, spellID))
@@ -34,7 +37,7 @@ end
 
 -- Every visible node in the tree, bought or not, since the question is what to buy next.
 function TraitTree.Read(treeID)
-    local configID = Count(Read(function() return C_Traits.GetConfigIDByTreeID(treeID) end))
+    local configID = Count(Read(C_Traits.GetConfigIDByTreeID, treeID))
     if not configID or configID <= 0 then return end
     local currency = Read(C_Traits.GetTreeCurrencyInfo, configID, treeID, false)
     local points = currency and currency[1]
@@ -62,7 +65,8 @@ function TraitTree.Read(treeID)
                 available = Public(node.isAvailable, "boolean"),
                 -- canPurchaseRank reports met prerequisites, not affordability.
                 reachable = Public(node.canPurchaseRank, "boolean"),
-                choice = Public(node.type, "number") == SELECTION or nil,
+                -- Selection nodes offer a choice; tiered nodes list one entry per rank instead.
+                choice = Public(node.type, "number") == Enum.TraitNodeType.Selection or nil,
                 entries = entries,
             }
         end

@@ -34,9 +34,10 @@ end
 
 -- The dialog's buttons, in the order their files load. A topic has `text`, which may depend on the subject, a
 -- `category` and either a `question` to copy straight away or none to open the editor. `kind` is "subject" for
--- a hovered-subject preset, "target" for the targeted NPC, or "topic". A topic with `available` shows only
--- while it returns true, an `always` topic also shows beside a subject or target, and `snapshot` maps request
--- fields to the readers that fill them. Subject presets share the snapshot of the topic with their category.
+-- a hovered-subject preset, "target" for the targeted NPC, or "topic". An `itemOnly` subject preset shows only
+-- for items. A topic with `available` shows only while it returns true, an `always` topic also shows beside a
+-- subject or target, and `snapshot` maps request fields to the readers that fill them. Subject presets share the
+-- snapshot of the topic with their category.
 addon.Topics = {}
 
 function addon.AddTopic(topic)

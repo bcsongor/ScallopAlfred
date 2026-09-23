@@ -12,14 +12,16 @@
 addon/Core.lua
 
 addon/Readers/Subjects.lua
+addon/Readers/TraitTree.lua
 addon/Readers/Equipment.lua
 addon/Readers/Professions.lua
 addon/Readers/Talents.lua
 addon/Readers/Achievements.lua
 addon/Readers/Inventory.lua
 addon/Readers/Recipes.lua
-addon/Readers/TraitTree.lua
+addon/Readers/GreatVault.lua
 addon/Readers/PlayerChoice.lua
+addon/Readers/Codex.lua
 
 addon/Topics/Hover.lua
 addon/Topics/Target.lua

@@ -1,5 +1,6 @@
 local _, addon = ...
 local Public, Read = addon.Public, addon.Read
+local TraitTree = addon.TraitTree
 
 local Talents = {}
 addon.Talents = Talents
@@ -26,12 +27,8 @@ function Talents.Read()
                 local rank = node and Public(node.activeRank, "number")
                 local entryID = node and node.activeEntry and Public(node.activeEntry.entryID, "number")
                 if rank and rank > 0 and entryID and #result.selected < 128 then
-                    local entry = Read(C_Traits.GetEntryInfo, configID, entryID)
-                    local definitionID = entry and Public(entry.definitionID, "number")
-                    local definition = definitionID and Read(C_Traits.GetDefinitionInfo, definitionID)
-                    local spellID = definition and Public(definition.spellID, "number")
+                    local name, spellID = TraitTree.EntryName(Read(C_Traits.GetEntryInfo, configID, entryID))
                     if spellID then
-                        local name = Public(definition.overrideName, "string") or Public(Read(C_Spell.GetSpellName, spellID), "string")
                         result.selected[#result.selected + 1] = { spellID = spellID, name = name, rank = rank }
                     end
                 end

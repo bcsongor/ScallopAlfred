@@ -1,39 +1,24 @@
 local _, addon = ...
-local Public, Count, Read, PlainText = addon.Public, addon.Count, addon.Read, addon.PlainText
+local Public, Count, Read = addon.Public, addon.Count, addon.Read
 local Subjects = addon.Subjects
 
-local function bagID(name, fallback)
-    local indices = Enum and Public(Enum.BagIndex, "table")
-    return (indices and Count(indices[name])) or fallback
-end
+-- Every container a stack can sit in, grouped by where the player keeps it.
+local containers = {}
+local function add(group, name) containers[#containers + 1] = { group = group, id = Enum.BagIndex[name] } end
+add("bags", "Backpack")
+for index = 1, 4 do add("bags", "Bag_" .. index) end
+add("bags", "ReagentBag")
+for index = 1, 6 do add("bank", "CharacterBankTab_" .. index) end
+for index = 1, 5 do add("warbank", "AccountBankTab_" .. index) end
 
--- The enum moves between expansions, so each container falls back to the ID this client shipped with.
-local function containers()
-    local list = {}
-    local function add(group, name, fallback)
-        list[#list + 1] = { group = group, id = bagID(name, fallback) }
-    end
-    add("bags", "Backpack", 0)
-    for index = 1, 4 do add("bags", "Bag_" .. index, index) end
-    add("bags", "ReagentBag", 5)
-    for index = 1, 6 do add("bank", "CharacterBankTab_" .. index, 5 + index) end
-    for index = 1, 5 do add("warbank", "AccountBankTab_" .. index, 12 + index) end
-    return list
-end
-
-local function newEntry(key, link)
-    local name = PlainText(link:match("|h%[(.-)%]|h")) or Public(Read(C_Item.GetItemInfo, key), "string")
-    local entry = {
-        link = key, name = name or key,
-        quality = Count(Read(function() return (select(3, C_Item.GetItemInfo(key))) end)),
-        count = { bags = 0, bank = 0, warbank = 0 },
-    }
-    local item = TSM_API and Public(Read(TSM_API.ToItemString, key), "string")
+local function newEntry(link)
+    local entry = Subjects.Item(link)
+    entry.count = { bags = 0, bank = 0, warbank = 0 }
+    local item = TSM_API and Public(Read(TSM_API.ToItemString, entry.link), "string")
     if item then
         entry.auctionCount = Count(Read(TSM_API.GetAuctionQuantity, item))
         entry.mailCount = Count(Read(TSM_API.GetMailQuantity, item))
     end
-    entry.tsm = Subjects.Prices(key)
     return entry
 end
 
@@ -43,7 +28,6 @@ addon.Inventory = Inventory
 -- One pass over every readable container. Bank and Warband tabs report no slots while their windows are
 -- closed, so the snapshot records which of them the player could actually see. No tooltips: stacks are many.
 function Inventory.Read()
-    if type(C_Container) ~= "table" then return end
     local snapshot = {
         capturedAt = GetServerTime(),
         moneyCopper = Count(Read(GetMoney)),
@@ -52,7 +36,7 @@ function Inventory.Read()
         items = {},
     }
     local entries = {}
-    for _, container in ipairs(containers()) do
+    for _, container in ipairs(containers) do
         local slots = Count(Read(C_Container.GetContainerNumSlots, container.id)) or 0
         if slots > 0 then
             if container.group == "bank" then snapshot.bankIncluded = true
@@ -66,7 +50,7 @@ function Inventory.Read()
                 local entry = entries[key]
                 if not entry then
                     if #snapshot.items >= 600 then return snapshot end
-                    entry = newEntry(key, link)
+                    entry = newEntry(link)
                     entries[key] = entry
                     snapshot.items[#snapshot.items + 1] = entry
                 end

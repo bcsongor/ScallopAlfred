@@ -1,14 +1,9 @@
 local _, addon = ...
 local Public, Count, Read = addon.Public, addon.Count, addon.Read
-local PlainText, Subjects = addon.PlainText, addon.Subjects
+local Subjects = addon.Subjects
 
 local Recipes = {}
 addon.Recipes = Recipes
-
-local function basicReagentType()
-    local types = Enum and Public(Enum.CraftingReagentType, "table")
-    return (types and Count(types.Basic)) or 1
-end
 
 local function marketCopper(itemID)
     local item = TSM_API and Public(Read(TSM_API.ToItemString, "item:" .. itemID), "string")
@@ -18,7 +13,6 @@ end
 -- Recipes are readable only from an open profession window, and only when it is the player's own:
 -- linked, guild and NPC crafting windows show someone else's list.
 local function openProfession()
-    if type(C_TradeSkillUI) ~= "table" then return end
     if not Read(C_TradeSkillUI.IsTradeSkillReady) then return end
     if Read(C_TradeSkillUI.IsTradeSkillLinked) or Read(C_TradeSkillUI.IsTradeSkillGuild)
         or Read(C_TradeSkillUI.IsNPCCrafting) then return end
@@ -34,28 +28,20 @@ local function openProfession()
     }
 end
 
--- Enchants and salvage recipes produce no item, so they carry no output at all.
+-- What the recipe makes. Enchant recipes link their enchant rather than an item.
 local function recipeOutput(recipeID)
     local link = Public(Read(C_TradeSkillUI.GetRecipeItemLink, recipeID), "string")
-    if not link then return end
-    local key = link:match("|H(.-)|h") or link
-    local name = PlainText(link:match("|h%[(.-)%]|h")) or Public(Read(C_Item.GetItemInfo, key), "string")
-    return {
-        link = key, name = name or key,
-        quality = Count(Read(function() return (select(3, C_Item.GetItemInfo(key))) end)),
-        tsm = Subjects.Prices(key),
-    }
+    return link and Subjects.Item(link)
 end
 
 local function addReagents(entry, schematic)
-    local basic = basicReagentType()
     for _, slot in ipairs(Public(schematic.reagentSlotSchematics, "table") or {}) do
         if #entry.reagents >= 12 then return end
         -- A quality reagent slot lists every tier; the first one identifies what the slot wants.
         local options = Public(slot.reagents, "table")
         local first = options and Public(options[1], "table")
         local itemID = first and Count(first.itemID)
-        if itemID and Count(slot.reagentType) == basic then
+        if itemID and Count(slot.reagentType) == Enum.CraftingReagentType.Basic then
             entry.reagents[#entry.reagents + 1] = {
                 itemID = itemID,
                 name = Public(Read(C_Item.GetItemInfo, itemID), "string"),

@@ -52,9 +52,12 @@ function UnitClass() return "Druid" end
 function UnitLevel() return 90 end
 function GetAverageItemLevel() return 312.6, 310.4, 300 end
 function GetBuildInfo() return "12.1.0", "12345" end
-function GetBindingKey() return nil end
+-- Nothing is bound until a test sets `existingBinding` for ALT-Q or the addon binds its key.
+local bindings = {}
+function GetBindingKey(action) return bindings[action] end
 function GetBindingAction() return existingBinding or "" end
-function SetBinding(key, action) bound = key .. ":" .. action end
+function GetBindingText(key) return (key:gsub("ALT%-", "Alt-")) end
+function SetBinding(key, action) bindings[action] = key; bound = key .. ":" .. action end
 function GetInventoryItemLink(_, slot) return "item:" .. slot end
 function GetMoney() return money or 0 end
 
@@ -101,6 +104,7 @@ Enum = {
     AccountBankTab_4 = 16, AccountBankTab_5 = 17,
   },
   CachedRewardType = { Item = 1, Currency = 2 },
+  TraitNodeType = { Single = 0, Tiered = 1, Selection = 2 },
   CraftingReagentType = { Basic = 1, Modifying = 2, Finishing = 3 },
 }
 
@@ -162,6 +166,8 @@ C_WeeklyRewards = {
   GetActivities = function() return vaultActivities end,
   GetItemHyperlink = function(id) return "|Hitem:" .. id .. "|h[Vault " .. id .. "]|h" end,
 }
+-- No player choice is open until a test replaces this.
+C_PlayerChoice = { GetCurrentPlayerChoiceInfo = function() end }
 C_Spell = { GetSpellLink = function(id) return "|cff71d5ff|Hspell:" .. id .. "|h[Rejuvenation]|h|r" end }
 GameTooltip = setmetatable({
   IsShown = function() return not tooltipHidden end,

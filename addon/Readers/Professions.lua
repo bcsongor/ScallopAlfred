@@ -1,5 +1,6 @@
 local _, addon = ...
 local Public, Count, Read = addon.Public, addon.Count, addon.Read
+local TraitTree = addon.TraitTree
 
 local Professions = {}
 addon.Professions = Professions
@@ -25,11 +26,7 @@ local function specialization(skillLineID)
         local node = Read(C_Traits.GetNodeInfo, configID, id)
         local unlockID = Count(Read(C_ProfSpecs.GetUnlockEntryForPath, id))
         local entry = unlockID and Read(C_Traits.GetEntryInfo, configID, unlockID)
-        local definitionID = entry and Count(entry.definitionID)
-        local definition = definitionID and Read(C_Traits.GetDefinitionInfo, definitionID)
-        local spellID = definition and Count(definition.spellID)
-        local name = definition and Public(definition.overrideName, "string")
-        name = name or (spellID and Public(Read(C_Spell.GetSpellName, spellID), "string"))
+        local name = TraitTree.EntryName(entry)
         local rank = node and Count(node.currentRank)
         local maxRank = node and Count(node.maxRanks)
         local unlockRanks = entry and Count(entry.maxRanks)
@@ -81,8 +78,7 @@ function Professions.Read(includeSpecializations)
                         skillModifier = Count(info.skillModifier),
                     }
                     if includeSpecializations and profession.skillLineName and lineName == profession.skillLineName then
-                        local ok, details = pcall(specialization, childID)
-                        if ok then profession.specialization = details end
+                        profession.specialization = Read(specialization, childID)
                     end
                 end
             end
