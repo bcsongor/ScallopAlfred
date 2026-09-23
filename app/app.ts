@@ -40,8 +40,11 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
 
   let view: View = history.list().length || history.listArchived().length ? { kind: "history" } : { kind: "thread" };
   let theme = config.theme;
-  /** The question in flight, the text Codex has produced for it so far and what it is doing now. */
-  let running: { cancel: AbortController; threadId: string; draft: string; activity?: string } | undefined;
+  /**
+   * The question in flight, what Codex is doing now and as much of its reply as the pacing has shown,
+   * so reopening the thread picks up exactly where the reveal is.
+   */
+  let running: { cancel: AbortController; threadId: string; shown: string; activity?: string } | undefined;
   /** The thread a follow-up continues, set only while the editor is open. */
   let followup: Thread | undefined;
   /** Threads Codex is naming, by ID. A newer rename of the same thread cancels the naming. */
@@ -57,7 +60,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
       overlay.send("history", { threads: history.list(), archived: history.listArchived(), fontSize: config.fontSize });
     } else {
       const thread = view.thread && view.thread.id === running?.threadId
-        ? finishTurn(view.thread, { status: "thinking", text: running.draft })
+        ? finishTurn(view.thread, { status: "thinking", text: running.shown })
         : view.thread;
       overlay.send("thread", {
         // A notice replaces the title, so only the thread's own title shows its subjects or can be renamed.
@@ -208,17 +211,17 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     const cancel = new AbortController();
     const timeout = AbortSignal.timeout(config.timeoutSeconds * 1000);
     const signal = AbortSignal.any([cancel.signal, timeout, quit.signal]);
-    running = { cancel, threadId: started.id, draft: "" };
+    running = { cancel, threadId: started.id, shown: "" };
     show(saved, true);
     const onScreen = (): boolean => view.kind === "thread" && view.thread?.id === started.id && !view.notice;
     // Only the reply on screen is re-rendered, so earlier turns and the tray stay untouched.
     const reveal = pace(30, text => {
+      if (running?.cancel !== cancel) return;
+      running = { ...running, shown: text };
       if (onScreen()) overlay.send("reply", { id: request.id, html: renderMarkdown(text) });
     });
     const onText = (text: string): void => {
-      if (signal.aborted || running?.cancel !== cancel) return;
-      running = { ...running, draft: text };
-      reveal.update(text);
+      if (!signal.aborted && running?.cancel === cancel) reveal.update(text);
     };
     const onActivity = (activity: string): void => {
       if (signal.aborted || running?.cancel !== cancel) return;
