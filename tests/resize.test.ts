@@ -27,7 +27,7 @@ test("the bottom handle resizes only the height, within limits, and saves it", {
   const maximum = await desktop.app.evaluate(({ screen, BrowserWindow }) => {
     const current = BrowserWindow.getAllWindows()[0].getBounds();
     const area = screen.getDisplayMatching(current).workArea;
-    return Math.min(900, area.y + area.height - current.y);
+    return Math.min(1600, area.y + area.height - current.y);
   });
   await drag(1000, maximum);
 

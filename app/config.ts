@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { z } from "zod";
 
-export const heightRange = { min: 320, max: 900 } as const;
+export const heightRange = { min: 320, max: 1600 } as const;
 // Wide enough to browse a site comfortably, since the same window now holds the browse tab.
 export const widthRange = { min: 280, max: 1600 } as const;
 
