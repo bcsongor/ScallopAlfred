@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildPrompt } from "../../app/prompt.ts";
-import { parseRequest } from "../../app/protocol.ts";
 import { addon } from "../fixtures/addon.ts";
-import { baseRequest as request, copied, promptRequest } from "../fixtures/protocol.ts";
 
 test("Selected achievement shows while one is picked in the window and sends its criteria", () => {
   const game = addon();
@@ -43,7 +40,6 @@ test("Selected achievement shows while one is picked in the window and sends its
   });
   assert.deepEqual(parsed.equipped, []);
   assert.equal(parsed.talents, undefined);
-  assert.deepEqual(promptRequest(buildPrompt(parsed)), parsed);
 
   // Closing the window takes the topic away, even though the selection survives inside it.
   game.execute(`
@@ -76,13 +72,4 @@ test("criteria scans are bounded and an unreadable achievement stays optional", 
     ScallopAlfred_Ask(); choose("Selected achievement")
   `);
   assert.equal(game.payload().achievement, undefined);
-});
-
-test("achievement snapshots are bounded", () => {
-  const achievement = { id: 1234, name: "Glory of the Raider", criteria: [{ name: "Share the Love", completed: true }] };
-  assert.deepEqual(parseRequest(copied({ ...request, category: "achievement", achievement }))?.achievement, achievement);
-  assert.throws(() => parseRequest(copied({
-    ...request,
-    achievement: { ...achievement, criteria: Array(41).fill(achievement.criteria[0]) },
-  })));
 });

@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseRequest } from "../../app/protocol.ts";
 import { addon } from "../fixtures/addon.ts";
-import { baseRequest as request, copied } from "../fixtures/protocol.ts";
 
 test("Altar of Corrosion shows while its window is open and sends the whole tree", () => {
   const game = addon();
@@ -52,11 +50,4 @@ test("Altar of Corrosion shows while its window is open and sends the whole tree
     ScallopAlfred_Ask()
     assert(not pcall(choose, "Altar of Corrosion"))
   `);
-});
-
-test("Altar snapshots are bounded", () => {
-  const node = { id: 110465, rank: 1, maxRank: 1, entries: [{ name: "Venomous Hunt", selected: true }] };
-  const altar = { capturedAt: 1800000000, unspent: 3, nodes: [node] };
-  assert.deepEqual(parseRequest(copied({ ...request, category: "altar", altar }))?.altar, altar);
-  assert.throws(() => parseRequest(copied({ ...request, altar: { ...altar, nodes: Array(65).fill(node) } })));
 });

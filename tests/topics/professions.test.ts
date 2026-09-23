@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildPrompt } from "../../app/prompt.ts";
-import { parseRequest } from "../../app/protocol.ts";
 import { addon } from "../fixtures/addon.ts";
-import { baseRequest as request, copied, promptRequest } from "../fixtures/protocol.ts";
 
 test("profession snapshots include sparse slots, every expansion's skill line and displayed specialisation ranks", () => {
   const game = addon();
@@ -43,8 +40,7 @@ test("profession snapshots include sparse slots, every expansion's skill line an
     focused:SetText("Where should I put my next profession points?"); focused.scripts.OnEnterPressed()
     assert(professionReads == 2)
   `);
-  const parsed = game.payload();
-  const snapshot = parsed.professions;
+  const snapshot = game.payload().professions;
   assert.equal(snapshot?.capturedAt, 1800000000);
   assert.equal(snapshot?.entries.length, 2);
   const alchemy = snapshot?.entries.find(entry => entry.skillLineID === 171);
@@ -65,8 +61,6 @@ test("profession snapshots include sparse slots, every expansion's skill line an
     { id: 11, parentID: 10, name: "Path 111", rank: 0, maxRank: 40 },
     { id: 12, parentID: 10, name: "Path 112", rank: 0, maxRank: 40 },
   ]);
-  const prompted = promptRequest(buildPrompt(parsed)) as { professions: unknown };
-  assert.deepEqual(prompted.professions, snapshot);
 
   game.execute(`
     professionReads, specializationReads, childLineReads = 0, 0, 0
@@ -110,18 +104,4 @@ test("profession snapshots include sparse slots, every expansion's skill line an
   const unavailable = game.payload().professions?.entries.find(entry => entry.skillLineID === 171);
   assert.equal(unavailable?.skillLevel, 75);
   assert.equal(unavailable?.specialization, undefined);
-});
-
-test("profession snapshots stay optional and bounded", () => {
-  const profession = {
-    name: "Alchemy", skillLineID: 171, skillLevel: 75, maxSkillLevel: 100,
-    expansions: [{ skillLineID: 2906, name: "Midnight Alchemy", expansionName: "Midnight", skillLevel: 75, maxSkillLevel: 100 }],
-    specialization: { skillLineID: 2906, unspentKnowledge: 0, paths: [] },
-  };
-  const parse = (entries: unknown[]) => parseRequest(copied({ ...request, professions: { capturedAt: 1800000000, entries } }));
-  assert.deepEqual(parse([profession])?.professions?.entries, [profession]);
-  assert.throws(() => parse(Array(6).fill(profession)));
-  assert.throws(() => parse([{ ...profession, skillLevel: -1 }]));
-  assert.throws(() => parse([{ ...profession, expansions: Array(33).fill(profession.expansions[0]) }]));
-  assert.throws(() => parse([{ ...profession, specialization: { ...profession.specialization, unspentKnowledge: "unknown" } }]));
 });

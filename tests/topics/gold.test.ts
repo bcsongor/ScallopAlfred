@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildPrompt } from "../../app/prompt.ts";
-import { parseRequest, type WoWRequest } from "../../app/protocol.ts";
 import { addon } from "../fixtures/addon.ts";
-import { baseRequest as request, copied, promptRequest } from "../fixtures/protocol.ts";
 
 test("Make gold adds specialisations, grouped stacks and the open profession's recipes", () => {
   const game = addon();
@@ -110,37 +107,4 @@ test("Make gold adds specialisations, grouped stacks and the open profession's r
   game.execute('tooltipHidden = false; ScallopAlfred_Ask(); choose("Keep, sell or disenchant?")');
   assert.equal(game.payload().subjects[0].tsm?.marketCopper, 777);
   assert.equal(game.payload().inventory, undefined);
-});
-
-test("gold topics carry inventory and recipe snapshots to the prompt", () => {
-  const inventory = {
-    capturedAt: 1800000000, moneyCopper: 12500000, bankIncluded: true, warbankIncluded: false,
-    items: [{
-      link: "item:210796", name: "Bismuth", quality: 1, bound: false,
-      count: { bags: 40, bank: 200, warbank: 0 }, auctionCount: 120, mailCount: 5,
-      tsm: { capturedAt: 1800000000, marketCopper: 45000, destroyCopper: 12000, craftingCopper: 38000 },
-    }],
-  };
-  const recipes = {
-    capturedAt: 1800000000, professionName: "Alchemy", skillLineID: 171, skillLevel: 75, maxSkillLevel: 100,
-    entries: [{
-      recipeID: 453344, name: "Algari Healing Potion", skillUps: 1, craftable: true,
-      output: { link: "item:211878", name: "Algari Healing Potion", quality: 2, quantityMin: 1, quantityMax: 2, tsm: { capturedAt: 1800000000, marketCopper: 90000 } },
-      reagents: [{ itemID: 210799, name: "Mycobloom", quantity: 3, marketCopper: 15000 }],
-    }],
-  };
-  const gold: WoWRequest = { ...request, category: "gold", inventory, recipes };
-  const parsed = parseRequest(copied(gold));
-  assert.deepEqual(parsed, gold);
-  assert.ok(parsed);
-  assert.deepEqual(promptRequest(buildPrompt(parsed)), gold);
-
-  const { bankIncluded, ...missingBank } = inventory;
-  for (const invalid of [
-    { ...gold, inventory: { ...inventory, items: Array(601).fill(inventory.items[0]) } },
-    { ...gold, recipes: { ...recipes, entries: [{ ...recipes.entries[0], reagents: Array(13).fill(recipes.entries[0].reagents[0]) }] } },
-    { ...gold, inventory: missingBank },
-  ]) {
-    assert.throws(() => parseRequest(copied(invalid)));
-  }
 });

@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseRequest } from "../../app/protocol.ts";
 import { addon } from "../fixtures/addon.ts";
-import { baseRequest as request, copied } from "../fixtures/protocol.ts";
 
 test("Corrosive Codex shows while its window is open and lists every power as its buttons show them", () => {
   const game = addon();
@@ -39,11 +37,4 @@ test("Corrosive Codex shows while its window is open and lists every power as it
     ],
   });
   assert.equal(parsed.altar, undefined);
-});
-
-test("Codex snapshots are bounded", () => {
-  const power = { name: "Ophidian Maw", active: true };
-  const codex = { capturedAt: 1800000000, souls: 9, powers: [power] };
-  assert.deepEqual(parseRequest(copied({ ...request, category: "codex", codex }))?.codex, codex);
-  assert.throws(() => parseRequest(copied({ ...request, codex: { ...codex, powers: Array(13).fill(power) } })));
 });

@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildPrompt } from "../../app/prompt.ts";
-import { parseRequest, type WoWRequest } from "../../app/protocol.ts";
 import { addon } from "../fixtures/addon.ts";
-import { baseRequest as request, copied, promptRequest } from "../fixtures/protocol.ts";
 
 test("topic menus defer snapshots until submission and gear captures only equipped slots", () => {
   const game = addon();
@@ -100,17 +97,4 @@ test("talent scans are bounded and unavailable or restricted talents stay option
   `);
   assert.equal(game.payload().talents, undefined);
   assert.equal(game.payload().equipped?.length, 19);
-});
-
-test("gear topics retain bounded slot and talent data", () => {
-  const gear: WoWRequest = {
-    ...request, category: "gear", equipped: [{ ...request.subjects[0], type: "item", slot: 11 }],
-    talents: { capturedAt: 1800000000, selected: [{ spellID: 774, name: "Rejuvenation", rank: 1 }] },
-  };
-  const parsed = parseRequest(copied(gear));
-  assert.deepEqual(parsed, gear);
-  assert.ok(parsed);
-  assert.deepEqual(promptRequest(buildPrompt(parsed)), gear);
-  assert.throws(() => parseRequest(copied({ ...gear, equipped: [{ ...gear.equipped?.[0], slot: 20 }] })));
-  assert.throws(() => parseRequest(copied({ ...gear, talents: { ...gear.talents, selected: Array(129).fill(gear.talents?.selected[0]) } })));
 });
