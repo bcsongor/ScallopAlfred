@@ -89,12 +89,6 @@ window.addEventListener("DOMContentLoaded", () => {
   const deleteIcon = element("delete-icon", HTMLTemplateElement);
   const unarchiveIcon = element("unarchive-icon", HTMLTemplateElement);
 
-  /** A drag in progress on one edge: where it started, the size then, and the size now. */
-  /** @type {{ start: number, from: number, next: number } | undefined} */
-  let resizing;
-  /** A header drag in progress: where the pointer and the window were when it started. */
-  /** @type {{ start: Point, from: Point, next: Point } | undefined} */
-  let moving;
   /** @type {string | undefined} */
   let latestTurn;
   /** The thread on screen and its title, which double-clicking the title edits. */
@@ -153,7 +147,6 @@ window.addEventListener("DOMContentLoaded", () => {
    * @param {number} fontSize
    */
   function setFrame(text, subjects, backVisible, status, fontSize) {
-    closeTitleEditor();
     currentTitle = text;
     title.replaceChildren(...titleContent(text, subjects));
     title.title = text;
@@ -375,60 +368,49 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   /**
-   * Wires one edge handle to one dimension. `measure` reads the pointer along the axis the handle
-   * moves in, and its sign follows the edge: the bottom edge grows downwards, the left edge grows
-   * leftwards, so each handle pushes the edge it sits on.
-   * @param {HTMLElement} handle
-   * @param {(event: PointerEvent) => number} measure
-   * @param {() => number} size
-   * @param {(value: number, finished: boolean) => void} post
+   * Follows a left-button drag on `element`, reporting how far the pointer has moved on screen. The
+   * pointer is captured, so the drag keeps going when the window moves or the pointer leaves it, and
+   * the element carries `data-dragging` meanwhile. `begin` returns what the drag starts from, or
+   * undefined to leave the press alone.
+   * @template T
+   * @param {HTMLElement} element
+   * @param {(event: PointerEvent) => T | undefined} begin
+   * @param {(from: T, moved: Point, finished: boolean) => void} update
    */
-  function edgeHandle(handle, measure, size, post) {
-    handle.addEventListener("pointerdown", event => {
-      if (event.button !== 0) return;
+  function drag(element, begin, update) {
+    /** @type {{ from: T, start: Point, moved: Point } | undefined} */
+    let dragging;
+    element.addEventListener("pointerdown", event => {
+      const from = event.button === 0 ? begin(event) : undefined;
+      if (from === undefined) return;
       event.preventDefault();
-      resizing = { start: measure(event), from: size(), next: size() };
-      handle.setPointerCapture(event.pointerId);
+      dragging = { from, start: { x: event.screenX, y: event.screenY }, moved: { x: 0, y: 0 } };
+      element.setPointerCapture(event.pointerId);
+      element.toggleAttribute("data-dragging", true);
     });
-    handle.addEventListener("pointermove", event => {
-      if (!resizing) return;
-      resizing.next = resizing.from + measure(event) - resizing.start;
-      post(resizing.next, false);
+    element.addEventListener("pointermove", event => {
+      if (!dragging) return;
+      dragging.moved = { x: event.screenX - dragging.start.x, y: event.screenY - dragging.start.y };
+      update(dragging.from, dragging.moved, false);
     });
-    handle.addEventListener("lostpointercapture", () => {
-      if (!resizing) return;
-      const value = resizing.next;
-      resizing = undefined;
-      post(value, true);
+    element.addEventListener("lostpointercapture", () => {
+      if (!dragging) return;
+      const { from, moved } = dragging;
+      dragging = undefined;
+      element.toggleAttribute("data-dragging", false);
+      update(from, moved, true);
     });
   }
 
-  edgeHandle(resizeHeight, event => event.screenY, () => window.innerHeight,
-    (height, finished) => send("resize-height", { height, finished }));
-  edgeHandle(resizeWidth, event => -event.screenX, () => window.innerWidth,
-    (width, finished) => send("resize-width", { width, finished }));
-
+  // Each edge handle pushes the edge it sits on: the bottom one grows downwards, the left one leftwards.
+  drag(resizeHeight, () => window.innerHeight,
+    (height, moved, finished) => send("resize-height", { height: height + moved.y, finished }));
+  drag(resizeWidth, () => window.innerWidth,
+    (width, moved, finished) => send("resize-width", { width: width - moved.x, finished }));
   // Dragging the header moves the window. Its controls still click, so only the rest of it grabs.
-  header.addEventListener("pointerdown", event => {
-    if (event.button !== 0 || (event.target instanceof Element && event.target.closest("button, label"))) return;
-    event.preventDefault();
-    const from = { x: window.screenX, y: window.screenY };
-    moving = { start: { x: event.screenX, y: event.screenY }, from, next: from };
-    header.setPointerCapture(event.pointerId);
-    header.toggleAttribute("data-moving", true);
-  });
-  header.addEventListener("pointermove", event => {
-    if (!moving) return;
-    moving.next = { x: moving.from.x + event.screenX - moving.start.x, y: moving.from.y + event.screenY - moving.start.y };
-    send("move-overlay", { ...moving.next, finished: false });
-  });
-  header.addEventListener("lostpointercapture", () => {
-    if (!moving) return;
-    const position = moving.next;
-    moving = undefined;
-    header.toggleAttribute("data-moving", false);
-    send("move-overlay", { ...position, finished: true });
-  });
+  drag(header,
+    event => event.target instanceof Element && event.target.closest("button, label") ? undefined : { x: window.screenX, y: window.screenY },
+    (from, moved, finished) => send("move-overlay", { x: from.x + moved.x, y: from.y + moved.y, finished }));
 
   fade.addEventListener("change", () => send("set-fade", fade.checked));
   tabAsk.addEventListener("click", () => send("select-tab", "ask"));
@@ -529,6 +511,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const { threads, archived, fontSize } = latestHistory;
     const scrollTop = answer.querySelector(".active-threads")?.scrollTop ?? 0;
     const archivedScrollTop = answer.querySelector(".archived-threads")?.scrollTop ?? 0;
+    closeTitleEditor();
     setFrame("Threads", undefined, false, "history", fontSize);
     followup.hidden = true;
     form.hidden = true;
@@ -557,6 +540,8 @@ window.addEventListener("DOMContentLoaded", () => {
   on("thread", ({ id, state, titleSubjects, progress, turns, canFollowup, fontSize }) => {
     const last = turns.at(-1);
     keepScroll(() => {
+      // A re-render of the thread being renamed keeps the player's edit.
+      if (id !== threadId) closeTitleEditor();
       setFrame(state.title, titleSubjects, true, state.status, fontSize);
       threadId = id;
       answer.role = "log";
@@ -564,7 +549,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const notice = state.notice === undefined ? [] : [h("div", { className: "notice", textContent: state.notice })];
       answer.replaceChildren(...turns.map(turn => turnSection(turn, turn === last ? progress : undefined)), ...notice);
       // A reply that just finished streaming fades in the rest of its text. Anything else counts as shown.
-      const response = answer.querySelector(".turn:last-child .response");
+      const response = answer.querySelector(".turn:last-of-type .response");
       if (response && last && last.id === streaming && last.status === "answer") fadeIn(response);
       else shown = response?.textContent?.length ?? 0;
       streaming = last?.status === "thinking" ? last.id : undefined;
@@ -575,13 +560,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
   on("progress", ({ id, activity }) => {
     if (id !== streaming) return;
-    const line = answer.querySelector('.turn:last-child[data-status="thinking"] .progress .activity');
+    const line = answer.querySelector('.turn:last-of-type[data-status="thinking"] .progress .activity');
     if (line) line.textContent = activity;
   });
 
   on("reply", ({ id, html }) => {
     if (id !== streaming) return;
-    const response = answer.querySelector('.turn:last-child[data-status="thinking"] .response');
+    const response = answer.querySelector('.turn:last-of-type[data-status="thinking"] .response');
     if (!response) return;
     keepScroll(() => {
       response.innerHTML = html;

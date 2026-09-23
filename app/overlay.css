@@ -8,6 +8,10 @@
    the scrollbar sits in the panel's margin and their content lines up with the header's buttons. */
 :root {
   --scrollbar: 10px;
+  /* The header casts its shadow down over the pane; the follow-up bar and the archived section cast
+     theirs up, over content hidden beneath them. */
+  --shadow-down: 0 4px 8px -2px #0009;
+  --shadow-up: 0 -4px 8px -2px #0009;
 }
 
 /*
@@ -27,7 +31,6 @@
   --muted: #b9bbc9;
   --archive-text: #999;
   --archive-hover: #ccc;
-  --divider: #444;
   --response-text: #cdd0d5;
   --strong: #fff;
   --heading: var(--text);
@@ -53,7 +56,6 @@
   --button-bg: #303030;
   --button-hover: #404040;
   --muted: #aaa;
-  --divider: #383838;
   --response-text: #bbb;
   --heading: #ffd100;
   --question-bg: #2b211e;
@@ -150,7 +152,7 @@ main {
   margin: -12px -14px 0;
   padding: 12px 14px 0;
   background: var(--header-bg);
-  box-shadow: 0 4px 8px -2px #0009;
+  box-shadow: var(--shadow-down);
   position: relative;
   z-index: 1;
 }
@@ -166,7 +168,7 @@ header {
   cursor: grab;
 }
 
-header[data-moving] {
+header[data-dragging] {
   cursor: grabbing;
 }
 
@@ -345,7 +347,7 @@ button:disabled {
 
 /* Mirrors the header: a shadow cast up over threads hidden beneath the section. */
 .active-threads[data-more-below] + .archived-threads {
-  box-shadow: 0 -4px 8px -2px #0009;
+  box-shadow: var(--shadow-up);
 }
 
 .archived-header,
@@ -669,23 +671,23 @@ footer {
 
 /* Mirrors the header: a shadow cast up over reply text hidden beneath the follow-up bar. */
 #answer[data-more-below] + footer {
-  box-shadow: 0 -4px 8px -2px #0009;
+  box-shadow: var(--shadow-up);
 }
 
 footer:has(#followup[hidden]):has(#followup-form[hidden]) {
   display: none;
 }
 
-#followup-bar,
+/* Flex keeps the button off the text baseline, so the bar is exactly the button's height. */
+#followup-bar {
+  display: flex;
+}
+
 .form-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  justify-content: space-between;
-}
-
-#followup-bar {
-  white-space: nowrap;
 }
 
 #question {
@@ -700,10 +702,6 @@ footer:has(#followup[hidden]):has(#followup-form[hidden]) {
   background: var(--input-bg);
   color: var(--text);
   font: inherit;
-}
-
-.form-actions {
-  justify-content: flex-end;
 }
 
 #resize-height {

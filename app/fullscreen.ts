@@ -101,7 +101,9 @@ export const fullscreenShim = `(function () {
     return Promise.resolve();
   }
 
+  // Like the real API, leaving when nothing is fullscreen rejects and tells the page nothing.
   function leave() {
+    if (!current) return Promise.reject(new TypeError("Not in fullscreen"));
     var previous = current;
     current = null;
     restore();
