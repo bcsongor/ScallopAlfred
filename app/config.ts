@@ -1,8 +1,8 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, rename, writeFile } from "node:fs/promises";
 import { z } from "zod";
 
 export const heightRange = { min: 320, max: 1600 } as const;
-// Wide enough to browse a site comfortably, since the same window now holds the browse tab.
+// Wide enough to browse a site comfortably in the browse tab.
 export const widthRange = { min: 280, max: 1600 } as const;
 
 const configSchema = z.object({
@@ -23,19 +23,30 @@ const configSchema = z.object({
 
 export type Config = z.infer<typeof configSchema>;
 
-export type AppearanceChanges = Partial<Pick<Config, "width" | "height" | "x" | "y" | "theme" | "fade" | "browseUrl">>;
+export type SettingsWriter = {
+  save(changes: Partial<Config>): Promise<void>;
+  /** Resolves once every save started so far has finished, so quitting doesn't cut one short. */
+  settled(): Promise<void>;
+};
 
-/** Returns a writer that saves changes one at a time, so saving the theme and height together keeps both. */
-export function createSettingsWriter(path: string): (changes: AppearanceChanges) => Promise<void> {
+/** Saves changes one at a time, so saving the theme and height together keeps both. */
+export function createSettingsWriter(path: string): SettingsWriter {
   let queue = Promise.resolve();
-  return changes => {
-    const saved = queue.then(async () => {
-      const config = await loadConfig(path);
-      await writeFile(path, JSON.stringify({ ...config, ...changes }, null, 2) + "\n");
-    });
-    queue = saved.catch(() => undefined);
-    return saved;
+  return {
+    save(changes) {
+      const saved = queue.then(async () => write(path, { ...await loadConfig(path), ...changes }));
+      queue = saved.catch(() => undefined);
+      return saved;
+    },
+    settled: () => queue,
   };
+}
+
+// Writes beside the file and renames over it, so a crash mid-write can't leave settings the next launch rejects.
+async function write(path: string, config: Config): Promise<void> {
+  const temporary = `${path}.tmp`;
+  await writeFile(temporary, JSON.stringify(config, null, 2) + "\n");
+  await rename(temporary, path);
 }
 
 export async function loadConfig(path: string): Promise<Config> {
@@ -44,7 +55,7 @@ export async function loadConfig(path: string): Promise<Config> {
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       const defaults = configSchema.parse({});
-      await writeFile(path, JSON.stringify(defaults, null, 2) + "\n");
+      await write(path, defaults);
       return defaults;
     }
     throw new Error(`Fix the settings in ${path}, then restart Scallop Alfred.`, { cause: error });

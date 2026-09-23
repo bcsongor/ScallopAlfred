@@ -4,7 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { watchClipboard, type Clipboard } from "./clipboard.ts";
 import type { Codex, CodexOptions } from "./codex.ts";
-import { createSettingsWriter, loadConfig, type AppearanceChanges, type Config } from "./config.ts";
+import { createSettingsWriter, loadConfig, type Config } from "./config.ts";
 import { errorMessage } from "./errors.ts";
 import { openHistory, type Thread } from "./history.ts";
 import { createIcons } from "./icons.ts";
@@ -30,7 +30,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   const workspace = join(userData, "workspace");
   await mkdir(workspace, { recursive: true });
   const config = await loadConfig(settingsPath);
-  const writeSettings = createSettingsWriter(settingsPath);
+  const settings = createSettingsWriter(settingsPath);
   const history = openHistory(join(userData, "threads.sqlite"));
   const codex = createCodex({ codexPath: config.codexPath, model: config.model, workspace });
   const icons = createIcons(join(userData, "favicons"), fetch);
@@ -160,8 +160,8 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     }
   }
 
-  function saveSettings(changes: AppearanceChanges): void {
-    writeSettings(changes).catch((error: unknown) => dialog.showErrorBox("Couldn't save settings", errorMessage(error)));
+  function saveSettings(changes: Partial<Config>): void {
+    settings.save(changes).catch((error: unknown) => dialog.showErrorBox("Couldn't save settings", errorMessage(error)));
   }
 
   function setTheme(next: Config["theme"]): void {
@@ -344,11 +344,14 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
 
   tray.onClick(raiseOverlay);
   app.on("second-instance", raiseOverlay);
-  app.on("before-quit", () => {
+  // Quitting waits for pending settings saves, such as the page the browse tab was on.
+  app.once("before-quit", event => {
+    event.preventDefault();
     rememberBrowsed();
     overlay.browse.destroy();
     quit.abort("Scallop Alfred closed.");
     tray.destroy();
+    void settings.settled().then(() => app.quit());
   });
   app.on("will-quit", () => history.close());
   refreshMenu();

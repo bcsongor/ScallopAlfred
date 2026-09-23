@@ -108,4 +108,10 @@ test("the browse tab opens web pages beside the threads", { timeout: 60000 }, as
   await desktop.waitForStatus("history");
   await desktop.page.getByRole("tab", { name: "Browse" }).click();
   await title("Second");
+
+  // Quitting from the tab saves its page before the app exits.
+  await desktop.emit("browse-navigate", home);
+  await title("First");
+  await desktop.restart();
+  assert.equal((await desktop.settings()).browseUrl, home);
 });
