@@ -4,6 +4,12 @@
   scrollbar-color: var(--border) var(--panel);
 }
 
+/* The width Chromium gives a thin scrollbar. Scrolling panes take it out of their right padding, so
+   the scrollbar sits in the panel's margin and their content lines up with the header's buttons. */
+:root {
+  --scrollbar: 10px;
+}
+
 /*
  * THEMES
  */
@@ -282,7 +288,7 @@ button:disabled {
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding: 10px 12px 10px 14px;
+  padding: 10px calc(14px - var(--scrollbar)) 10px 14px;
 }
 
 .archived-threads {
@@ -290,7 +296,7 @@ button:disabled {
   max-height: 50%;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding: 10px 12px 0 14px;
+  padding: 10px calc(14px - var(--scrollbar)) 0 14px;
   position: relative;
   z-index: 1;
   /* Keeps the shadow above the section only, so it doesn't bleed past the sides. */
@@ -380,10 +386,10 @@ button:disabled {
  * THREAD
  */
 
-/* Bleeds through the panel's padding so the scrollbar sits at the edge, with 2px between it and the text. */
+/* Bleeds through the panel's padding so the scrollbar sits at the edge. */
 #answer {
   margin: 0 -14px;
-  padding: 0 12px 0 14px;
+  padding: 0 calc(14px - var(--scrollbar)) 0 14px;
   overflow-wrap: anywhere;
   overflow-y: auto;
   scrollbar-gutter: stable;
@@ -391,12 +397,13 @@ button:disabled {
   min-height: 0;
 }
 
-/* The history's lists scroll on their own, so they carry the padding instead. */
+/* The history's lists scroll on their own, so they carry the padding and the gutter instead. */
 body[data-status="history"] #answer {
   display: flex;
   flex-direction: column;
   padding: 0;
   overflow: hidden;
+  scrollbar-gutter: auto;
 }
 
 .turn:first-child,
