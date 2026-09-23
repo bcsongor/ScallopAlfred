@@ -1,19 +1,26 @@
 import { BrowserWindow, screen } from "electron";
 import { join } from "node:path";
-import { createBrowse, type BrowseState } from "./browse.ts";
+import { createBrowse } from "./browse.ts";
 import { heightRange, widthRange, type Config } from "./config.ts";
 import { fromOverlay, overlayRequests, type FromOverlay, type OverlayRequests, type ToOverlay } from "./ipc.ts";
 
 export const iconPath = join(import.meta.dirname, "..", "assets", "scallop.jpg");
 
-/** Creates the always-on-top overlay window. It never takes focus from the game on its own. */
-export function createOverlay(config: Config, onBrowseState: (state: BrowseState) => void) {
+/**
+ * Creates the always-on-top overlay window. It never takes focus from the game on its own. The
+ * window answers its own resizing, moving, fading and browse controls, and passes what the settings
+ * should remember to `save`.
+ */
+export function createOverlay(config: Config, save: (changes: Partial<Config>) => void) {
   const window = createWindow(config);
-  const browse = createBrowse(window, onBrowseState);
+  const browse = createBrowse(window, state => send("browse", state));
   let dismissed = false;
+  let fading = config.fade;
+  let opacity = 1;
+  let fadeCheck: ReturnType<typeof setInterval> | undefined;
 
-  function keepOnTop(): void {
-    if (!window.isAlwaysOnTop()) setTopmost(window);
+  function send<K extends keyof ToOverlay>(channel: K, message: ToOverlay[K]): void {
+    window.webContents.send(channel, message);
   }
 
   function listen<K extends keyof FromOverlay>(channel: K, listener: (message: FromOverlay[K]) => void): void {
@@ -35,16 +42,55 @@ export function createOverlay(config: Config, onBrowseState: (state: BrowseState
     });
   }
 
-  // Windows can drop the native topmost flag from outside the app without any event, leaving the overlay behind WoW.
-  const topmostCheck = setInterval(() => {
-    if (window.isVisible()) keepOnTop();
-  }, 1000);
-  let fadeCheck: ReturnType<typeof setInterval> | undefined;
-  let opacity = 1;
-  window.on("closed", () => {
-    clearInterval(topmostCheck);
-    clearInterval(fadeCheck);
-  });
+  function keepOnTop(): void {
+    if (!window.isAlwaysOnTop()) setTopmost(window);
+  }
+
+  /** Gives the keyboard up again without hiding, so the overlay stops competing with the game. */
+  function releaseFocus(): void {
+    window.setFocusable(false);
+    // Electron changes taskbar visibility with focusability on Windows.
+    window.setSkipTaskbar(true);
+  }
+
+  /**
+   * Returns the height after clamping it to the space below the window and the settings range. The
+   * range wins, so a saved height is always one the next launch accepts.
+   */
+  function setHeight(height: number): number {
+    const bounds = window.getBounds();
+    const area = screen.getDisplayMatching(bounds).workArea;
+    const next = Math.max(heightRange.min, Math.min(Math.round(height), heightRange.max, area.y + area.height - bounds.y));
+    // setSize can retain the previous minimum height on a non-resizable window.
+    window.setBounds({ ...bounds, height: next });
+    return next;
+  }
+
+  /**
+   * Returns the width and the position after clamping the width to the space left of the window and
+   * the settings range, which wins like the height's. The window grows leftwards, keeping its right
+   * edge where it is, so widening never pushes the overlay across the game's minimap.
+   */
+  function setWidth(width: number): { width: number; x: number } {
+    const bounds = window.getBounds();
+    const area = screen.getDisplayMatching(bounds).workArea;
+    const right = bounds.x + bounds.width;
+    const next = Math.max(widthRange.min, Math.min(Math.round(width), widthRange.max, right - area.x));
+    window.setBounds({ ...bounds, x: right - next, width: next });
+    return { width: next, x: right - next };
+  }
+
+  /** Returns the position after clamping it so the whole window stays on the display it lands on. */
+  function moveTo(x: number, y: number): { x: number; y: number } {
+    const bounds = window.getBounds();
+    const area = screen.getDisplayMatching({ ...bounds, x: Math.round(x), y: Math.round(y) }).workArea;
+    const next = {
+      x: Math.max(area.x, Math.min(Math.round(x), area.x + area.width - bounds.width)),
+      y: Math.max(area.y, Math.min(Math.round(y), area.y + area.height - bounds.height)),
+    };
+    window.setBounds({ ...bounds, ...next });
+    return next;
+  }
 
   function pointerInside(): boolean {
     const pointer = screen.getCursorScreenPoint();
@@ -52,13 +98,69 @@ export function createOverlay(config: Config, onBrowseState: (state: BrowseState
     return pointer.x >= bounds.x && pointer.x < bounds.x + bounds.width && pointer.y >= bounds.y && pointer.y < bounds.y + bounds.height;
   }
 
+  /**
+   * Fades the whole window, the browse tab's view included, while the pointer is elsewhere.
+   * The page loses track of the pointer once it moves onto that view, so the main process
+   * watches the pointer itself, and only while fading is on.
+   */
+  function setFade(enabled: boolean): void {
+    fading = enabled;
+    clearInterval(fadeCheck);
+    fadeCheck = undefined;
+    opacity = 1;
+    window.setOpacity(opacity);
+    if (!enabled) return;
+    fadeCheck = setInterval(() => {
+      if (!window.isVisible()) return;
+      const target = pointerInside() ? 1 : fadedOpacity;
+      if (opacity === target) return;
+      opacity = opacity < target ? Math.min(target, opacity + fadeStep) : Math.max(target, opacity - fadeStep);
+      window.setOpacity(opacity);
+    }, fadeTickMs);
+  }
+
+  listen("resize-height", ({ height, finished }) => {
+    const applied = setHeight(height);
+    if (finished) save({ height: applied });
+  });
+  // Widening moves the left edge, so the position is saved with the width.
+  listen("resize-width", ({ width, finished }) => {
+    const applied = setWidth(width);
+    if (finished) save(applied);
+  });
+  listen("move-overlay", ({ x, y, finished }) => {
+    const applied = moveTo(x, y);
+    if (finished) save(applied);
+  });
+  listen("set-fade", enabled => {
+    setFade(enabled);
+    save({ fade: enabled });
+  });
+  listen("browse-bounds", browse.setBounds);
+  listen("browse-navigate", browse.navigate);
+  listen("browse-back", browse.back);
+  listen("browse-forward", browse.forward);
+  listen("browse-reload", browse.reload);
+
+  setFade(config.fade);
+  // Windows can drop the native topmost flag from outside the app without any event, leaving the overlay behind WoW.
+  const topmostCheck = setInterval(() => {
+    if (window.isVisible()) keepOnTop();
+  }, 1000);
+  window.on("closed", () => {
+    clearInterval(topmostCheck);
+    clearInterval(fadeCheck);
+  });
+
   return {
     listen,
     handle,
-    browse,
-    load: () => window.loadFile(join(import.meta.dirname, "overlay.html")),
-    send<K extends keyof ToOverlay>(channel: K, message: ToOverlay[K]): void {
-      window.webContents.send(channel, message);
+    send,
+    /** Shows and hides the browse tab's view and reports its page. Its controls are wired above. */
+    browse: { show: browse.show, hide: browse.hide, url: browse.url, destroy: browse.destroy },
+    async load(): Promise<void> {
+      await window.loadFile(join(import.meta.dirname, "overlay.html"));
+      send("fade", fading);
     },
     isDismissed: () => dismissed,
     /** Shows a hidden overlay without taking focus or reordering an overlay that is already visible. */
@@ -79,76 +181,16 @@ export function createOverlay(config: Config, onBrowseState: (state: BrowseState
     hide(): void {
       dismissed = true;
       window.hide();
-      window.setFocusable(false);
-      window.setSkipTaskbar(true);
+      releaseFocus();
     },
     /** Takes the keyboard from the game. Nothing hands it back, so the player clicks into WoW. */
     focus(): void {
       window.setFocusable(true);
-      // Electron changes taskbar visibility with focusability on Windows.
+      // Focusability changes taskbar visibility too, as in releaseFocus.
       window.setSkipTaskbar(true);
       window.focus();
     },
-    /** Gives the keyboard up again without hiding, so the overlay stops competing with the game. */
-    releaseFocus(): void {
-      window.setFocusable(false);
-      window.setSkipTaskbar(true);
-    },
-    /**
-     * Returns the height after clamping it to the space below the window and the settings range. The
-     * range wins, so a saved height is always one the next launch accepts.
-     */
-    setHeight(height: number): number {
-      const bounds = window.getBounds();
-      const area = screen.getDisplayMatching(bounds).workArea;
-      const next = Math.max(heightRange.min, Math.min(Math.round(height), heightRange.max, area.y + area.height - bounds.y));
-      // setSize can retain the previous minimum height on a non-resizable window.
-      window.setBounds({ ...bounds, height: next });
-      return next;
-    },
-    /**
-     * Returns the width and the position after clamping the width to the space left of the window and
-     * the settings range, which wins like the height's. The window grows leftwards, keeping its right
-     * edge where it is, so widening never pushes the overlay across the game's minimap.
-     */
-    setWidth(width: number): { width: number; x: number } {
-      const bounds = window.getBounds();
-      const area = screen.getDisplayMatching(bounds).workArea;
-      const right = bounds.x + bounds.width;
-      const next = Math.max(widthRange.min, Math.min(Math.round(width), widthRange.max, right - area.x));
-      window.setBounds({ ...bounds, x: right - next, width: next });
-      return { width: next, x: right - next };
-    },
-    /**
-     * Fades the whole window, the browse tab's view included, while the pointer is elsewhere.
-     * The page loses track of the pointer once it moves onto that view, so the main process
-     * watches the pointer itself, and only while fading is on.
-     */
-    setFade(enabled: boolean): void {
-      clearInterval(fadeCheck);
-      fadeCheck = undefined;
-      opacity = 1;
-      window.setOpacity(opacity);
-      if (!enabled) return;
-      fadeCheck = setInterval(() => {
-        if (!window.isVisible()) return;
-        const target = pointerInside() ? 1 : fadedOpacity;
-        if (opacity === target) return;
-        opacity = opacity < target ? Math.min(target, opacity + fadeStep) : Math.max(target, opacity - fadeStep);
-        window.setOpacity(opacity);
-      }, fadeTickMs);
-    },
-    /** Returns the position after clamping it so the whole window stays on the display it lands on. */
-    moveTo(x: number, y: number): { x: number; y: number } {
-      const bounds = window.getBounds();
-      const area = screen.getDisplayMatching({ ...bounds, x: Math.round(x), y: Math.round(y) }).workArea;
-      const next = {
-        x: Math.max(area.x, Math.min(Math.round(x), area.x + area.width - bounds.width)),
-        y: Math.max(area.y, Math.min(Math.round(y), area.y + area.height - bounds.height)),
-      };
-      window.setBounds({ ...bounds, ...next });
-      return next;
-    },
+    releaseFocus,
   };
 }
 

@@ -16,7 +16,7 @@ The addon lives under `addon/`, and its TOC lists the files in dependency order.
 - `app/app.ts` wires the modules together and owns the app's state: what the overlay shows, the running request and the follow-up editor. The clipboard, tray, Codex, network and browser arrive as ports, so tests run the real app with fakes. Electron's own APIs are imported directly.
 - `app/threads.ts` holds the pure thread logic: starting and finishing turns, and what the overlay shows for a view.
 - `app/clipboard.ts` watches the clipboard for requests, and `app/tray.ts` builds the tray menu from the app's state.
-- `app/overlay.ts` owns the window: focus, raising and resizing. `app/browse.ts` owns the browse tab's web view, and `app/address.ts` holds the pure address-bar parsing.
+- `app/overlay.ts` owns the window: focus, raising, resizing, moving and fading. It answers those controls and the browse tab's itself and hands `app.ts` only what the settings should save. `app/browse.ts` owns the browse tab's web view, and `app/address.ts` holds the pure address-bar parsing.
 - `app/ipc.ts` types every message between the main process and the overlay, and validates the ones coming from the overlay.
 - `app/preload.cjs` renders `overlay.html`, which `overlay.css` styles.
 - `app/snapshots/` mirrors the addon's readers: one module per data shape with its schema and the prompt notes that explain its fields. `app/topics/` mirrors the addon's topics: one module per button with its category, the request fields it adds and its prompt paragraph, listed in `index.ts` in menu order.

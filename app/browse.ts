@@ -1,4 +1,4 @@
-import { app, session, WebContentsView, type BrowserWindow, type WebContents } from "electron";
+import { app, session, WebContentsView, type BrowserWindow, type Rectangle, type WebContents } from "electron";
 import { browseUrl } from "./address.ts";
 import { fullscreenShim } from "./fullscreen.ts";
 
@@ -6,9 +6,6 @@ import { fullscreenShim } from "./fullscreen.ts";
 const partition = "persist:browse";
 
 export type BrowseState = { url: string; canGoBack: boolean; canGoForward: boolean };
-
-/** Where the browse pane sits in the window, as the overlay page measured it. */
-export type Bounds = { x: number; y: number; width: number; height: number };
 
 /**
  * Chrome's reduced Android user agent, built from the Chromium version Electron ships. The pane is
@@ -46,7 +43,8 @@ function preparePage(contents: WebContents): void {
  */
 export function createBrowse(window: BrowserWindow, onState: (state: BrowseState) => void) {
   let view: WebContentsView | undefined;
-  let bounds: Bounds | undefined;
+  // Where the pane sits in the window, as the overlay page measured it.
+  let bounds: Rectangle | undefined;
   let attached = false;
 
   function report(): void {
@@ -131,7 +129,7 @@ export function createBrowse(window: BrowserWindow, onState: (state: BrowseState
       attached = false;
     },
     /** The overlay page owns the layout, so it reports where the pane ended up. */
-    setBounds(next: Bounds): void {
+    setBounds(next: Rectangle): void {
       bounds = next;
       place();
     },

@@ -6,7 +6,8 @@ import type { LinkIcon } from "./icons.ts";
 import { requestSchema } from "./protocol.ts";
 
 /** The overlay shows one of two panes: the threads it answers in, or the browse tab. */
-export type Tab = "ask" | "browse";
+const tabSchema = z.enum(["ask", "browse"]);
+export type Tab = z.infer<typeof tabSchema>;
 
 export type OverlayState = {
   status: "ready" | Turn["status"];
@@ -57,7 +58,7 @@ const messages = {
   /** Where the overlay's top-left corner should go, in screen coordinates. */
   "move-overlay": z.object({ x: z.number(), y: z.number(), finished: z.boolean() }),
   "open-link": z.string(),
-  "select-tab": z.enum(["ask", "browse"]),
+  "select-tab": tabSchema,
   "set-fade": z.boolean(),
   /** The overlay page owns the layout, so it reports where the browse pane sits in the window. */
   "browse-bounds": z.object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() }),

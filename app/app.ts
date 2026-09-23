@@ -34,7 +34,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   const history = openHistory(join(userData, "threads.sqlite"));
   const codex = createCodex({ codexPath: config.codexPath, model: config.model, workspace });
   const icons = createIcons(join(userData, "favicons"), fetch);
-  const overlay = createOverlay(config, state => overlay.send("browse", state));
+  const overlay = createOverlay(config, saveSettings);
   const quit = new AbortController();
 
   let view: View = history.list().length || history.listArchived().length ? { kind: "history" } : { kind: "thread" };
@@ -311,29 +311,7 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
     closeFollowup();
     overlay.hide();
   });
-  overlay.listen("resize-height", ({ height, finished }) => {
-    const applied = overlay.setHeight(height);
-    if (finished) saveSettings({ height: applied });
-  });
-  // Widening moves the left edge, so the position is saved with the width.
-  overlay.listen("resize-width", ({ width, finished }) => {
-    const applied = overlay.setWidth(width);
-    if (finished) saveSettings(applied);
-  });
-  overlay.listen("move-overlay", ({ x, y, finished }) => {
-    const applied = overlay.moveTo(x, y);
-    if (finished) saveSettings(applied);
-  });
   overlay.listen("select-tab", selectTab);
-  overlay.listen("set-fade", fade => {
-    overlay.setFade(fade);
-    saveSettings({ fade });
-  });
-  overlay.listen("browse-bounds", bounds => overlay.browse.setBounds(bounds));
-  overlay.listen("browse-navigate", target => overlay.browse.navigate(target));
-  overlay.listen("browse-back", overlay.browse.back);
-  overlay.listen("browse-forward", overlay.browse.forward);
-  overlay.listen("browse-reload", overlay.browse.reload);
   overlay.listen("open-link", target => {
     const url = webUrl(target);
     if (url) openExternal(url).catch((error: unknown) => showNotice("Couldn't open the link", error));
@@ -354,8 +332,6 @@ export async function startApp({ userData, clipboard, tray, createCodex, fetch, 
   refreshMenu();
   await overlay.load();
   overlay.send("theme", theme);
-  overlay.send("fade", config.fade);
-  overlay.setFade(config.fade);
   overlay.send("tab", tab);
   if (process.platform === "darwin") app.dock?.hide();
   render(true);
