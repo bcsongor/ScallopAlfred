@@ -1,4 +1,4 @@
-import { readFile, rename, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { z } from "zod";
 
 export const heightRange = { min: 320, max: 1600 } as const;
@@ -42,11 +42,10 @@ export function createSettingsWriter(path: string): SettingsWriter {
   };
 }
 
-// Writes beside the file and renames over it, so a crash mid-write can't leave settings the next launch rejects.
-async function write(path: string, config: Config): Promise<void> {
-  const temporary = `${path}.tmp`;
-  await writeFile(temporary, JSON.stringify(config, null, 2) + "\n");
-  await rename(temporary, path);
+// A plain write rather than write-and-rename: on Windows, renaming over a file fails while anything,
+// such as a virus scanner, has it open.
+function write(path: string, config: Config): Promise<void> {
+  return writeFile(path, JSON.stringify(config, null, 2) + "\n");
 }
 
 export async function loadConfig(path: string): Promise<Config> {
