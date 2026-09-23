@@ -94,25 +94,28 @@ export function createOverlay(config: Config, onBrowseState: (state: BrowseState
       window.setFocusable(false);
       window.setSkipTaskbar(true);
     },
-    /** Returns the height after clamping it to the settings range and the space below the window. */
+    /**
+     * Returns the height after clamping it to the space below the window and the settings range. The
+     * range wins, so a saved height is always one the next launch accepts.
+     */
     setHeight(height: number): number {
       const bounds = window.getBounds();
       const area = screen.getDisplayMatching(bounds).workArea;
-      const next = Math.min(Math.max(heightRange.min, Math.round(height)), heightRange.max, area.y + area.height - bounds.y);
+      const next = Math.max(heightRange.min, Math.min(Math.round(height), heightRange.max, area.y + area.height - bounds.y));
       // setSize can retain the previous minimum height on a non-resizable window.
       window.setBounds({ ...bounds, height: next });
       return next;
     },
     /**
-     * Returns the width and the position after clamping the width to the settings range and the
-     * space left of the window. The window grows leftwards, keeping its right edge where it is, so
-     * widening never pushes the overlay across the game's minimap.
+     * Returns the width and the position after clamping the width to the space left of the window and
+     * the settings range, which wins like the height's. The window grows leftwards, keeping its right
+     * edge where it is, so widening never pushes the overlay across the game's minimap.
      */
     setWidth(width: number): { width: number; x: number } {
       const bounds = window.getBounds();
       const area = screen.getDisplayMatching(bounds).workArea;
       const right = bounds.x + bounds.width;
-      const next = Math.min(Math.max(widthRange.min, Math.round(width)), widthRange.max, right - area.x);
+      const next = Math.max(widthRange.min, Math.min(Math.round(width), widthRange.max, right - area.x));
       window.setBounds({ ...bounds, x: right - next, width: next });
       return { width: next, x: right - next };
     },
