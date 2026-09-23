@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { ZodError } from "zod";
-import { cleanTitle, runCodex, titlePrompt } from "../app/codex.ts";
+import { cleanTitle, codexArguments, resumableSession, runCodex, titlePrompt } from "../app/codex.ts";
+import { baseRequest as request } from "./fixtures/protocol.ts";
 
 const fake = join(import.meta.dirname, "fixtures", "codex.ts");
 const run = (mode: string, options: Partial<Parameters<typeof runCodex>[0]> = {}) => runCodex({
@@ -124,4 +125,17 @@ test("Codex runs without API keys, so it uses the player's login", async t => {
   });
   const { text } = await run("environment");
   assert.deepEqual(JSON.parse(text), { openai: null, codex: null });
+});
+
+test("runs keep the read-only sandbox with approvals and tools off", () => {
+  for (const argument of ['sandbox_mode="read-only"', 'approval_policy="never"', "features.shell_tool=false", "features.apps=false", "features.plugins=false", "features.hooks=false"]) {
+    assert.ok(codexArguments.includes(argument), argument);
+  }
+});
+
+test("resume is restricted to the same thread context", () => {
+  const session = { context: "item-1", id: "session-1" };
+  assert.equal(resumableSession(request, session), undefined);
+  assert.deepEqual(resumableSession({ ...request, thread: "continue" }, session), session);
+  assert.equal(resumableSession({ ...request, thread: "continue", context: "item-2" }, session), undefined);
 });

@@ -3,11 +3,9 @@ import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { watchClipboard, type Clipboard } from "../app/clipboard.ts";
 import type { ClipboardMessage } from "../app/protocol.ts";
+import { baseRequest, copied as copiedRequest } from "./fixtures/protocol.ts";
 
-const copied = (id: string): string => `SCALLOPALFRED:${JSON.stringify({
-  id, context: id, thread: "new", question: "Hi", subjects: [],
-  player: { class: "Druid", spec: "Restoration", level: 90 }, gameVersion: "12.1.0",
-})}`;
+const copied = (id: string): string => copiedRequest({ ...baseRequest, id, context: id });
 
 const askedId = (message: ClipboardMessage | void): string | undefined => message?.kind === "ask" ? message.request.id : undefined;
 
