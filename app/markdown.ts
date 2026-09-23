@@ -1,11 +1,5 @@
 import MarkdownIt, { type StateCore, type Token } from "markdown-it";
-
-/** Only web URLs can leave the overlay; local files and application schemes cannot. */
-export function webUrl(value: unknown): string | undefined {
-  if (typeof value !== "string" || !URL.canParse(value)) return undefined;
-  const url = new URL(value);
-  return url.protocol === "https:" || url.protocol === "http:" ? url.href : undefined;
-}
+import { webUrl } from "./address.ts";
 
 const coins = ["gold", "silver", "copper"] as const;
 

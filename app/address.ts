@@ -1,4 +1,9 @@
-import { webUrl } from "./markdown.ts";
+/** Only web URLs can leave the overlay; local files and application schemes cannot. */
+export function webUrl(value: unknown): string | undefined {
+  if (typeof value !== "string" || !URL.canParse(value)) return undefined;
+  const url = new URL(value);
+  return url.protocol === "https:" || url.protocol === "http:" ? url.href : undefined;
+}
 
 /**
  * Turns what the player typed in the address bar into a URL to load. A bare hostname gets https,

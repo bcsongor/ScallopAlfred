@@ -10,7 +10,7 @@ type WatchOptions = {
   signal: AbortSignal;
   /** While this returns true requests are left on the clipboard, so copies made meanwhile collapse to the latest. */
   paused: () => boolean;
-  onInvalid: (error: Error) => void;
+  onInvalid: (error: unknown) => void;
   interval?: number;
 };
 
@@ -31,7 +31,7 @@ export async function* watchClipboard(clipboard: Clipboard, { signal, paused, on
         const message = parseClipboard(text);
         if (message) yield message;
       } catch (error) {
-        onInvalid(error instanceof Error ? error : new Error(String(error)));
+        onInvalid(error);
       }
     }
   } catch (error) {

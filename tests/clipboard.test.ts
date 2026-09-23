@@ -23,7 +23,7 @@ test("yields requests copied after watching starts and reports invalid ones", as
   const { clipboard } = scriptedClipboard(copied("before"), copied("before"), "unrelated", "SCALLOPALFRED:{broken", copied("after"));
   const controller = new AbortController();
   const invalid: string[] = [];
-  const copies = watchClipboard(clipboard, { signal: controller.signal, paused: () => false, onInvalid: error => invalid.push(error.message), interval: 1 });
+  const copies = watchClipboard(clipboard, { signal: controller.signal, paused: () => false, onInvalid: error => invalid.push(String(error)), interval: 1 });
   assert.equal(askedId((await copies.next()).value), "after");
   assert.equal(invalid.length, 1);
   controller.abort();

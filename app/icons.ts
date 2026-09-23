@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
-import { webUrl } from "./markdown.ts";
+import { webUrl } from "./address.ts";
 
 /** A link's icon as a data URL, with the item quality when the link points at a WoW item. */
 export type LinkIcon = { icon: string; quality?: number };
