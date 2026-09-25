@@ -8,12 +8,15 @@ const partition = "persist:browse";
 export type BrowseState = { url: string; canGoBack: boolean; canGoForward: boolean };
 
 /**
- * Chrome's reduced Android user agent, built from the Chromium version Electron ships. The pane is
- * about as wide as a phone, so sites are asked for their mobile layout, and it names no Electron.
+ * Chrome's reduced desktop user agent for this machine, built from Electron's own without the app
+ * and Electron tokens, which some sites refuse. It stays true to the platform because sites like X
+ * check it against what the page's scripts see and lock out logins that disagree.
  */
-function mobileUserAgent(): string {
-  const chrome = /Chrome\/(\d+)/.exec(app.userAgentFallback)?.[1] ?? "140";
-  return `Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chrome}.0.0.0 Mobile Safari/537.36`;
+function browserUserAgent(): string {
+  const fallback = app.userAgentFallback;
+  const platform = /\(([^)]+)\)/.exec(fallback)?.[1] ?? "Macintosh; Intel Mac OS X 10_15_7";
+  const chrome = /Chrome\/(\d+)/.exec(fallback)?.[1] ?? "140";
+  return `Mozilla/5.0 (${platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chrome}.0.0.0 Safari/537.36`;
 }
 
 /**
@@ -56,18 +59,10 @@ export function createBrowse(window: BrowserWindow, onState: (state: BrowseState
 
   function create(): WebContentsView {
     const browsing = session.fromPartition(partition);
-    browsing.setUserAgent(mobileUserAgent());
-    // Chromium keeps sending desktop client hints, which sites trust over the user agent string.
-    // The colour scheme goes with them, for pages that pick their theme on the server.
+    browsing.setUserAgent(browserUserAgent());
+    // The colour scheme as a client hint too, for pages that pick their theme on the server.
     browsing.webRequest.onBeforeSendHeaders((details, callback) => {
-      callback({
-        requestHeaders: {
-          ...details.requestHeaders,
-          "Sec-CH-UA-Mobile": "?1",
-          "Sec-CH-UA-Platform": '"Android"',
-          "Sec-CH-Prefers-Color-Scheme": "dark",
-        },
-      });
+      callback({ requestHeaders: { ...details.requestHeaders, "Sec-CH-Prefers-Color-Scheme": "dark" } });
     });
     // The overlay never needs the camera, microphone, location or notifications, so nothing gets to ask.
     browsing.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));

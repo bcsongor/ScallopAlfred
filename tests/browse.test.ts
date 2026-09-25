@@ -42,10 +42,9 @@ test("the browse tab opens web pages beside the threads", { timeout: 60000 }, as
   assert.equal((await desktop.window()).focusable, true);
   assert.equal(await desktop.page.locator("#answer").isVisible(), false);
 
-  // The pane is about as wide as a phone, so sites are asked for their mobile layout in dark.
+  // Sites see a plain desktop Chrome that agrees with its own platform, asked for its dark theme.
   const agent = await desktop.inBrowsedPage("navigator.userAgent") as string;
-  assert.match(agent, /Mobile Safari/);
-  assert.doesNotMatch(agent, /Electron/);
+  assert.doesNotMatch(agent, /Electron|Mobile/);
   assert.equal(await desktop.inBrowsedPage('matchMedia("(prefers-color-scheme: dark)").matches'), true);
 
   // A scrollbar would cost real width in a pane this narrow, so it is hidden. Scrolling still works.
