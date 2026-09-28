@@ -10,7 +10,7 @@
   "type": "module",
   "main": "app/main.ts",
   "scripts": {
-    "start": "electron --experimental-strip-types .",
+    "start": "node app/start.ts",
     "check": "tsc --noEmit && tsc --noEmit -p tests",
     "test": "node --test \"tests/**/*.test.ts\""
   },
