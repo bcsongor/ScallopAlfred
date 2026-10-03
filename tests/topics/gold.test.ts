@@ -66,7 +66,7 @@ test("Make gold adds specialisations, grouped stacks and the open profession's r
   const parsed = game.payload();
   assert.equal(parsed.category, "gold");
   assert.equal(parsed.question, "How should I make gold with what I have?");
-  assert.deepEqual(parsed.professions?.entries[0].specialization?.paths, [{ id: 10, name: "Path 110", rank: 20, maxRank: 40 }]);
+  assert.deepEqual(parsed.professions?.entries[0].expansions?.[0].specialization?.paths, [{ id: 10, name: "Path 110", rank: 20, maxRank: 40 }]);
   assert.equal(parsed.inventory?.capturedAt, 1800000000);
   assert.equal(parsed.inventory?.moneyCopper, 987654);
   assert.equal(parsed.inventory?.bankIncluded, true);

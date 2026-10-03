@@ -5,13 +5,13 @@ local TraitTree = addon.TraitTree
 local Professions = {}
 addon.Professions = Professions
 
+-- One expansion's specialisation tree. Expansions before Dragonflight have none and report no config.
 -- Profession data can be unavailable until its window has been opened, so every read is optional.
 local function specialization(skillLineID)
     local configID = Count(Read(C_ProfSpecs.GetConfigIDForSkillLine, skillLineID))
     if not configID or configID == 0 then return end
     local currency = Read(C_ProfSpecs.GetCurrencyInfoForSkillLine, skillLineID)
     local result = {
-        skillLineID = skillLineID,
         unspentKnowledge = currency and Count(currency.numAvailable),
         hasStagedChanges = Public(Read(C_Traits.ConfigHasStagedChanges, configID), "boolean"),
         paths = {},
@@ -45,7 +45,7 @@ local function specialization(skillLineID)
     return result
 end
 
--- Every profession's skills, and its specialisation tree when `includeSpecializations` is set.
+-- Every profession's skills, and each expansion's specialisation tree when `includeSpecializations` is set.
 function Professions.Read(includeSpecializations)
     local lines = Read(C_TradeSkillUI.GetAllProfessionTradeSkillLines) or {}
     local entries = {}
@@ -71,15 +71,14 @@ function Professions.Read(includeSpecializations)
                 end
                 local info = childID and infoBySkillLine[childID]
                 if info and Count(info.parentProfessionID) == skillLineID then
-                    local lineName = Public(info.professionName, "string")
+                    -- Each tree sits on its own expansion's line, so the player can ask about any of them.
                     profession.expansions[#profession.expansions + 1] = {
-                        skillLineID = childID, name = lineName, expansionName = Public(info.expansionName, "string"),
+                        skillLineID = childID, name = Public(info.professionName, "string"),
+                        expansionName = Public(info.expansionName, "string"),
                         skillLevel = Count(info.skillLevel), maxSkillLevel = Count(info.maxSkillLevel),
                         skillModifier = Count(info.skillModifier),
+                        specialization = includeSpecializations and Read(specialization, childID) or nil,
                     }
-                    if includeSpecializations and profession.skillLineName and lineName == profession.skillLineName then
-                        profession.specialization = Read(specialization, childID)
-                    end
                 end
             end
             entries[#entries + 1] = profession
