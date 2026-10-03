@@ -5,9 +5,12 @@ local Subjects = addon.Subjects
 local GreatVault = {}
 addon.GreatVault = GreatVault
 
--- Reward links only exist once the vault has rolled after the weekly reset.
-function GreatVault.HasRewards()
-    return Read(C_WeeklyRewards.HasAvailableRewards) == true
+-- True while the vault window is open with rewards to pick. Rewards stay available all week until claimed, so
+-- the window is what says the player is choosing now. The frame exists only after its addon loads, and reward
+-- links only once the vault has rolled after the weekly reset.
+function GreatVault.IsChoosing()
+    return Read(function() return WeeklyRewardsFrame:IsShown() end) == true
+        and Read(C_WeeklyRewards.HasAvailableRewards) == true
 end
 
 -- Everything the vault offers. Unlocked slots offer items; the concession offers items or currencies, such as a

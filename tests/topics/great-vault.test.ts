@@ -3,10 +3,10 @@ import { test } from "node:test";
 import { addon } from "../fixtures/addon.ts";
 
 // Progress counts the current week, so an unlocked slot from last week can already be below its threshold.
-test("Great Vault shows once rewards roll and sends every rewarded item and currency with the full equipped set", () => {
+test("Great Vault shows while its window offers rewards and sends every rewarded item and currency with the full equipped set", () => {
   const game = addon();
   game.execute(`
-    tooltipHidden = true; ScallopAlfred_Ask()
+    tooltipHidden = true; vaultWindow = true; ScallopAlfred_Ask()
     assert(not pcall(choose, "Great Vault"))
     vaultActivities = {
       { progress = 1, threshold = 1, rewards = { { itemDBID = 7 } } },
@@ -14,7 +14,10 @@ test("Great Vault shows once rewards roll and sends every rewarded item and curr
       { progress = 0, threshold = 4, rewards = {} },
       { progress = 3, threshold = 3, rewards = { { type = 1, id = 3 }, { type = 2, id = 3418 }, { itemDBID = 9 } } },
     }
-    ScallopAlfred_Ask(); choose("Great Vault")
+    -- Unclaimed rewards wait all week, so they alone don't mean the player is choosing.
+    vaultWindow = false; ScallopAlfred_Ask()
+    assert(not pcall(choose, "Great Vault"))
+    vaultWindow = true; ScallopAlfred_Ask(); choose("Great Vault")
   `);
   const request = game.payload();
   assert.equal(request.category, "vault");

@@ -161,6 +161,8 @@ TSM_API = {
 }
 -- The vault offers nothing until a test sets `vaultActivities`, a list of
 -- `{ progress = ..., threshold = ..., rewards = { { itemDBID = ... } or { type = 2, id = <currency> } } }`.
+-- Its window is closed until a test sets `vaultWindow`.
+WeeklyRewardsFrame = { IsShown = function() return vaultWindow or false end }
 C_WeeklyRewards = {
   HasAvailableRewards = function() return vaultActivities ~= nil end,
   GetActivities = function() return vaultActivities end,
