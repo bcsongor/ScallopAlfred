@@ -4,7 +4,7 @@ import { createBrowse } from "./browse.ts";
 import { heightRange, widthRange, type Config } from "./config.ts";
 import { fromOverlay, overlayRequests, type FromOverlay, type OverlayRequests, type ToOverlay } from "./ipc.ts";
 
-export const iconPath = join(import.meta.dirname, "..", "assets", "scallop.jpg");
+export const iconPath = join(import.meta.dirname, "..", "assets", "inv_misc_shell_03.jpg");
 
 /**
  * Creates the always-on-top overlay window. It never takes focus from the game on its own. The

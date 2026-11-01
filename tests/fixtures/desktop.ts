@@ -14,7 +14,7 @@ app.setPath("userData", data);
 const settingsPath = join(data, "settings.json");
 if (!existsSync(settingsPath)) writeFileSync(settingsPath, JSON.stringify({ height: 360 }));
 
-const scallop = nativeImage.createFromPath(join(import.meta.dirname, "..", "..", "assets", "scallop.jpg")).toPNG();
+const scallop = nativeImage.createFromPath(join(import.meta.dirname, "..", "..", "assets", "inv_misc_shell_03.jpg")).toPNG();
 let menu: TrayItem[] = [];
 let trayClick = (): void => {};
 
