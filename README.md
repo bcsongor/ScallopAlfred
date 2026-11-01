@@ -17,7 +17,7 @@ Alfred isn't a generic chatbot. He sees your character: class, spec, gear, bags,
 
 ## Install
 
-It takes a few minutes. You need Windows, a ChatGPT account that includes Codex, and [Node.js](https://nodejs.org) 24 or later. Run WoW in windowed or windowed fullscreen mode.
+It takes a few minutes. You need Windows, a ChatGPT account that includes Codex, and [Node.js](https://nodejs.org) 26 or later. Run WoW in windowed or windowed fullscreen mode.
 
 1. On GitHub, click **Code** → **Download ZIP** and unzip it.
 2. Rename the folder from `ScallopAlfred-main` to `ScallopAlfred` and move it to `World of Warcraft\_retail_\Interface\AddOns\`.

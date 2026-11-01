@@ -18,7 +18,7 @@ export function addon() {
   lualib.luaL_openlibs(state);
   const execute = (source: string): void => {
     const code = lauxlib.luaL_dostring(state, to_luastring(source));
-    assert.equal(code, lua.LUA_OK, code === lua.LUA_OK ? undefined : lua.lua_tojsstring(state, -1) ?? undefined);
+    if (code !== lua.LUA_OK) assert.fail(lua.lua_tojsstring(state, -1) ?? "The Lua chunk failed");
   };
   const value = (name: string): string | null => {
     lua.lua_getglobal(state, name);
