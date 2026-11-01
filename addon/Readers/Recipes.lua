@@ -6,7 +6,7 @@ local Recipes = {}
 addon.Recipes = Recipes
 
 local function marketCopper(itemID)
-    local item = TSM_API and Public(Read(TSM_API.ToItemString, "item:" .. itemID), "string")
+    local item = Subjects.TsmItem("item:" .. itemID)
     return item and Count(Read(TSM_API.GetCustomPriceValue, "DBMarket", item))
 end
 

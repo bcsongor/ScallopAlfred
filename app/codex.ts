@@ -59,33 +59,17 @@ const configResult = z.object({ config: z.object({ mcp_servers: z.record(z.strin
 const apiKeyVariables = new Set(["OPENAI_API_KEY", "CODEX_API_KEY"]);
 
 export function createCodex({ codexPath, model, workspace }: CodexOptions): Codex {
+  const run = (options: Pick<RunOptions, "prompt" | "signal" | "threadId" | "onText" | "onActivity">) =>
+    runCodex({ executable: findCodex(codexPath), args: codexArguments, cwd: workspace, model, ...options });
   return {
     ask: async (request, { signal, session, onText, onActivity }) => {
-      const { text, threadId } = await runCodex({
-        executable: findCodex(codexPath),
-        args: codexArguments,
-        prompt: buildPrompt(request),
-        cwd: workspace,
-        signal,
-        model,
-        threadId: resumableSession(request, session)?.id,
-        onText,
-        onActivity,
+      const { text, threadId } = await run({
+        prompt: buildPrompt(request), signal, threadId: resumableSession(request, session)?.id, onText, onActivity,
       });
       return { text, session: { context: request.context, id: threadId } };
     },
     // A fresh Codex thread each time, so the player's own thread never sees the naming turn.
-    title: async (turns, signal) => {
-      const { text } = await runCodex({
-        executable: findCodex(codexPath),
-        args: codexArguments,
-        prompt: titlePrompt(turns),
-        cwd: workspace,
-        signal,
-        model,
-      });
-      return cleanTitle(text);
-    },
+    title: async (turns, signal) => cleanTitle((await run({ prompt: titlePrompt(turns), signal })).text),
   };
 }
 

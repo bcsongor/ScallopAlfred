@@ -14,7 +14,7 @@ for index = 1, 5 do add("warbank", "AccountBankTab_" .. index) end
 local function newEntry(link)
     local entry = Subjects.Item(link)
     entry.count = { bags = 0, bank = 0, warbank = 0 }
-    local item = TSM_API and Public(Read(TSM_API.ToItemString, entry.link), "string")
+    local item = Subjects.TsmItem(entry.link)
     if item then
         entry.auctionCount = Count(Read(TSM_API.GetAuctionQuantity, item))
         entry.mailCount = Count(Read(TSM_API.GetMailQuantity, item))

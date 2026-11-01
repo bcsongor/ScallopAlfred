@@ -23,10 +23,14 @@ local tsmSources = {
 local Subjects = {}
 addon.Subjects = Subjects
 
+-- TSM's item string for a link, or nil without TSM. Every TSM lookup is keyed by it.
+function Subjects.TsmItem(link)
+    return TSM_API and Public(Read(TSM_API.ToItemString, link), "string")
+end
+
 -- Read TSM's cached values only. A missing source must not prevent copying a question.
 function Subjects.Prices(link)
-    if not TSM_API then return end
-    local item = Public(Read(TSM_API.ToItemString, link), "string")
+    local item = Subjects.TsmItem(link)
     if not item then return end
     local prices = {}
     for field, source in pairs(tsmSources) do
