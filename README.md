@@ -2,6 +2,8 @@
 
 Ask an AI about World of Warcraft without alt-tabbing. Hover an item, press Alt+Q, pick a question, and the answer appears in a small window on top of the game.
 
+![The Alt+Q menu in WoW next to Alfred's overlay, which ranks ways to make gold from the player's bags with item icons and gold amounts](screenshots/make-gold.png)
+
 Alfred sees what you see. Ask "Is it an upgrade?" and he knows your class, spec and the gear you're wearing. Ask how to make gold and he gets your bags, your professions and your recipes, plus auction prices if you use TradeSkillMaster. Answers come from [Codex](https://developers.openai.com/codex/cli/), OpenAI's assistant, which searches the web for current guides and patch notes.
 
 ## How it works
@@ -50,6 +52,8 @@ What the menu offers depends on what you're doing.
 
 **Hovering something.** Hover an item, spell, quest, currency or achievement before pressing Alt+Q, and you get ready-made questions about it. Items get "What's this for?", "Is it an upgrade?", "Keep, sell or disenchant?" and "Where does it drop?". Quests work from the quest log and the map too, but not from the objective tracker.
 
+![The Alt+Q menu for a hovered pair of bracers, with Alfred's answer to "Is it an upgrade?" comparing them to the equipped pair](screenshots/is-it-an-upgrade.png)
+
 **Targeting an NPC.** With nothing hovered and an NPC targeted, you get "What should I know about my target?". In some places, like delves, WoW hides who the target is. Alfred tells you, and you can type its name in a custom question instead.
 
 **Anything else.** These buttons are always there:
@@ -70,6 +74,8 @@ What the menu offers depends on what you're doing.
 | **Selected achievement** | You've clicked an achievement in the Achievements window | How to earn it, step by step, with your progress on each part |
 | **Altar of Corrosion** | The Altar's talent window is open | What to buy next with your Spirit Corrosion |
 | **Corrosive Codex** | The Codex window is open, at the Altar or a Delve projection | Which power to unlock or equip next |
+
+![The menu with a green Altar of Corrosion button at the top, and Alfred's advice on which Altar talents to buy next](screenshots/altar-of-corrosion.png)
 
 **Asking about several things at once.** In any question box, Shift-click links to add them, up to eight. Press Enter, then Ctrl+C to copy.
 
